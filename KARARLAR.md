@@ -4,6 +4,29 @@ Bu dosyada projede verilen kararlar, yapılan varsayımlar ve bilinen sınırlar
 
 ---
 
+## Showroom Paketi başladı; kod bu depoda (15 Kasım 2026)
+
+- **Depo:** Fatih Bey'in kararı: Showroom Paketi `bigplanbigidea` deposunda kurulur. Atelier'in kodu `ormen3xd` deposundan (`d5cb8aa`) temel olarak alındı; tanıtım videosu alınmadı. Yayındaki site hâlâ `ormen3xd`'den çıkıyor; Vercel bu depoya çevrilene kadar burada yapılan hiçbir şey yayına gitmez.
+- **Para harcanmayacak (Fatih Bey).** Ücretli hiçbir servis çağrılmaz, ücretli bağımlılık eklenmez. Sonuçları:
+  - Anında giydirme (İş 5) ve müşterinin salonu (İş 15) sağlayıcı arayüzü, kota, maliyet kaydı, etiket ve test sayfasıyla birlikte yazılır; arkasında yalnızca sahte sağlayıcı durur. Gerçek sağlayıcı, anahtar verildiği gün tek dosyayla eklenir. O güne kadar ekrandaki düğme kapalıdır; yarım özellik gösterilmez.
+  - Bildirim: yalnızca panel listesi ve hazır WhatsApp bağlantısı. E-posta servisi yok.
+- **Kumaş eni 140 cm (Fatih Bey).** Metraj hesabı 140 cm ene göre yapılır; model metrajının geçerli olduğu en varsayılan olarak 140'tır. Eni farklı girilmiş bir kumaşta sayı gösterilmez, nedeni yazar (eski kural).
+- **Numune taleplerindeki ad ve telefon** ORMEN panelinde görünmeye devam eder (6 Ekim kararı değişmedi). Yeni kural yalnızca yeni verilere uygulanır: teklifteki müşteri adı ve "ilgilenen müşteriler".
+- Görev tanımının eski kararlarla çeliştiği yerler ve seçilen yol: `PLAN-SHOWROOM.md`, 3. bölüm.
+
+## İş 0, 1. dilim: merkez şeması ve yetki kuralları (15 Kasım 2026)
+
+- **Dosya:** `supabase/migrations/20261115000000_merkez.sql`; geri alma: `supabase/geri-al/20261115000000_merkez.sql`. Yalnızca ekler. Canlı veritabanına **uygulanmadı**.
+- **Roller:** Yeni rol sütunu açılmadı; `profiles.role` zaten vardı. `admin` = ORMEN yöneticisi, `staff` = ORMEN elemanı. Mağaza sahibi `profiles`'ta değil, `firm_members`'ta durur. Satıcının hesabı yok; eşleşmiş cihaz ve firma PIN'i ile çalışır.
+- **Herkese açık tablolara gizli alan konmadı.** `firms` ve `firm_models` ziyaretçiye açık okunuyor. Bu yüzden PIN, yetkili kişi, paket ve kota `firm_admin` tablosunda; mağazanın satış fiyatı `firm_prices` tablosunda. İkisi de ziyaretçiye kapalı.
+- **Ortak ve mağazaya özel ürün:** Ayrım zaten vardı (`models.firm_id` boş ya da dolu); veri taşınmadı. Özel ürünün başka mağazaya atanmasını veritabanı reddeder (tetikleyici), kim denerse denesin.
+- **ORMEN elemanı:** Fiyatı ve aboneliği okuyamaz, yazamaz; kumaş, mağaza, model, cihaz ve geri bildirim silemez. Eski kurallara dokunulmadı; üstlerine kısıtlayıcı kural eklendi.
+- **İçerik sürümü:** `firms.content_version`. Mağazanın kendi adı, ayarı, özelliği, ataması ya da fiyatı değişince yalnızca o mağazada; ortak ürün değişince atandığı mağazalarda; kumaş değişince bütün mağazalarda artar. Tetikleyiciler satır başına değil işlem başına çalışır: ilk denemede 2.000 ürünlük örnek veri 175 saniye sürdü, işlem başına çevrilince test 6 saniyeye indi.
+- **Test (`tests/unit/merkez.test.ts`, PGlite):** göç dosyası uygulanır, geri alınır, yeniden uygulanır; ziyaretçi yeni tabloların hiçbirini göremez; A mağazasının sahibi B'nin cihazını ve fiyatını numarasını bilse de okuyamaz, yazamaz; eleman fiyat ve aboneliğe doğrudan sorguyla da ulaşamaz ve silemez; değişiklik günlüğüne yalnızca sunucu yazar; 100 mağaza, 2.000 ürün ve 300 cihazda mağaza listesi 2 saniyenin altında.
+- **Bilinen sınır:** Uygulamanın sunucu tarafı bugün gizli anahtarla çalışıyor ve satır kurallarını aşıyor. Bu yüzden aynı kurallar bir sonraki dilimde sunucu işlemlerine de konacak; mağaza paneli ise gizli anahtarı hiç kullanmayacak.
+
+---
+
 ## Kurulum durumu sayfası (5 Ekim 2026)
 
 - Panelde **Kurulum** sekmesi (`/panel/durum`): Supabase bağlantısı, beş tablo dosyasından hangilerinin çalıştırıldığı (her biri yarattığı tablo/sütun/fonksiyon/klasör sınırıyla tespit ediliyor), kumaş ve model durumu, alan adı (panelin açıldığı adresle karşılaştırılarak), WhatsApp numarası, üretimde demo giriş. Elle yapılacak üç iş (KVKK, telefonda AR, güvenlik duvarı) ayrı "Sizde" olarak listeleniyor.

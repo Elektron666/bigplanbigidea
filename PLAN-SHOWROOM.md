@@ -2,7 +2,9 @@
 
 ORMEN Atelier'e eklenecek Showroom Paketi'nin (İş 0–16) uygulama planı. Görev tanımı: `ORMEN Atelier — Showroom Paketi, tam kapsam`. Tarih: 15 Kasım 2026.
 
-**Durum: plan hazır, kod yazılmadı. Sondaki 5 sorunun cevabı bekleniyor.**
+**Durum: sorular cevaplandı (aşağıda), Dalga 1 başladı. İlerleme: `KARARLAR.md`.**
+
+**Cevaplar (Fatih Bey, 15 Kasım):** kod bu depoda kurulur, `ormen3xd`'den alınır · para harcanmaz (ücretli sağlayıcı çağrısı yok, e-posta servisi yok) · kumaş eni 140 cm · numune akışı aynen kalır.
 
 ---
 
