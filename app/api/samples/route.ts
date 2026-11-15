@@ -1,0 +1,39 @@
+import { NextResponse } from "next/server";
+import { getRepository } from "@/lib/data";
+import { allow, callerKey } from "@/lib/rate-limit";
+import { validateSample } from "@/lib/samples";
+
+// Receives a sample request from the configurator form. No IP or device data
+// is stored with it; only what the customer typed and the chosen fabrics.
+
+export async function POST(request: Request) {
+  if (!allow("numune", callerKey(request.headers), 5, 10 * 60_000)) return NextResponse.json({ error: "Çok sık gönderildi; biraz sonra tekrar deneyin." }, { status: 429 });
+  const text = await request.text();
+  if (text.length > 4000) return NextResponse.json({ error: "İstek çok büyük." }, { status: 413 });
+  let body: unknown;
+  try {
+    body = JSON.parse(text);
+  } catch {
+    return NextResponse.json({ error: "Geçersiz istek." }, { status: 400 });
+  }
+  // honeypot filled in: answer like a success, store nothing
+  if (typeof (body as { web?: unknown })?.web === "string" && (body as { web: string }).web.trim()) return NextResponse.json({ id: "ok" }, { status: 201 });
+  const result = validateSample(body as Record<string, never>);
+  if (!result.ok) return NextResponse.json({ errors: result.errors }, { status: 422 });
+
+  const repo = getRepository();
+  const all = await repo.listFabrics();
+  const fabrics = new Set(all.map((f) => f.code));
+  if (result.value.fabricCodes.some((c) => !fabrics.has(c))) {
+    return NextResponse.json({ errors: { fabricCodes: "Bilinmeyen kumaş kodu." } }, { status: 422 });
+  }
+  // a stand-in fabric is not a product: no sample of it can be promised
+  const examples = new Set(all.filter((f) => f.isPlaceholder).map((f) => f.code));
+  if (result.value.fabricCodes.some((c) => examples.has(c))) {
+    return NextResponse.json({ errors: { fabricCodes: "Örnek kumaşın numunesi yok; gerçek bir ORMEN kumaşı seçin." } }, { status: 422 });
+  }
+  // a firm that no longer exists (or a made-up slug) is not attributed
+  const firm = result.value.firmSlug ? await repo.getFirmBySlug(result.value.firmSlug) : null;
+  const saved = await repo.createSampleRequest({ ...result.value, firmSlug: firm?.slug ?? null });
+  return NextResponse.json({ id: saved.id }, { status: 201 });
+}

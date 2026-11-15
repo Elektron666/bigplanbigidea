@@ -1,0 +1,84 @@
+# Kumaş Çekim Rehberi
+
+Konfigüratördeki kumaşın gerçeğe benzemesi, büyük ölçüde fotoğrafa bağlı. Bu rehber, ORMEN ekibinin telefonla ya da fotoğraf makinesiyle panele yüklenecek kumaş fotoğrafını nasıl çekeceğini anlatır. Bir kumaş yaklaşık 5 dakika sürer.
+
+## Gerekenler
+
+- Kumaştan en az **50 × 50 cm** bir parça (top kenarından değil, ortadan).
+- Düz, büyük bir masa ya da zemin.
+- **Cetvel ya da şerit metre** (cm yazısı okunabilir olmalı).
+- Gün ışığı alan bir pencere ya da iki eşit lamba. Mümkünse **gri kart** (fotoğrafçılık mağazalarında ucuza satılır; renk doğruluğu için).
+- Telefon ya da fotoğraf makinesi. Sabit tutmak için tripod ya da kitap yığını işe yarar.
+
+## Işık
+
+- **Doğrudan güneş olmasın.** Güneş vuran yerde gölgeler ve parlama kumaşın gerçek rengini bozar. Bulutlu gün ya da kuzey cepheli pencere idealdir.
+- Işık **iki yandan eşit** gelmeli. Tek pencere varsa karşı tarafa beyaz bir karton koyun, gölgeyi açar.
+- Tavan lambasını kapatın; sarı ve beyaz ışığı karıştırmayın.
+- Flaş kullanmayın.
+
+## Kalibrasyon kartı (önerilen yol)
+
+Panelden **Kalibrasyon kartı**nı basın (`/panel/kalibrasyon-karti`): %100 ölçek, A4. Alttaki çubuk cetvelle tam 10,0 cm olmalı. Ortadaki kareyi kesin, kartı kumaşın üstüne düz koyun ve dört siyah işaret de görünecek şekilde tepeden çekin. Panelde "Fotoğrafta ORMEN kalibrasyon kartı var"ı işaretleyince ölçek ve açı karttan gelir: cetvel ölçüsü yazmak, açıyı dert etmek gerekmez.
+
+Kart rengi de düzeltir: ışığın sarılığı, maviliği ve pozlama farkı kartın beyaz kâğıdına göre alınır. Bunun için:
+- Düz, mat, beyaz kâğıt kullanın (renkli, geri dönüşümlü ya da parlak değil).
+- Pencerenin iki yanına ve altına yazı yazmayın, gölge düşürmeyin.
+- Kumaş ve kart aynı ışıkta olsun; pencere ışığıyla lambayı karıştırmayın.
+- Kâğıt fotoğrafta bembeyaz patlarsa renk düzeltilmez, panel uyarır. Ekranda dokunup pozlamayı biraz düşürün.
+
+Kartı ilk kez kullanırken milimetrik kâğıdın üstüne koyup çekin ve Panel → Kart denemesi (`/panel/kart-deneme`) sayfasında ölçün. Hata %2'nin altındaysa kart ve telefon tamamdır.
+
+## Kumaşı serme
+
+1. Kumaşı ütüleyin ya da gergin serin; **kırışık olmasın**.
+2. Desen ya da örgü düz dursun: çizgiler yamuk değil, kenara paralel.
+3. Kadife ve şönilde tüyün yönü önemlidir. Elinizle bir yöne sıvazlayıp **hep aynı yönde** çekin ve bu yönü not edin.
+
+## Çekim
+
+1. Telefonu kumaşa **tam tepeden, paralel** tutun. Açılı çekilen fotoğrafta desen bir uçta büyük, öbür uçta küçük görünür.
+2. Kumaşın **yaklaşık 20 × 20 cm** bir alanı kareye girsin. Desenli kumaşta (jakar, ekose) en az iki tam desen tekrarı görünmeli.
+3. **Cetveli kumaşın yanına** koyun; ilk fotoğrafı cetvelle çekin. Fotoğraftaki alanın kaç cm olduğunu bu fotoğraftan okuyacaksınız.
+4. Gri kartınız varsa ikinci fotoğrafa onu da koyun.
+5. Telefonun yakınlaştırmasını değil, kendinizi yaklaştırın. Portre modu, filtre ve "güzelleştirme" kapalı olsun.
+6. Netlik kumaşın ortasında olsun; bulanık fotoğraf koltukta "boyanmış" gibi görünür.
+
+**Desenli kumaşta özellikle:** MISSO fotoğrafları kumaş topun üzerindeyken, açılı ve dökümlü çekilmişti. Ancak elle düzeltilerek kullanılabildi. Desenli kumaşı düz bir masaya serin, tepeden çekin, cetvelle bir desen dişinin (ya da raporunun) boyunu ölçüp not edin. Bu ölçü olmadan desen koltukta doğru büyüklükte görünmez.
+
+**Desenli kumaşta boy (11 Ekim, Ar-Ge ölçümü):** Kumaşı **desenin en az bir tam dikey tekrarı** kadar uzun serip çekin; zikzak gibi bant desenlerde bu çoğu zaman 1–1,5 m'dir. Tekrarın başladığı ve bittiği yeri (aynı renk bandının yeniden geldiği yeri) cetvelle ölçüp not edin. MISSO fotoğraflarında tam tekrar yoktu; koltukta tekrar çizgisinde ince bir iz kalmasının sebebi bu.
+
+## Panele yüklemeden önce
+
+- Fotoğrafı **kare** kırpın (cetvel kadrajın dışında kalsın) ve kırptığınız karenin **kaç cm geldiğini** not edin. Panelde "Fotoğraftaki alanın eni (cm)" bu değerdir. Bu değer yanlışsa ilmekler koltukta dev ya da minicik görünür.
+- Fotoğraf en az **2000 piksel** genişliğinde olsun (telefonların hepsi bunu aşar).
+- Dosya adını kumaş koduyla verin: `SIENA-07.jpg`. Toplu eklemede fotoğraf bu adla eşleşir.
+
+## Panelde kontrol
+
+1. **Kumaşlar → Yeni kumaş** → fotoğrafı sürükleyin, eni yazın.
+2. Panel "Doku dikişsiz tekrar ediyor" diyorsa tamam. "Kenarları birbirini tutmuyor" diyorsa **Kenarları yumuşat**'ı işaretleyin ya da daha düz, daha eşit ışıkla yeniden çekin.
+3. **Ölçek kontrol (10 cm)** kutusunu açın: koltuktaki kırmızı karelerin her biri gerçekte 10 cm'dir. Elinizdeki kumaşta 10 cm'ye kaç ilmek/çizgi sığıyorsa koltukta da o kadar sığmalı.
+   Altında açılan **düz ölçek ve dikiş kontrolü** kumaşı ekranda gerçek boyunda gösterir: gerçek kumaşı ekranın yanına koyun. Ortadaki ince kırmızı çizgiler dört tekrarın birleştiği yerdir; orada desen kayıyorsa ya da iz varsa fotoğrafı yeniden çekin. Ekrandaki 10 cm çizgisini bir kez gerçek cetvelle ayarlayın.
+4. Rengi, kumaşı ekranın yanına tutarak karşılaştırın. Fark büyükse ışığı kontrol edip yeniden çekin. Ekranlar arasında küçük fark her zaman olur; sitede "karar öncesi numune isteyin" uyarısı bu yüzden var.
+
+## Künye bilgileri
+
+Kompozisyon, gramaj, en, Martindale ve yanmazlık değerlerini **yalnızca teknik föyden** girin. Bilmediğiniz alanı boş bırakın; site boş alanı hiç göstermez. Tahmini değer girmeyin: müşteri bu bilgiyle karar verir.
+
+Usta föyündeki metraj için üç bilgi daha gerekiyor:
+- **en**
+- **desen:** düz mü desenli mi? Desenliyse desen raporunun eni ve boyu.
+- **kesim yönü:** tek yön mü (hav ya da desen bir yöne yatıyor, parçalar ters çevrilemez), çift yön mü?
+
+Bunlar da teknik föyden ya da topun etiketinden girilir. Biri boşsa o kumaşta metraj gösterilmez; ekranda "usta teyit eder" yazar. Toplu aktarım dosyasında bu bilgilerin sütunları `desen`, `desen_en_cm`, `desen_boy_cm` ve `kesim_yonu`.
+
+## Sık yapılan hatalar
+
+| Görüntü | Sebep | Çözüm |
+|---|---|---|
+| Koltukta çizgi çizgi tekrar izi | Bir kenar diğerinden aydınlık | Işığı eşitleyin, "Kenarları yumuşat" |
+| İlmekler çok iri | Girilen en (cm) olduğundan büyük | Kırpılan alanı cetvelle yeniden ölçün |
+| Renk soluk ya da sarı | Lamba ışığı, otomatik filtre | Gün ışığı, filtreler kapalı, gri kart |
+| Desen eğri | Açılı çekim ya da kumaş gergin değil | Tam tepeden, kumaşı düzeltin |
+| Yakından bulanık | Netlik kaçmış ya da yakınlaştırma | Kendiniz yaklaşın, ortaya dokunup netleyin |

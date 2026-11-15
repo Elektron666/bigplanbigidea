@@ -1,0 +1,262 @@
+// Furniture layout: which pieces are in the room, where, turned how, in which
+// fabric. Pure data and geometry so it can be tested and shared in a link.
+//
+// Room coordinates (metres): the back wall's inner face is z = 0, the room
+// extends towards +z, x is centred. A piece at rot = 0 faces +z (its back to
+// the back wall); rot = 90 faces +x (its back to the left wall).
+
+import { codeUpper } from "@/lib/i18n/tr";
+import { paramFloorRects, type FloorRect } from "@/lib/parametric/spec";
+import type { FurnitureModel } from "@/lib/types";
+import { L_NOTCH, type RoomSpec } from "./spec";
+import { cleanZones, decodeZones, encodeZones, type ZoneCodes } from "@/lib/three/zones";
+import { DEFAULT_LEG, isLegFinish, type LegFinish } from "@/lib/three/legs";
+
+export interface Placement {
+  id: string;
+  modelSlug: string;
+  fabricCode: string;
+  x: number;
+  z: number;
+  /** Rotation about the vertical axis, degrees. */
+  rot: number;
+  /** Fabrics of single zones (arms, cushions…) that differ from fabricCode. */
+  zones?: ZoneCodes;
+  /** Finish of wooden legs; missing = ceviz (the default). */
+  ayak?: LegFinish;
+  /** "donuk": the fabric is railroaded, its pattern turned 90°; missing = as it comes off the roll. */
+  yon?: "donuk";
+}
+
+export interface Footprint {
+  minX: number;
+  maxX: number;
+  minZ: number;
+  maxZ: number;
+}
+
+/**
+ * Size of a piece, centimetres. `parts` is the real floor shape when it is not
+ * a full rectangle (corner and U sets): the free space inside the L stays usable.
+ */
+export type Dims = { w: number; d: number; parts?: FloorRect[] | null };
+
+/** Layout size of a model, with its floor shape when it has one. */
+export function modelDims(model: Pick<FurnitureModel, "dimensionsCm" | "source">): Dims {
+  const { w, d } = model.dimensionsCm;
+  const parts = model.source.kind === "parametric" ? paramFloorRects(model.source.params) : null;
+  return parts ? { w, d, parts } : { w, d };
+}
+
+/** Gap left between furniture and a wall it is pushed against. */
+export const WALL_GAP = 0.03;
+/** Distance within which a piece snaps to a wall. */
+export const SNAP = 0.1;
+const STUDIO_HALF = 6;
+
+export function normaliseRot(rot: number): number {
+  const r = ((Math.round(rot) % 360) + 360) % 360;
+  return r > 180 ? r - 360 : r;
+}
+
+/** Half extents of the axis-aligned box around a rotated piece, metres. */
+export function halfExtents(dims: Dims, rot: number): { hx: number; hz: number } {
+  const a = (rot * Math.PI) / 180;
+  const w = dims.w / 100, d = dims.d / 100;
+  const c = Math.abs(Math.cos(a)), s = Math.abs(Math.sin(a));
+  return { hx: (w * c + d * s) / 2, hz: (w * s + d * c) / 2 };
+}
+
+export function footprint(p: Pick<Placement, "x" | "z" | "rot">, dims: Dims): Footprint {
+  const { hx, hz } = halfExtents(dims, p.rot);
+  return { minX: p.x - hx, maxX: p.x + hx, minZ: p.z - hz, maxZ: p.z + hz };
+}
+
+/** A floor rectangle (cm, piece-relative) turned and moved into the room, metres. */
+function placeRect(p: Pick<Placement, "x" | "z" | "rot">, r: FloorRect): Footprint {
+  const a = (p.rot * Math.PI) / 180;
+  const c = Math.cos(a), s = Math.sin(a);
+  // same turn as the 3D piece (rotation.y) and the plan: front +z turns to +x at 90°
+  const xs: number[] = [], zs: number[] = [];
+  for (const [x, z] of [[r.x0, r.z0], [r.x1, r.z0], [r.x0, r.z1], [r.x1, r.z1]]) {
+    xs.push(p.x + (x * c + z * s) / 100);
+    zs.push(p.z + (-x * s + z * c) / 100);
+  }
+  const k = (v: number) => Math.round(v * 1e6) / 1e6;
+  return { minX: k(Math.min(...xs)), maxX: k(Math.max(...xs)), minZ: k(Math.min(...zs)), maxZ: k(Math.max(...zs)) };
+}
+
+/** The floor a piece really takes: its box, or each part of an L/U set. */
+export function footprintParts(p: Pick<Placement, "x" | "z" | "rot">, dims: Dims): Footprint[] {
+  return dims.parts?.length ? dims.parts.map((r) => placeRect(p, r)) : [footprint(p, dims)];
+}
+
+const anyOverlap = (a: Footprint[], b: Footprint[], tolerance?: number) => a.some((x) => b.some((y) => overlaps(x, y, tolerance)));
+
+/** Inner rectangle of the room (the whole floor for the studio). */
+export function roomRect(spec: RoomSpec): Footprint {
+  if (spec.shape === "yok") return { minX: -STUDIO_HALF, maxX: STUDIO_HALF, minZ: -STUDIO_HALF / 2, maxZ: STUDIO_HALF };
+  const w = spec.widthCm / 100, d = spec.depthCm / 100;
+  return { minX: -w / 2, maxX: w / 2, minZ: 0, maxZ: d };
+}
+
+/** Which sides of the room rectangle have a wall to snap to. */
+function wallSides(spec: RoomSpec) {
+  const s = spec.shape;
+  return {
+    back: s !== "yok",
+    left: s !== "yok",
+    right: s === "dikdortgen" || s === "l",
+    front: s === "dikdortgen" || s === "l",
+  };
+}
+
+/** The cut-out corner of an L room (front-right), or null. */
+function notch(spec: RoomSpec): Footprint | null {
+  if (spec.shape !== "l") return null;
+  const r = roomRect(spec);
+  return { minX: r.maxX - (spec.widthCm / 100) * L_NOTCH, maxX: r.maxX, minZ: r.maxZ - (spec.depthCm / 100) * L_NOTCH, maxZ: r.maxZ };
+}
+
+export function overlaps(a: Footprint, b: Footprint, tolerance = 0.01): boolean {
+  return a.minX < b.maxX - tolerance && a.maxX > b.minX + tolerance && a.minZ < b.maxZ - tolerance && a.maxZ > b.minZ + tolerance;
+}
+
+/**
+ * Keeps a piece inside the room and lets it snap to nearby walls.
+ * Returns the corrected position (rotation unchanged).
+ */
+export function constrain(p: Placement, dims: Dims, spec: RoomSpec): Placement {
+  const { hx, hz } = halfExtents(dims, p.rot);
+  const r = roomRect(spec);
+  const sides = wallSides(spec);
+  const minX = r.minX + (sides.left ? WALL_GAP : 0) + hx;
+  const maxX = r.maxX - (sides.right ? WALL_GAP : 0) - hx;
+  const minZ = r.minZ + (sides.back ? WALL_GAP : 0) + hz;
+  const maxZ = r.maxZ - (sides.front ? WALL_GAP : 0) - hz;
+
+  const clamp = (v: number, lo: number, hi: number) => (lo > hi ? (lo + hi) / 2 : Math.min(hi, Math.max(lo, v)));
+  let x = clamp(p.x, minX, maxX);
+  let z = clamp(p.z, minZ, maxZ);
+
+  // magnetic walls
+  if (sides.back && z - minZ < SNAP) z = minZ;
+  if (sides.left && x - minX < SNAP) x = minX;
+  if (sides.right && maxX - x < SNAP) x = maxX;
+  if (sides.front && maxZ - z < SNAP) z = maxZ;
+
+  // keep out of the L notch: push out along the shorter way
+  const n = notch(spec);
+  if (n) {
+    const f = { minX: x - hx, maxX: x + hx, minZ: z - hz, maxZ: z + hz };
+    if (overlaps(f, n, 0)) {
+      const pushX = f.maxX - (n.minX - WALL_GAP);
+      const pushZ = f.maxZ - (n.minZ - WALL_GAP);
+      if (pushX <= pushZ) x -= pushX;
+      else z -= pushZ;
+    }
+  }
+  return { ...p, x: round(x), z: round(z), rot: normaliseRot(p.rot) };
+}
+
+const round = (v: number) => Math.round(v * 1000) / 1000;
+
+/**
+ * Finds a free spot for a new piece: along the back wall first, then against
+ * the side walls, then anywhere on a grid. Prefers spots close to the centre.
+ */
+export function findFreeSpot(
+  dims: Dims,
+  spec: RoomSpec,
+  placed: { p: Placement; dims: Dims }[],
+): Pick<Placement, "x" | "z" | "rot"> {
+  const r = roomRect(spec);
+  const taken = placed.flatMap((o) => footprintParts(o.p, o.dims));
+  const free = (c: Pick<Placement, "x" | "z" | "rot">) => {
+    const fixed = constrain({ id: "", modelSlug: "", fabricCode: "", ...c }, dims, spec);
+    const f = footprintParts(fixed, dims);
+    const n = notch(spec);
+    if (n && anyOverlap(f, [n], 0)) return null;
+    // a little breathing room between pieces
+    const roomy = taken.map((t) => ({ minX: t.minX - 0.1, maxX: t.maxX + 0.1, minZ: t.minZ - 0.1, maxZ: t.maxZ + 0.1 }));
+    return anyOverlap(f, roomy, 0) ? null : fixed;
+  };
+  const sweep = (from: number, to: number) => {
+    const out: number[] = [];
+    const mid = (from + to) / 2;
+    for (let k = 0; k <= 60; k++) for (const s of k === 0 ? [0] : [-1, 1]) out.push(mid + s * k * 0.1);
+    return out.filter((v) => v >= from && v <= to);
+  };
+  const width = r.maxX - r.minX;
+  const depth = r.maxZ - r.minZ;
+  const candidates: Pick<Placement, "x" | "z" | "rot">[] = [
+    ...sweep(r.minX, r.maxX).map((x) => ({ x, z: r.minZ, rot: 0 })),
+    ...sweep(r.minZ, r.maxZ).map((z) => ({ x: r.minX, z, rot: 90 })),
+    ...sweep(r.minZ, r.maxZ).map((z) => ({ x: r.maxX, z, rot: -90 })),
+  ];
+  for (let gz = 0.5; gz < depth; gz += 0.25)
+    for (const x of sweep(r.minX, r.minX + width)) candidates.push({ x, z: r.minZ + gz, rot: 0 });
+  for (const c of candidates) {
+    const ok = free(c);
+    if (ok) return { x: ok.x, z: ok.z, rot: ok.rot };
+  }
+  // nowhere free: put it in the middle and let the overlap warning speak
+  return { x: 0, z: (r.minZ + r.maxZ) / 2, rot: 0 };
+}
+
+/** Ids of pieces that overlap another piece. */
+export function overlapping(items: { p: Placement; dims: Dims }[]): Set<string> {
+  const out = new Set<string>();
+  for (let i = 0; i < items.length; i++)
+    for (let j = i + 1; j < items.length; j++)
+      if (anyOverlap(footprintParts(items[i].p, items[i].dims), footprintParts(items[j].p, items[j].dims))) {
+        out.add(items[i].p.id);
+        out.add(items[j].p.id);
+      }
+  return out;
+}
+
+// ------------------------------------------------------------ link format ---
+// "moduler-kanepe.LUMA-02.0.52.0_berjer.SIENA-04.150.140.-90"
+// model . fabric . x(cm) . z(cm) . rotation(deg), pieces separated by "_".
+
+export function encodeLayout(items: Placement[]): string {
+  return items
+    .map((p) => {
+      const z = [encodeZones(cleanZones(p.fabricCode, p.zones)), p.ayak && p.ayak !== DEFAULT_LEG ? `a${p.ayak}` : "", p.yon === "donuk" ? "yd" : ""].filter(Boolean).join("~");
+      return [p.modelSlug, p.fabricCode, Math.round(p.x * 100), Math.round(p.z * 100), normaliseRot(p.rot), ...(z ? [z] : [])].join(".");
+    })
+    .join("_");
+}
+
+export function decodeLayout(value: string | null | undefined): Placement[] | null {
+  if (!value) return null;
+  const items: Placement[] = [];
+  for (const [i, part] of value.split("_").entries()) {
+    const [modelSlug, fabricCode, x, z, rot, zonePart, ...extra] = part.split(".");
+    if (!modelSlug || !fabricCode || extra.length || [x, z, rot].some((v) => v === undefined || !/^-?\d+$/.test(v))) return null;
+    // "a…" is the leg finish, the rest are zone fabrics
+    const bits = zonePart ? zonePart.split("~") : [];
+    const leg = bits.find((b) => b[0] === "a");
+    if (leg && !isLegFinish(leg.slice(1))) return null;
+    const turn = bits.find((b) => b[0] === "y");
+    if (turn && turn !== "yd") return null;
+    const zoneBits = bits.filter((b) => b[0] !== "a" && b[0] !== "y");
+    const zones = zoneBits.length ? decodeZones(zoneBits.join("~"), codeUpper) : undefined;
+    if (zones === null) return null;
+    const main = codeUpper(fabricCode);
+    const item: Placement = { id: `m${i + 1}`, modelSlug, fabricCode: main, x: Number(x) / 100, z: Number(z) / 100, rot: normaliseRot(Number(rot)) };
+    const clean = cleanZones(main, zones);
+    if (clean) item.zones = clean;
+    if (leg && leg.slice(1) !== DEFAULT_LEG) item.ayak = leg.slice(1) as LegFinish;
+    if (turn) item.yon = "donuk";
+    items.push(item);
+  }
+  return items.length > 0 && items.length <= 12 ? items : null;
+}
+
+let counter = 0;
+export function newId(): string {
+  counter += 1;
+  return `y${Date.now().toString(36)}${counter}`;
+}

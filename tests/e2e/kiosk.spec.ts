@@ -1,0 +1,92 @@
+import { expect, test } from "./fixtures";
+import { sceneFabrics } from "./helpers";
+
+// the welcome screen's slow turn renders every frame, which a test browser without a
+// graphics card cannot keep up with; reduced motion keeps the fabric loop without it
+test.use({ reducedMotion: "reduce" });
+
+test("kiosk: karşılama, telefona al, uyarı ve ziyaretçi değişince sıfırlanma", async ({ page, isMobile }) => {
+  test.skip(isMobile, "showroom ekranı");
+  test.setTimeout(150_000);
+  await page.clock.install();
+  await page.goto("/f/ornek-mobilya?kiosk=30");
+
+  // welcome screen in the firm's colour
+  const welcome = page.getByRole("button", { name: "Başlamak için dokunun" });
+  await expect(welcome).toBeVisible();
+  await welcome.click();
+  await expect(welcome).toBeHidden();
+  await expect.poll(() => sceneFabrics(page), { timeout: 60_000 }).not.toEqual([]);
+  const first = (await sceneFabrics(page))[0];
+
+  // a visitor tries a fabric, likes it, takes it home by QR
+  await page.getByRole("radio", { name: /VERSO-04/ }).click();
+  await expect.poll(() => sceneFabrics(page), { timeout: 45_000 }).toEqual(["VERSO-04"]);
+  await page.getByRole("button", { name: /beğendiklerime ekle/ }).first().click();
+  await page.getByRole("button", { name: "Telefona al" }).click();
+  await expect(page.getByRole("img", { name: "Telefonda açmak için QR kod" })).toBeVisible();
+  await page.keyboard.press("Escape");
+
+  // idle: warning in the last 10 s, "Devam et" keeps the session
+  await page.clock.fastForward(21_000);
+  await expect(page.getByRole("alertdialog")).toContainText("Hâlâ burada mısınız?");
+  await page.getByRole("button", { name: "Devam et" }).click();
+  await expect(page.getByRole("alertdialog")).toBeHidden();
+
+  // idle again until the reset: back to the welcome screen and the starting fabric
+  await page.clock.fastForward(31_000);
+  await expect(page.getByRole("button", { name: "Başlamak için dokunun" })).toBeVisible({ timeout: 30_000 });
+  expect(page.url()).toMatch(/\/f\/ornek-mobilya\?kiosk=30$/);
+  expect(await page.evaluate(() => sessionStorage.getItem("ormen:begendiklerim"))).toBeNull();
+  await page.getByRole("button", { name: "Başlamak için dokunun" }).click();
+  await expect.poll(() => sceneFabrics(page), { timeout: 60_000 }).toEqual([first]);
+});
+
+test("kiosk: elimdeki kartelanın kodu yazılınca kumaş koltuğa giyer", async ({ page, isMobile }) => {
+  test.skip(isMobile, "showroom ekranı");
+  await page.goto("/f/ornek-mobilya?kiosk");
+  await page.getByRole("button", { name: "Başlamak için dokunun" }).click();
+  await expect.poll(() => sceneFabrics(page), { timeout: 45_000 }).not.toEqual([]);
+  // visitors only try fabrics: no adding or duplicating pieces, no plan
+  await expect(page.getByRole("button", { name: "Mobilya ekle" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Plan", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Çoğalt" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Yönetim" })).toHaveCount(0);
+  const box = page.getByLabel("Elinizdeki kartelanın kodu");
+  // a partial code offers the matches, a full one applies at once, however it is typed
+  await box.fill("sie");
+  await expect(page.getByTestId("kiosk-kod").getByRole("button", { name: /SIENA-0/ })).not.toHaveCount(0);
+  await box.fill("siena 04");
+  await expect.poll(() => sceneFabrics(page)).toEqual(["SIENA-04"]);
+  await box.fill("XYZ-99");
+  await expect(page.getByTestId("kiosk-kod")).toContainText("bulunamadı");
+});
+
+// Acil toplantı (11 Oct): while nobody touches it, the showroom screen turns
+// the sofa and dresses it in ORMEN's real fabrics in turn
+test("kiosk: karşılama ekranında koltuk gerçek kumaşları sırayla giyer", async ({ page, isMobile }) => {
+  test.skip(isMobile, "showroom ekranı");
+  test.setTimeout(120_000);
+  await page.goto("/?kiosk");
+  await expect(page.getByRole("button", { name: "Başlamak için dokunun" })).toBeVisible();
+  // only real fabrics (MISSO) take part; placeholders never do. (Without a graphics card
+  // the cross-fade between two fabrics lasts seconds, so both can be on the scene at once.)
+  await expect.poll(async () => (await sceneFabrics(page)).some((c) => c.startsWith("MISSO-")), { timeout: 60_000, intervals: [500] }).toBe(true);
+  const first = (await sceneFabrics(page)).find((c) => c.startsWith("MISSO-"))!;
+  const seen = new Set<string>();
+  await expect
+    .poll(
+      async () => {
+        const codes = await sceneFabrics(page);
+        codes.forEach((c) => seen.add(c));
+        return codes.some((c) => c.startsWith("MISSO-") && c !== first);
+      },
+      { timeout: 30_000, intervals: [500] },
+    )
+    .toBe(true);
+  // after the first real fabric, nothing but real fabrics
+  seen.delete("LUMA-02"); // the model's own starting fabric, before the loop began
+  expect([...seen].every((c) => c.startsWith("MISSO-"))).toBe(true);
+  // nothing written to the address: the loop is not a visitor's choice
+  expect(page.url()).not.toContain("y=");
+});

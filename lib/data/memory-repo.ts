@@ -1,0 +1,229 @@
+import { codeUpper } from "@/lib/i18n/tr";
+import type { Fabric, Firm, FurnitureModel } from "@/lib/types";
+import { buildSeedFabrics } from "@/lib/seed/fabrics";
+import { buildPhotoFabrics } from "@/lib/seed/photo-fabrics";
+import { SEED_FIRMS, SEED_MODELS } from "@/lib/seed/models";
+import { SHOWCASE_MODELS } from "@/lib/seed/showcase-models";
+import { DuplicateCodeError, DuplicateSlugError, type FabricInput, type FirmInput, type ModelInput, type Repository } from "./repository";
+import { cleanLot, newSampleCode, type SampleRequest, type SampleRequestInput, type SampleStep } from "@/lib/samples";
+import { buildReport, type StoredEvent, type UsageEvent } from "@/lib/events";
+import type { CutReport } from "@/lib/cut-report";
+import type { Feedback, FeedbackInput } from "@/lib/feedback";
+
+/**
+ * In-memory repository backed by the seed catalogue; used when Supabase is
+ * not configured. Everything added through the panel lives only as long as
+ * the server process (and, on Vercel, only on the instance that took it).
+ */
+export class MemoryRepository implements Repository {
+  readonly kind = "memory" as const;
+  readonly persistent = false;
+  private fabrics: Fabric[] = [...buildSeedFabrics(), ...buildPhotoFabrics()];
+  private models: FurnitureModel[] = structuredClone([...SEED_MODELS, ...SHOWCASE_MODELS]);
+  private firms: Firm[] = structuredClone(SEED_FIRMS);
+  private firmShowcase = new Map<string, string[]>();
+  private samples: SampleRequest[] = [];
+  private events: StoredEvent[] = [];
+  private shares = new Map<string, string>();
+  private cuts: CutReport[] = [];
+  private feedback: Feedback[] = [];
+  private feedbackSeq = 0;
+  readonly files = new Map<string, { data: ArrayBuffer; type: string }>();
+
+  async listFabrics(opts?: { includeInactive?: boolean }) {
+    return this.fabrics.filter((f) => opts?.includeInactive || f.isActive).sort((a, b) => a.sortOrder - b.sortOrder);
+  }
+
+  async getFabricByCode(code: string) {
+    const c = codeUpper(code);
+    return this.fabrics.find((f) => f.code === c) ?? null;
+  }
+
+  async getFabricById(id: string) {
+    return this.fabrics.find((f) => f.id === id) ?? null;
+  }
+
+  async saveFabric(input: FabricInput) {
+    const clash = this.fabrics.find((f) => f.code === input.code && f.id !== input.id);
+    if (clash) throw new DuplicateCodeError(input.code);
+    const { derivedMaps: _d, ...rest } = input;
+    void _d;
+    const existing = input.id ? this.fabrics.findIndex((f) => f.id === input.id) : -1;
+    const fabric: Fabric = {
+      ...rest,
+      id: input.id ?? crypto.randomUUID(),
+      sortOrder: input.sortOrder ?? (existing >= 0 ? this.fabrics[existing].sortOrder : this.fabrics.length),
+    };
+    if (existing >= 0) this.fabrics[existing] = fabric;
+    else this.fabrics.push(fabric);
+    return fabric;
+  }
+
+  async setFabricActive(id: string, active: boolean) {
+    const f = this.fabrics.find((x) => x.id === id);
+    if (f) f.isActive = active;
+  }
+
+  async listShowcaseModels() {
+    return this.models.filter((m) => m.firmId === null && m.isActive).sort((a, b) => a.sortOrder - b.sortOrder);
+  }
+
+  async listAllModels() {
+    return [...this.models].sort((a, b) => a.sortOrder - b.sortOrder);
+  }
+
+  async listFirmModels(firmId: string) {
+    return this.models.filter((m) => m.firmId === firmId && m.isActive).sort((a, b) => a.sortOrder - b.sortOrder);
+  }
+
+  async getModel(slug: string, firmId: string | null) {
+    return this.models.find((m) => m.slug === slug && (m.firmId === firmId || m.firmId === null)) ?? null;
+  }
+
+  async saveModel(input: ModelInput) {
+    const existing = input.id ? this.models.findIndex((m) => m.id === input.id) : -1;
+    const model: FurnitureModel = { ...input, id: input.id ?? crypto.randomUUID() };
+    if (existing >= 0) this.models[existing] = model;
+    else this.models.push(model);
+    return model;
+  }
+
+  async getFirmBySlug(slug: string) {
+    return this.firms.find((f) => f.slug === slug && f.isActive) ?? null;
+  }
+
+  async listFirms() {
+    return [...this.firms].sort((a, b) => a.name.localeCompare(b.name, "tr"));
+  }
+
+  async getFirmById(id: string) {
+    return this.firms.find((f) => f.id === id) ?? null;
+  }
+
+  async saveFirm(input: FirmInput) {
+    if (this.firms.some((f) => f.slug === input.slug && f.id !== input.id)) throw new DuplicateSlugError(input.slug);
+    const firm: Firm = { ...input, id: input.id ?? crypto.randomUUID() };
+    const i = this.firms.findIndex((f) => f.id === firm.id);
+    if (i >= 0) this.firms[i] = firm;
+    else this.firms.push(firm);
+    return firm;
+  }
+
+  async getFirmShowcaseIds(firmId: string) {
+    return [...(this.firmShowcase.get(firmId) ?? [])];
+  }
+
+  async setFirmShowcaseIds(firmId: string, modelIds: string[]) {
+    this.firmShowcase.set(firmId, [...new Set(modelIds)]);
+  }
+
+  async createSampleRequest(input: SampleRequestInput) {
+    const { consent: _consent, ...rest } = input;
+    void _consent;
+    let code = newSampleCode();
+    while (this.samples.some((x) => x.code === code)) code = newSampleCode();
+    const req: SampleRequest = { ...rest, id: crypto.randomUUID(), createdAt: new Date().toISOString(), status: "yeni", code };
+    this.samples.unshift(req);
+    return req;
+  }
+
+  async listSampleRequests() {
+    return this.samples.map((x) => ({ ...x }));
+  }
+
+  async getSampleRequest(id: string) {
+    const r = this.samples.find((x) => x.id === id);
+    return r ? { ...r } : null;
+  }
+
+  async getSampleByCode(code: string) {
+    const r = this.samples.find((x) => x.code === code);
+    return r ? { ...r } : null;
+  }
+
+  async deleteSampleRequest(id: string) {
+    this.samples = this.samples.filter((x) => x.id !== id);
+  }
+
+  async purgeSampleRequests(before: Date) {
+    const t = before.toISOString();
+    const n = this.samples.length;
+    this.samples = this.samples.filter((x) => x.createdAt >= t);
+    return n - this.samples.length;
+  }
+
+  async updateSampleRequest(id: string, patch: { status?: SampleStep; lot?: string }) {
+    const r = this.samples.find((x) => x.id === id);
+    if (!r) return;
+    if (patch.status && patch.status !== r.status) {
+      r.status = patch.status;
+      r.statusAt = new Date().toISOString();
+    }
+    if (patch.lot !== undefined) r.lot = cleanLot(patch.lot);
+  }
+
+  async getShare(code: string) {
+    return this.shares.get(code) ?? null;
+  }
+
+  async saveShare(code: string, longId: string) {
+    const existing = this.shares.get(code);
+    if (existing !== undefined) return existing === longId;
+    this.shares.set(code, longId);
+    return true;
+  }
+
+  async recordCutReport(r: Omit<CutReport, "createdAt">) {
+    this.cuts.unshift({ ...r, createdAt: new Date().toISOString() });
+    if (this.cuts.length > 5000) this.cuts.length = 5000;
+  }
+
+  async listCutReports() {
+    return this.cuts.slice(0, 1000);
+  }
+
+  async recordFeedback(f: FeedbackInput) {
+    this.feedback.unshift({ ...f, id: String(++this.feedbackSeq), createdAt: new Date().toISOString() });
+    if (this.feedback.length > 5000) this.feedback.length = 5000;
+  }
+
+  async listFeedback() {
+    return this.feedback.slice(0, 500);
+  }
+
+  async deleteFeedback(id: string) {
+    this.feedback = this.feedback.filter((f) => f.id !== id);
+  }
+
+  async purgeFeedbackContacts(before: Date) {
+    let n = 0;
+    this.feedback = this.feedback.map((f) => {
+      if (!f.contact || new Date(f.createdAt) >= before) return f;
+      n++;
+      const rest = { ...f };
+      delete rest.contact;
+      return rest;
+    });
+    return n;
+  }
+
+  async recordEvent(e: UsageEvent) {
+    this.events.unshift({ ...e, createdAt: new Date().toISOString() });
+    if (this.events.length > 50_000) this.events.length = 50_000;
+  }
+
+  async listEvents(since: Date, firmSlug?: string) {
+    const t = since.toISOString();
+    return this.events.filter((e) => e.createdAt >= t && (firmSlug === undefined || (e.firmSlug ?? "") === firmSlug));
+  }
+
+  async eventReport(from: Date, to: Date, firmSlug?: string) {
+    const t = to.toISOString();
+    return buildReport((await this.listEvents(from, firmSlug)).filter((e) => e.createdAt <= t), { from, to });
+  }
+
+  async putFile(path: string, data: ArrayBuffer, contentType: string) {
+    this.files.set(path, { data, type: contentType });
+    return `/api/dosya/${path}`;
+  }
+}

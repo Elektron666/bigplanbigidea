@@ -1,0 +1,92 @@
+[
+  {
+    "code": "MISSO-01",
+    "file": "12.jpg",
+    "angle": 90,
+    "periodPx": 45.2,
+    "teeth": 4,
+    "tileTeeth": 4,
+    "repeatCm": {
+      "w": 18.4,
+      "h": 112.5
+    },
+    "avgColor": "#A9998E",
+    "seamBefore": 1.65,
+    "seamAfter": 1.65
+  },
+  {
+    "code": "MISSO-02",
+    "file": "10.jpg",
+    "angle": 0,
+    "periodPx": 56.9,
+    "teeth": 4,
+    "tileTeeth": 4,
+    "repeatCm": {
+      "w": 18.4,
+      "h": 87.2
+    },
+    "avgColor": "#A59A91",
+    "seamBefore": 2.02,
+    "seamAfter": 2.02
+  },
+  {
+    "code": "MISSO-03",
+    "file": "7.jpg",
+    "angle": -2,
+    "periodPx": 120.2,
+    "teeth": 4,
+    "tileTeeth": 4,
+    "repeatCm": {
+      "w": 18.4,
+      "h": 26.8
+    },
+    "avgColor": "#8B6965",
+    "seamBefore": 0.94,
+    "seamAfter": 0.94
+  },
+  {
+    "code": "MISSO-04",
+    "file": "13.jpg",
+    "angle": 0,
+    "periodPx": 37.8,
+    "teeth": 4,
+    "tileTeeth": 4,
+    "repeatCm": {
+      "w": 18.4,
+      "h": 99.4
+    },
+    "avgColor": "#7F746B",
+    "seamBefore": 2.52,
+    "seamAfter": 2.52
+  },
+  {
+    "code": "MISSO-05",
+    "file": "14.jpg",
+    "angle": 0,
+    "periodPx": 65.5,
+    "teeth": 4,
+    "tileTeeth": 4,
+    "repeatCm": {
+      "w": 18.4,
+      "h": 91.5
+    },
+    "avgColor": "#A18D78",
+    "seamBefore": 1.91,
+    "seamAfter": 1.91
+  },
+  {
+    "code": "MISSO-06",
+    "file": "11.jpg",
+    "angle": 0,
+    "periodPx": 46.5,
+    "teeth": 4,
+    "tileTeeth": 4,
+    "repeatCm": {
+      "w": 18.4,
+      "h": 112.5
+    },
+    "avgColor": "#A29992",
+    "seamBefore": 1.75,
+    "seamAfter": 1.75
+  }
+]
