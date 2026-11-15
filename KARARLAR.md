@@ -14,6 +14,17 @@ Bu dosyada projede verilen kararlar, yapılan varsayımlar ve bilinen sınırlar
 - **Numune taleplerindeki ad ve telefon** ORMEN panelinde görünmeye devam eder (6 Ekim kararı değişmedi). Yeni kural yalnızca yeni verilere uygulanır: teklifteki müşteri adı ve "ilgilenen müşteriler".
 - Görev tanımının eski kararlarla çeliştiği yerler ve seçilen yol: `PLAN-SHOWROOM.md`, 3. bölüm.
 
+## İş 0, 2–3. dilim: roller sunucuda, mağaza listesi (15 Kasım 2026)
+
+- **Yetki tablosu (`lib/auth/roles.ts`):** yönetici her şeyi; eleman içerik, kurulum ve günlükten geri alma; mağaza sahibi yalnızca kendi fiyatı. Oturum artık rolü taşıyor. Profilde bilinmeyen bir rol yazıyorsa dar olan (eleman) sayılır.
+- **Kalıcı silme yalnızca yöneticide:** numune talebi ve geri bildirim silme işlemleri sunucuda rolü denetliyor. KVKK silme talebini bu yüzden yönetici yapar. Elemanın ekranında "Sil" düğmesi hâlâ görünüyor; basınca "yetkiniz yok" der. Düğmenin gizlenmesi sıradaki işlerden.
+- **Deneme için:** yerelde `PANEL_DEMO_ROLE=staff` ile demo kullanıcı eleman olarak açılır.
+- **Mağazalar ekranı (`/panel/magazalar`):** arama (ad, bağlantı adı, yetkili), durum, şehir ve etiket süzgeci, dört sıralama, sayfada 50 mağaza. Sayılar tek veritabanı çağrısından gelir (`atelier_shops`). Dikkat isteyenler satırda etiket olarak çıkar: askıda, eşitleme hatası, 30 gündür açılmayan ekran, vadesi geçen bakım.
+- **Askıya alma tek dokunuş;** hiçbir veri silinmez, geri açınca kaldığı yerden sürer. Her durum değişikliği değişiklik günlüğüne yazılır (öncesi ve sonrasıyla).
+- **Bakım vadesi elemana hiç gönderilmiyor:** yalnızca gizlenmiyor, sunucu o alanı boş yolluyor ve "vadeye göre sırala" seçeneği çıkmıyor.
+- **"Firmalar" ekranı duruyor.** Mağaza satırı şimdilik eski firma düzenleme sayfasına gidiyor; iki ekran, mağaza ayrıntı sayfası yazılınca birleşecek.
+- **Test:** yetki tablosu ve liste mantığı birim testli; uçtan uca testte girişsiz erişimin kapalı olduğu, arama, süzme, askıya alma ve geri açma doğrulanıyor. Mevcut panel ve kiosk testleri (13 test) aynen geçiyor.
+
 ## İş 0, 1. dilim: merkez şeması ve yetki kuralları (15 Kasım 2026)
 
 - **Dosya:** `supabase/migrations/20261115000000_merkez.sql`; geri alma: `supabase/geri-al/20261115000000_merkez.sql`. Yalnızca ekler. Canlı veritabanına **uygulanmadı**.
