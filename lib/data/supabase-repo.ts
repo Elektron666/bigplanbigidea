@@ -4,6 +4,7 @@ import type { ColorFamily, Fabric, FabricType, Firm, FurnitureModel, ModelSource
 import { normaliseParams } from "@/lib/parametric/spec";
 import { cleanLot, newSampleCode, type SampleChoices, type SampleRequest, type SampleRequestInput, type SampleStep } from "@/lib/samples";
 import type { Feedback, FeedbackInput } from "@/lib/feedback";
+import type { ShopProduct } from "@/lib/catalogue/shop-products";
 import type { CutReport } from "@/lib/cut-report";
 import { cleanPresets } from "@/lib/firm-presets";
 import { reportFromJson, type Device, type EventType, type Source, type StoredEvent, type UsageEvent } from "@/lib/events";
@@ -74,6 +75,16 @@ interface ModelRow {
   cover_path: string | null;
   is_active: boolean;
   sort_order: number;
+}
+
+interface FirmModelRow {
+  model_id: string;
+  sort_order: number;
+  display_name?: string | null;
+  product_code?: string | null;
+  description?: string | null;
+  featured?: boolean | null;
+  hidden?: boolean | null;
 }
 
 const FABRIC_SELECT = "*, fabric_textures(*)";
@@ -357,9 +368,39 @@ export class SupabaseRepository implements Repository {
   }
 
   async setFirmShowcaseIds(firmId: string, modelIds: string[]) {
-    check(await this.db.from("firm_models").delete().eq("firm_id", firmId));
     const ids = [...new Set(modelIds)];
-    if (ids.length) check(await this.db.from("firm_models").insert(ids.map((model_id, i) => ({ firm_id: firmId, model_id, sort_order: i }))));
+    // Not "delete all, insert again": that would wipe how the shop shows each product
+    // (its own name, code, note). Rows that stay are only re-ordered.
+    const have = (check(await this.db.from("firm_models").select("model_id").eq("firm_id", firmId)) as { model_id: string }[]).map((r) => r.model_id);
+    const gone = have.filter((id) => !ids.includes(id));
+    if (gone.length) check(await this.db.from("firm_models").delete().eq("firm_id", firmId).in("model_id", gone));
+    if (ids.length) check(await this.db.from("firm_models").upsert(ids.map((model_id, i) => ({ firm_id: firmId, model_id, sort_order: i })), { onConflict: "firm_id,model_id" }));
+  }
+
+  async getFirmProducts(firmId: string): Promise<ShopProduct[]> {
+    const rows = check(await this.db.from("firm_models").select("*").eq("firm_id", firmId).order("sort_order")) as FirmModelRow[];
+    return rows.map((r) => ({
+      modelId: r.model_id,
+      displayName: und(r.display_name ?? null),
+      productCode: und(r.product_code ?? null),
+      description: und(r.description ?? null),
+      // before the "merkez" migration these columns do not exist: nothing is brought forward or hidden
+      featured: r.featured === true,
+      hidden: r.hidden === true,
+      sortOrder: r.sort_order,
+    }));
+  }
+
+  async saveFirmProduct(firmId: string, modelId: string, patch: { displayName: string | null; productCode: string | null; description: string | null; featured: boolean; hidden: boolean }) {
+    const rows = check(
+      await this.db
+        .from("firm_models")
+        .update({ display_name: patch.displayName, product_code: patch.productCode, description: patch.description, featured: patch.featured, hidden: patch.hidden })
+        .eq("firm_id", firmId)
+        .eq("model_id", modelId)
+        .select("model_id"),
+    ) as unknown[];
+    return rows.length > 0;
   }
 
   async getShare(code: string) {

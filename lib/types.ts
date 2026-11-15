@@ -116,4 +116,13 @@ export interface FurnitureModel {
   coverUrl?: string;
   isActive: boolean;
   sortOrder: number;
+  // --- how one shop shows a shared product (lib/catalogue/shop-products.ts); absent everywhere else
+  /** The centre's name, when the shop shows the product under its own. */
+  centralName?: string;
+  /** The shop's own product code. */
+  productCode?: string;
+  /** The shop's own note about the product. */
+  shopNote?: string;
+  /** Brought forward by the shop. */
+  featured?: boolean;
 }

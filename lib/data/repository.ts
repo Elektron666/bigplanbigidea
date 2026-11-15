@@ -3,6 +3,7 @@ import type { SampleRequest, SampleRequestInput, SampleStep } from "@/lib/sample
 import type { Report, StoredEvent, UsageEvent } from "@/lib/events";
 import type { CutReport } from "@/lib/cut-report";
 import type { Feedback, FeedbackInput } from "@/lib/feedback";
+import { applyShopProducts, type ShopProduct } from "@/lib/catalogue/shop-products";
 
 export type FabricInput = Omit<Fabric, "id"> & { id?: string; derivedMaps?: boolean };
 export type ModelInput = Omit<FurnitureModel, "id"> & { id?: string };
@@ -40,7 +41,15 @@ export interface Repository {
   saveFirm(input: FirmInput): Promise<Firm>;
   /** ORMEN showcase models the firm chose to show (ids, in order). */
   getFirmShowcaseIds(firmId: string): Promise<string[]>;
+  /**
+   * Sets which shared products the shop has, in order. A product that stays
+   * keeps how the shop shows it (name, code, note); only the order changes.
+   */
   setFirmShowcaseIds(firmId: string, modelIds: string[]): Promise<void>;
+  /** The shared products given to a shop, with how the shop shows each (in the shop's order). */
+  getFirmProducts(firmId: string): Promise<ShopProduct[]>;
+  /** Changes how a shop shows one product it has; `null` clears an override. False when the shop does not have the product. */
+  saveFirmProduct(firmId: string, modelId: string, patch: { displayName: string | null; productCode: string | null; description: string | null; featured: boolean; hidden: boolean }): Promise<boolean>;
 
   createSampleRequest(input: SampleRequestInput): Promise<SampleRequest>;
   listSampleRequests(): Promise<SampleRequest[]>;
@@ -105,13 +114,14 @@ export function isDuplicateSlug(e: unknown): e is DuplicateSlugError {
 }
 
 /**
- * What a firm's page shows: the firm's own models first, then the ORMEN
- * showcase models it picked. A firm that has neither shows the showcase.
+ * What a firm's page shows: the firm's own models first, then the shared
+ * products it was given, as the shop shows them. A firm that has neither
+ * shows the showcase.
  */
 export async function modelsForFirm(repo: Repository, firmId: string): Promise<FurnitureModel[]> {
-  const [own, ids, showcase] = await Promise.all([repo.listFirmModels(firmId), repo.getFirmShowcaseIds(firmId), repo.listShowcaseModels()]);
-  const byId = new Map(showcase.map((m) => [m.id, m]));
-  const picked = ids.map((id) => byId.get(id)).filter((m): m is FurnitureModel => !!m);
-  const out = [...own, ...picked];
-  return out.length ? out : showcase;
+  const [own, rows, showcase] = await Promise.all([repo.listFirmModels(firmId), repo.getFirmProducts(firmId), repo.listShowcaseModels()]);
+  // shared products under the shop's own names, in its order, without the ones it hid
+  const out = [...own, ...applyShopProducts(showcase, rows)];
+  // a shop that was given nothing shows the showcase; one that hid everything it was given shows nothing of it
+  return out.length || rows.length ? out : showcase;
 }

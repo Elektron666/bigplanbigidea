@@ -14,6 +14,17 @@ Bu dosyada projede verilen kararlar, yapılan varsayımlar ve bilinen sınırlar
 - **Numune taleplerindeki ad ve telefon** ORMEN panelinde görünmeye devam eder (6 Ekim kararı değişmedi). Yeni kural yalnızca yeni verilere uygulanır: teklifteki müşteri adı ve "ilgilenen müşteriler".
 - Görev tanımının eski kararlarla çeliştiği yerler ve seçilen yol: `PLAN-SHOWROOM.md`, 3. bölüm.
 
+## İş 0, 4. dilim: aynı ürün, her mağazada kendi adıyla (15 Kasım 2026)
+
+- **Ne:** Ortak bir ürün mağazaya verilince mağaza onu kendi adı, ürün kodu ve açıklamasıyla gösterir; öne çıkarabilir ya da gizleyebilir. Panel → mağaza sayfası → "Bu mağazada nasıl görünsün".
+- **Merkezden gelen değişmez:** 3D model, ölçü ve metraj tek yerde durur. Mağaza yalnızca gösterimi değiştirir; bu yüzden merkezde metraj düzeltilince ürünü alan bütün mağazaların hesabı aynı anda değişir.
+- **Bağlantılar bozulmaz:** Mağaza ürüne başka ad verse de adresindeki ad (`/f/magaza/urun`) merkezdeki hâliyle kalır; basılmış QR'lar çalışmaya devam eder.
+- **Bulunan ve düzeltilen hata:** Mağaza kaydedilirken ürün listesi "hepsini sil, yeniden ekle" ile yazılıyordu. Bu, yeni alanları (mağazadaki ad, kod) her kayıtta silerdi. Artık yalnızca çıkarılan ürün silinir; kalanların sırası güncellenir. Uçtan uca testte mağaza yeniden kaydedilip adın yerinde durduğu denetleniyor.
+- **Boş mağaza kuralı korundu:** Hiç ürün verilmemiş mağaza ORMEN vitrinini gösterir. Verilen ürünlerin hepsini gizleyen mağaza ise vitrini göstermez (gizlemek bilerek yapılmış bir seçimdir).
+- **Yetki ve kayıt:** İşlem "içerik" yetkisi ister (yönetici ve eleman). Her değişiklik değişiklik günlüğüne öncesi ve sonrasıyla yazılır.
+- **Test:** Bir ürün 15 mağazaya atanır, her birinde farklı adla görünür, merkezde metraj 8 → 9,5 m yapılınca 15'inde de 9,5 m olur ve adlar yerinde kalır (`tests/unit/shop-products.test.ts`).
+- **Eksik:** Toplu atama (seçili ürünleri seçili mağazalara tek işlemde) ve mağaza bazında fiyat ekranı henüz yok; sıradaki dilim.
+
 ## İş 0, 2–3. dilim: roller sunucuda, mağaza listesi (15 Kasım 2026)
 
 - **Yetki tablosu (`lib/auth/roles.ts`):** yönetici her şeyi; eleman içerik, kurulum ve günlükten geri alma; mağaza sahibi yalnızca kendi fiyatı. Oturum artık rolü taşıyor. Profilde bilinmeyen bir rol yazıyorsa dar olan (eleman) sayılır.

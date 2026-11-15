@@ -9,6 +9,7 @@ import { cleanLot, newSampleCode, type SampleRequest, type SampleRequestInput, t
 import { buildReport, type StoredEvent, type UsageEvent } from "@/lib/events";
 import type { CutReport } from "@/lib/cut-report";
 import type { Feedback, FeedbackInput } from "@/lib/feedback";
+import type { ShopProduct } from "@/lib/catalogue/shop-products";
 
 /**
  * In-memory repository backed by the seed catalogue; used when Supabase is
@@ -22,6 +23,7 @@ export class MemoryRepository implements Repository {
   private models: FurnitureModel[] = structuredClone([...SEED_MODELS, ...SHOWCASE_MODELS]);
   private firms: Firm[] = structuredClone(SEED_FIRMS);
   private firmShowcase = new Map<string, string[]>();
+  private firmProducts = new Map<string, Omit<ShopProduct, "modelId" | "sortOrder">>();
   private samples: SampleRequest[] = [];
   private events: StoredEvent[] = [];
   private shares = new Map<string, string>();
@@ -114,7 +116,26 @@ export class MemoryRepository implements Repository {
   }
 
   async setFirmShowcaseIds(firmId: string, modelIds: string[]) {
-    this.firmShowcase.set(firmId, [...new Set(modelIds)]);
+    const ids = [...new Set(modelIds)];
+    this.firmShowcase.set(firmId, ids);
+    // a product taken away loses how the shop showed it; one that stays keeps it
+    for (const key of [...this.firmProducts.keys()]) if (key.startsWith(`${firmId}:`) && !ids.includes(key.slice(firmId.length + 1))) this.firmProducts.delete(key);
+  }
+
+  async getFirmProducts(firmId: string): Promise<ShopProduct[]> {
+    return (this.firmShowcase.get(firmId) ?? []).map((modelId, i) => ({ modelId, featured: false, hidden: false, ...this.firmProducts.get(`${firmId}:${modelId}`), sortOrder: i }));
+  }
+
+  async saveFirmProduct(firmId: string, modelId: string, patch: { displayName: string | null; productCode: string | null; description: string | null; featured: boolean; hidden: boolean }) {
+    if (!(this.firmShowcase.get(firmId) ?? []).includes(modelId)) return false;
+    this.firmProducts.set(`${firmId}:${modelId}`, {
+      ...(patch.displayName ? { displayName: patch.displayName } : {}),
+      ...(patch.productCode ? { productCode: patch.productCode } : {}),
+      ...(patch.description ? { description: patch.description } : {}),
+      featured: patch.featured,
+      hidden: patch.hidden,
+    });
+    return true;
   }
 
   async createSampleRequest(input: SampleRequestInput) {
