@@ -14,6 +14,20 @@ Bu dosyada projede verilen kararlar, yapılan varsayımlar ve bilinen sınırlar
 - **Numune taleplerindeki ad ve telefon** ORMEN panelinde görünmeye devam eder (6 Ekim kararı değişmedi). Yeni kural yalnızca yeni verilere uygulanır: teklifteki müşteri adı ve "ilgilenen müşteriler".
 - Görev tanımının eski kararlarla çeliştiği yerler ve seçilen yol: `PLAN-SHOWROOM.md`, 3. bölüm.
 
+## İş 0, 6. dilim: merkez katalog ve toplu atama (15 Kasım 2026)
+
+- **Katalog ekranı (`/panel/katalog`):** Her ürün bir kez listelenir; yanında kaç mağazada olduğu yazar. Arama (ad, üretici), sahiplik (ortak / mağazaya özel), kategori, mağaza ("bu mağazada ne var") ve "atanmamış" süzgeci; sayfada 50 ürün. Sayım veritabanında yapılır (`atelier_products`, `20261115000100_katalog.sql`).
+- **Toplu atama:** Soldan ürünler, sağdan mağazalar işaretlenir; "Mağazalara ekle" ya da "Çıkar" tek işlemdir. Mağazanın zaten sahip olduğu ürüne dokunulmaz, verdiği ad yerinde kalır; aynı işlemi tekrarlamak hiçbir şey değiştirmez.
+- **Mağazaya özel ürün:** Seçimde bir tane bile varsa işlemin tamamı reddedilir (yarım iş kalmaz) ve deneme değişiklik günlüğüne "reddedildi" diye yazılır. Aynı kural veritabanında da duruyor (1. dilimdeki tetikleyici).
+- **Sınırlar:** Tek işlemde en çok 500 ürün ve 200 mağaza.
+- **Günlük:** Her toplu işlem tek satır ve tek işlem numarasıyla kaydedilir; hangi ürünler, hangi mağazalar ve hangi yön yazılı olduğu için geri alınabilir (geri alma düğmesi henüz yok).
+- **Test:** Liste ve atama kuralı birim testli. Veritabanı fonksiyonu 100 mağaza, 2.000 ürünlük veride denendi (2 saniyenin altında; sayım gerçek atama sayısıyla aynı). Uçtan uca: iki ürün bir mağazaya eklenir, tekrarı "0 atama" der, mağaza süzgeci tam o ikisini gösterir, biri çıkarılır.
+- **Eksikler:**
+  - Özel ürünün reddi arayüzden uçtan uca denenmedi; kural birim testinde ve veritabanı testinde doğrulanıyor.
+  - Üretici ve kategori alanları veritabanında ve süzgeçte var ama ürün düzenleme ekranında henüz girilemiyor; tarz etiketleri de öyle.
+  - "Özelden ortağa çevir" (yalnızca yönetici) ve kumaş kütüphanesinde tek kumaşı mağaza bazında kapatma henüz yok.
+  - Toplu atama panelindeki mağaza listesi şimdilik bütün mağazaları tek seferde getiriyor (100 mağazada sorun değil).
+
 ## İş 0 ve İş 1, 5. dilim: cihaz eşleştirme, showroom adresi, uzaktan eşitleme (15 Kasım 2026)
 
 - **Showroom adresi:** Bütün mağazaların ekranı aynı adresi açar: `/showroom`. Hangi mağazayı göstereceğini adres değil, ekranın kendi gizli anahtarı belirler. Eski `?kiosk` adresi aynen çalışıyor.

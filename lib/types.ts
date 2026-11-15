@@ -1,4 +1,5 @@
 import type { ParametricParams } from "@/lib/parametric/spec";
+import type { ProductCategory } from "@/lib/catalogue/products";
 // Domain types shared by the data layer, server components and the configurator.
 
 export const FABRIC_TYPES = [
@@ -114,6 +115,9 @@ export interface FurnitureModel {
   /** The firm's own fabric metres for one piece, for the cutter's sheet (lib/metraj.ts). */
   meterage?: { metres: number; refWidthCm: number; zones?: Partial<Record<"govde" | "kol" | "oturak" | "sirt", number>> };
   coverUrl?: string;
+  /** Who makes it (central catalogue). */
+  manufacturer?: string;
+  category?: ProductCategory;
   isActive: boolean;
   sortOrder: number;
   // --- how one shop shows a shared product (lib/catalogue/shop-products.ts); absent everywhere else

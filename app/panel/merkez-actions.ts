@@ -7,6 +7,7 @@ import { getCentral } from "@/lib/central/store";
 import { getRepository } from "@/lib/data";
 import { validateShopProduct } from "@/lib/catalogue/shop-products";
 import { validateDeviceName } from "@/lib/devices/pairing";
+import { checkBulkAssign } from "@/lib/catalogue/products";
 import { SHOP_STATUSES, SHOP_STATUS_LABELS, type ShopStatus } from "@/lib/central/shops";
 
 // Server actions of the central panel (Showroom package, job 0). Each one
@@ -121,4 +122,51 @@ export async function removeDeviceAction(deviceId: string): Promise<Result> {
   await central.writeAudit({ actor: user.email, actorRole: user.role, firmId: device.firmId, entity: "cihaz", entityId: device.id, action: "kaldirildi", summary: `“${device.name}” ekranı kaldırıldı`, before: { name: device.name, branch: device.branch } });
   revalidatePath(`/panel/firmalar/${device.firmId}`);
   return { ok: true };
+}
+
+// ------------------------------------------------------------------ central catalogue
+
+/**
+ * Bulk assignment: the chosen shared products are given to (or taken from)
+ * the chosen shops in one step. A shop's own product in the selection
+ * refuses the whole action, and the attempt is written to the change log.
+ */
+export async function bulkAssignAction(mode: "ekle" | "cikar", productIds: string[], shopIds: string[]): Promise<{ ok: true; changed: number } | { ok: false; error: string }> {
+  const user = await getPanelUser();
+  if (!user) return { ok: false, error: "Oturum süresi doldu. Yeniden giriş yapın." };
+  if (!can(user.role, "icerik")) return { ok: false, error: DENIED };
+  if (mode !== "ekle" && mode !== "cikar") return { ok: false, error: "Bilinmeyen işlem." };
+  if (!Array.isArray(productIds) || !Array.isArray(shopIds)) return { ok: false, error: "Geçersiz istek." };
+  const repo = getRepository();
+  const central = getCentral();
+  const [models, firms] = await Promise.all([repo.listAllModels(), repo.listFirms()]);
+  const checked = checkBulkAssign(
+    productIds.map(String),
+    shopIds.map(String),
+    new Map(models.map((m) => [m.id, { name: m.name, firmId: m.firmId }])),
+    new Set(firms.map((f) => f.id)),
+  );
+  const batchId = crypto.randomUUID();
+  if (!checked.ok) {
+    if (checked.private) {
+      await central.writeAudit({ actor: user.email, actorRole: user.role, entity: "atama", action: "reddedildi", summary: `Toplu atama reddedildi: ${checked.error}`.slice(0, 300), before: { productIds: checked.private, shopIds: shopIds.slice(0, 200) }, batchId });
+    }
+    return { ok: false, error: checked.error };
+  }
+  const changed = mode === "ekle" ? await repo.assignModels(checked.shopIds, checked.productIds) : await repo.unassignModels(checked.shopIds, checked.productIds);
+  const names = checked.productIds.map((id) => models.find((m) => m.id === id)!.name);
+  await central.writeAudit({
+    actor: user.email,
+    actorRole: user.role,
+    entity: "atama",
+    action: mode === "ekle" ? "toplu-eklendi" : "toplu-cikarildi",
+    summary: `${names.slice(0, 3).join(", ")}${names.length > 3 ? ` ve ${names.length - 3} ürün daha` : ""}: ${checked.shopIds.length} mağaza${mode === "ekle" ? "ya eklendi" : "dan çıkarıldı"} (${changed} atama değişti)`.slice(0, 300),
+    // enough to undo it from the log: the same products and shops, the other way round
+    before: { mode, productIds: checked.productIds, shopIds: checked.shopIds },
+    after: { changed },
+    batchId,
+  });
+  revalidatePath("/panel/katalog");
+  revalidatePath("/panel/magazalar");
+  return { ok: true, changed };
 }

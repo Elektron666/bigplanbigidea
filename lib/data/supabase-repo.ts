@@ -5,6 +5,7 @@ import { normaliseParams } from "@/lib/parametric/spec";
 import { cleanLot, newSampleCode, type SampleChoices, type SampleRequest, type SampleRequestInput, type SampleStep } from "@/lib/samples";
 import type { Feedback, FeedbackInput } from "@/lib/feedback";
 import type { ShopProduct } from "@/lib/catalogue/shop-products";
+import { PRODUCT_PAGE_SIZE, type ProductCategory, type ProductQuery } from "@/lib/catalogue/products";
 import type { CutReport } from "@/lib/cut-report";
 import { cleanPresets } from "@/lib/firm-presets";
 import { reportFromJson, type Device, type EventType, type Source, type StoredEvent, type UsageEvent } from "@/lib/events";
@@ -73,6 +74,8 @@ interface ModelRow {
   meterage_ref_width_cm: number | null;
   meterage_zones?: Record<string, number> | null;
   cover_path: string | null;
+  manufacturer?: string | null;
+  category?: ProductCategory | null;
   is_active: boolean;
   sort_order: number;
 }
@@ -157,6 +160,8 @@ function modelFromRow(r: ModelRow): FurnitureModel {
     fabricSeries: r.fabric_series ?? [],
     meterage: r.meterage_m != null && r.meterage_ref_width_cm != null ? { metres: Number(r.meterage_m), refWidthCm: Number(r.meterage_ref_width_cm), ...zonesOf(r.meterage_zones) } : undefined,
     coverUrl: publicFileUrl(r.cover_path),
+    manufacturer: und(r.manufacturer ?? null),
+    category: und(r.category ?? null),
     isActive: r.is_active,
     sortOrder: r.sort_order,
   };
@@ -401,6 +406,45 @@ export class SupabaseRepository implements Repository {
         .select("model_id"),
     ) as unknown[];
     return rows.length > 0;
+  }
+
+  async listProducts(q: ProductQuery) {
+    const data = check(
+      await this.db.rpc("atelier_products", {
+        p_search: q.search ?? null,
+        p_owner: q.owner ?? null,
+        p_category: q.category ?? null,
+        p_manufacturer: q.manufacturer ?? null,
+        p_shop: q.shop ?? null,
+        p_unassigned: q.unassigned,
+        p_limit: PRODUCT_PAGE_SIZE,
+        p_offset: (q.page - 1) * PRODUCT_PAGE_SIZE,
+      }),
+    ) as { total: number; rows: { id: string; name: string; slug: string; firm_id: string | null; owner_name: string | null; manufacturer: string | null; category: ProductCategory | null; is_active: boolean; shops: number; width_cm: number; depth_cm: number; height_cm: number }[] };
+    return {
+      total: Number(data.total),
+      rows: data.rows.map((r) => ({
+        id: r.id, name: r.name, slug: r.slug, firmId: r.firm_id, ownerName: r.owner_name, manufacturer: r.manufacturer, category: r.category, isActive: r.is_active,
+        shops: Number(r.shops), widthCm: Number(r.width_cm), depthCm: Number(r.depth_cm), heightCm: Number(r.height_cm),
+      })),
+    };
+  }
+
+  async assignModels(firmIds: string[], modelIds: string[]) {
+    // rows that exist are left alone (ignoreDuplicates): a shop keeps its own names for what it already has
+    const rows = firmIds.flatMap((firm_id) => modelIds.map((model_id, i) => ({ firm_id, model_id, sort_order: 1000 + i })));
+    let added = 0;
+    for (let i = 0; i < rows.length; i += 1000) {
+      const res = check(await this.db.from("firm_models").upsert(rows.slice(i, i + 1000), { onConflict: "firm_id,model_id", ignoreDuplicates: true }).select("model_id")) as unknown[];
+      added += res.length;
+    }
+    return added;
+  }
+
+  async unassignModels(firmIds: string[], modelIds: string[]) {
+    if (!firmIds.length || !modelIds.length) return 0;
+    const gone = check(await this.db.from("firm_models").delete().in("firm_id", firmIds).in("model_id", modelIds).select("model_id")) as unknown[];
+    return gone.length;
   }
 
   async getShare(code: string) {

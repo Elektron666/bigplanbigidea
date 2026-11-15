@@ -10,6 +10,7 @@ import { buildReport, type StoredEvent, type UsageEvent } from "@/lib/events";
 import type { CutReport } from "@/lib/cut-report";
 import type { Feedback, FeedbackInput } from "@/lib/feedback";
 import type { ShopProduct } from "@/lib/catalogue/shop-products";
+import { pageOfProducts, type ProductQuery, type ProductRow } from "@/lib/catalogue/products";
 
 /**
  * In-memory repository backed by the seed catalogue; used when Supabase is
@@ -136,6 +137,42 @@ export class MemoryRepository implements Repository {
       hidden: patch.hidden,
     });
     return true;
+  }
+
+  async listProducts(q: ProductQuery) {
+    const firms = new Map(this.firms.map((f) => [f.id, f.name]));
+    const counts = new Map<string, number>();
+    for (const ids of this.firmShowcase.values()) for (const id of ids) counts.set(id, (counts.get(id) ?? 0) + 1);
+    const rows: ProductRow[] = this.models.map((m) => ({
+      id: m.id, name: m.name, slug: m.slug, firmId: m.firmId, ownerName: m.firmId ? (firms.get(m.firmId) ?? null) : null,
+      manufacturer: m.manufacturer ?? null, category: m.category ?? null, isActive: m.isActive, shops: counts.get(m.id) ?? 0,
+      widthCm: m.dimensionsCm.w, depthCm: m.dimensionsCm.d, heightCm: m.dimensionsCm.h,
+    }));
+    const inShop = q.shop ? new Set([...(this.firmShowcase.get(q.shop) ?? []), ...this.models.filter((m) => m.firmId === q.shop).map((m) => m.id)]) : undefined;
+    return pageOfProducts(rows, q, inShop);
+  }
+
+  async assignModels(firmIds: string[], modelIds: string[]) {
+    let added = 0;
+    for (const firmId of firmIds) {
+      const have = this.firmShowcase.get(firmId) ?? [];
+      const fresh = modelIds.filter((id) => !have.includes(id));
+      added += fresh.length;
+      this.firmShowcase.set(firmId, [...have, ...fresh]);
+    }
+    return added;
+  }
+
+  async unassignModels(firmIds: string[], modelIds: string[]) {
+    let gone = 0;
+    for (const firmId of firmIds) {
+      const have = this.firmShowcase.get(firmId) ?? [];
+      const keep = have.filter((id) => !modelIds.includes(id));
+      gone += have.length - keep.length;
+      this.firmShowcase.set(firmId, keep);
+      for (const id of modelIds) this.firmProducts.delete(`${firmId}:${id}`);
+    }
+    return gone;
   }
 
   async createSampleRequest(input: SampleRequestInput) {

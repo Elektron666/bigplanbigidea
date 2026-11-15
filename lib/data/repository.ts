@@ -4,6 +4,7 @@ import type { Report, StoredEvent, UsageEvent } from "@/lib/events";
 import type { CutReport } from "@/lib/cut-report";
 import type { Feedback, FeedbackInput } from "@/lib/feedback";
 import { applyShopProducts, type ShopProduct } from "@/lib/catalogue/shop-products";
+import type { ProductQuery, ProductRow } from "@/lib/catalogue/products";
 
 export type FabricInput = Omit<Fabric, "id"> & { id?: string; derivedMaps?: boolean };
 export type ModelInput = Omit<FurnitureModel, "id"> & { id?: string };
@@ -50,6 +51,17 @@ export interface Repository {
   getFirmProducts(firmId: string): Promise<ShopProduct[]>;
   /** Changes how a shop shows one product it has; `null` clears an override. False when the shop does not have the product. */
   saveFirmProduct(firmId: string, modelId: string, patch: { displayName: string | null; productCode: string | null; description: string | null; featured: boolean; hidden: boolean }): Promise<boolean>;
+
+  /** One page of the central catalogue (job 0), with how many shops each product was given to. */
+  listProducts(q: ProductQuery): Promise<{ total: number; rows: ProductRow[] }>;
+  /**
+   * Gives shared products to shops in one step; what a shop already has is left as it is
+   * (its own names stay). Returns how many assignments were added. The caller has
+   * already checked that every product is a shared one (checkBulkAssign).
+   */
+  assignModels(firmIds: string[], modelIds: string[]): Promise<number>;
+  /** Takes products away from shops; returns how many assignments went. */
+  unassignModels(firmIds: string[], modelIds: string[]): Promise<number>;
 
   createSampleRequest(input: SampleRequestInput): Promise<SampleRequest>;
   listSampleRequests(): Promise<SampleRequest[]>;

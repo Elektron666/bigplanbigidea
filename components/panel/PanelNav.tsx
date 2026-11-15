@@ -7,6 +7,7 @@ const LINKS = [
   ["/panel/kumaslar", "Kumaşlar"],
   ["/panel/modeller", "Modeller"],
   ["/panel/magazalar", "Mağazalar"],
+  ["/panel/katalog", "Katalog"],
   ["/panel/firmalar", "Firmalar"],
   ["/panel/talepler", "Talepler"],
   ["/panel/rapor", "Rapor"],

@@ -225,5 +225,27 @@ describe("merkez: scale", () => {
     expect(filtered.rows[0].atelier_shops.total).toBeGreaterThan(0);
     // only the server may call it
     await expect(as(OWNER_A, () => db.query("select atelier_shops()"))).rejects.toThrow();
+
+    // the catalogue list on the same data: 2 000 products, each counted over ~15 shops
+    type Page = { atelier_products: { total: number; rows: { name: string; slug: string; shops: number; firm_id: string | null; owner_name: string | null }[] } };
+    const t2 = performance.now();
+    const products = await db.query<Page>("select atelier_products(null, null, null, null, null, false, 50, 0)");
+    const ms2 = performance.now() - t2;
+    expect(products.rows[0].atelier_products.total).toBe(2002);
+    expect(products.rows[0].atelier_products.rows).toHaveLength(50);
+    expect(ms2).toBeLessThan(2000);
+    const one = await db.query<Page>("select atelier_products('urun-1000', 'ortak', 'kanepe', 'Üretici 0', null, false, 50, 0)");
+    expect(one.rows[0].atelier_products.rows.map((r) => r.slug)).toEqual(["urun-1000"]);
+    const assigned = (await db.query<{ n: number }>("select count(*)::int as n from firm_models fm join models m on m.id = fm.model_id where m.slug = 'urun-1000'")).rows[0].n;
+    expect(one.rows[0].atelier_products.rows[0].shops).toBe(assigned);
+    // a shop's own product names its owner and is never "unassigned"
+    const own = await db.query<Page>("select atelier_products('a-ozel', 'ozel', null, null, null, false, 50, 0)");
+    expect(own.rows[0].atelier_products.rows[0].owner_name).toBe("A Mobilya");
+    const unassigned = await db.query<Page>("select atelier_products(null, null, null, null, null, true, 200, 0)");
+    expect(unassigned.rows[0].atelier_products.rows.every((r) => r.shops === 0 && r.firm_id === null)).toBe(true);
+    // what one shop has: what it was given plus its own
+    const inA = await db.query<Page>(`select atelier_products(null, null, null, null, '${firmA}', false, 50, 0)`);
+    expect(inA.rows[0].atelier_products.rows.map((r) => r.slug).sort()).toEqual(["a-ozel", "ortak-uclu"]);
+    await expect(as(OWNER_A, () => db.query("select atelier_products()"))).rejects.toThrow();
   }, 120_000);
 });

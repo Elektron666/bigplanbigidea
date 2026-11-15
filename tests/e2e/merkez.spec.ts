@@ -87,3 +87,54 @@ test.describe("merkez panel: mağaza bazında gösterim", () => {
     await expect(page.getByRole("region", { name: "Bu mağazada nasıl görünsün" }).getByRole("listitem").first().getByLabel("Mağazadaki adı")).toHaveValue(shopName);
   });
 });
+
+test.describe("merkez panel: katalog ve toplu atama", () => {
+  test.skip(({ isMobile }) => isMobile, "panel masaüstü için");
+
+  test("ürünler mağazalara tek işlemde eklenir ve çıkarılır", async ({ page }) => {
+    await login(page);
+    // a second shop, and a product of its own
+    const tag = Date.now().toString(36);
+    await page.goto("/panel/firmalar/yeni");
+    await page.getByLabel("Firma adı").fill(`Toplu ${tag}`);
+    await page.getByRole("button", { name: "Kaydet", exact: true }).click();
+    await expect(page.getByText(`Toplu ${tag} kaydedildi.`)).toBeVisible();
+
+    await page.goto("/panel/katalog?sahip=ortak");
+    await expect(page.getByRole("heading", { name: "Katalog" })).toBeVisible();
+    const products = page.locator("main ul").first().getByRole("listitem");
+    const first = products.nth(0);
+    const second = products.nth(1);
+    const firstName = (await first.getByRole("link").innerText()).trim();
+    await first.getByRole("checkbox").check();
+    await second.getByRole("checkbox").check();
+
+    const panel = page.getByRole("complementary", { name: "Toplu atama" });
+    await panel.getByLabel("Mağaza ara").fill(`Toplu ${tag}`);
+    await panel.getByRole("button", { name: "Listedekilerin hepsini seç" }).click();
+    await expect(panel.getByText("2 ürün, 1 mağaza seçili.")).toBeVisible();
+    await panel.getByRole("button", { name: "Mağazalara ekle" }).click();
+    await expect(panel.getByText("2 atama eklendi.")).toBeVisible();
+
+    // the same again adds nothing: what the shop already has is left as it is
+    await products.nth(0).getByRole("checkbox").check();
+    await panel.getByRole("button", { name: "Mağazalara ekle" }).click();
+    await expect(panel.getByText("0 atama eklendi.")).toBeVisible();
+
+    // the shop filter shows exactly what that shop has
+    const shopOption = await page.locator("select[name=magaza] option", { hasText: `Toplu ${tag}` }).getAttribute("value");
+    await page.goto(`/panel/katalog?magaza=${shopOption}`);
+    await expect(page.locator("main ul").first().getByRole("listitem")).toHaveCount(2);
+    await expect(page.getByRole("link", { name: firstName, exact: true })).toBeVisible();
+
+    // take one away
+    const mine = page.locator("main ul").first().getByRole("listitem");
+    await mine.nth(0).getByRole("checkbox").check();
+    const panel2 = page.getByRole("complementary", { name: "Toplu atama" });
+    await panel2.getByLabel("Mağaza ara").fill(`Toplu ${tag}`);
+    await panel2.getByRole("button", { name: "Listedekilerin hepsini seç" }).click();
+    await panel2.getByRole("button", { name: "Çıkar" }).click();
+    await expect(panel2.getByText("1 atama çıkarıldı.")).toBeVisible();
+    await expect(page.locator("main ul").first().getByRole("listitem")).toHaveCount(1);
+  });
+});
