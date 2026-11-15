@@ -14,6 +14,30 @@ Bu dosyada projede verilen kararlar, yapılan varsayımlar ve bilinen sınırlar
 - **Numune taleplerindeki ad ve telefon** ORMEN panelinde görünmeye devam eder (6 Ekim kararı değişmedi). Yeni kural yalnızca yeni verilere uygulanır: teklifteki müşteri adı ve "ilgilenen müşteriler".
 - Görev tanımının eski kararlarla çeliştiği yerler ve seçilen yol: `PLAN-SHOWROOM.md`, 3. bölüm.
 
+## İş 0 ve İş 1, 5. dilim: cihaz eşleştirme, showroom adresi, uzaktan eşitleme (15 Kasım 2026)
+
+- **Showroom adresi:** Bütün mağazaların ekranı aynı adresi açar: `/showroom`. Hangi mağazayı göstereceğini adres değil, ekranın kendi gizli anahtarı belirler. Eski `?kiosk` adresi aynen çalışıyor.
+- **Eşleştirme:** Panel → mağaza sayfası → Cihazlar → "Cihaz ekle" 6 haneli bir kod verir. Kod 10 dakika geçerli ve bir kez kullanılır. Ekranda kod, dokunmatik tuş takımıyla yazılır (klavye gerekmez; 1920 × 1080'de tuşlar 173 × 104 piksel).
+- **Ekranın kimliği:** Kod, uzun ve rastgele bir anahtarla değiştirilir. Anahtar ekranda betiğin okuyamadığı bir çerezde iki yıl durur; veritabanında yalnızca özeti saklanır. Ekran hiçbir istekte "ben şu mağazayım" demez; sunucu mağazayı anahtardan bulur. Bu yüzden bir ekran başka mağazanın içeriğini isteyemez.
+- **Kod tahmini:** Aynı kaynaktan 15 dakikada 10 hatalı denemeden sonra kilitlenir. Yanlış denenen kod da silinir.
+- **Eşitleme:** Açık ekran 2 dakikada bir ve vitrin döngüsüne girerken sunucuya sorar; çalıştırdığı uygulama ve içerik sürümünü bildirir. Karar tek bir saf işlevde (`lib/devices/sync.ts`):
+  - yeni içerik varsa ve ekran boştaysa hemen uygulanır;
+  - müşteri ekrandaysa görüntü değişmez, ekran boşa düşünce uygulanır;
+  - onaylı modda "Güncelleme hazır · Şimdi yükle" bildirimi çıkar, satıcı basmadan uygulanmaz;
+  - panelden "şimdi eşitle" gelirse onaylı modda da uygulanır;
+  - ekran kaç sürüm geride olursa olsun tek adımda son hâli alır (yalnızca "bendekinden farklı mı" sorulur).
+- **Askıya alma:** Askıdaki mağazanın ekranı bir sonraki denetimde "Ekran kısa bir süre için kapalı" mesajına geçer; geri açılınca kendiliğinden döner. Hiçbir şey silinmez.
+- **Kaldırma:** Yalnızca yönetici. Kaldırılan ekranın anahtarı o an geçersiz olur; ekran yeniden kod sorar.
+- **Vitrin süresi:** Eşleşmiş ekranda varsayılan 60 saniye; mağaza ayarından (`vitrinSn`, 30–600) değişir. `?kiosk` adresinin 90 saniyesi değişmedi.
+- **Panelde cihaz satırı:** ad, şube, son görülme, son eşitleme, uygulama ve içerik sürümü, tek kelimelik durum (Güncel, Güncelleme bekliyor, İndiriyor, Eşitleme hatası, Kapalı, Henüz açılmadı). 15 dakikadır denetime gelmeyen ekran "Kapalı" sayılır.
+- **Test:** Uçtan uca: yanlış kod reddedilir; doğru kod mağazanın showroom'unu açar; aynı kod ikinci ekranda çalışmaz; ekran yeniden açılınca kod sormaz; askıya alınınca mesaja geçer, geri açılınca döner; kaldırılınca kod ekranına düşer; eşleşmemiş ya da uydurma anahtarlı istek 401 alır ve hiçbir şey öğrenemez.
+- **Bu dilimde OLMAYANLAR (İş 1'in kalanı):**
+  - Çevrimdışı çalışma yok: servis çalışanı, doku önbelleği ve kayıt kuyruğu henüz yazılmadı. İnternet kesilirse ekran yenilenemez.
+  - Güncelleme şimdilik sayfayı yeniden yükleyerek uygulanıyor; "arka planda indir, hata olursa son çalışan sürümle aç" çevrimdışı katmanla birlikte gelecek.
+  - Kilit (logoya 5 dokunuş + PIN ile çıkış), ana ekrana kurulum, kalite profili ölçümü ve vitrin döngüsünde model değişimi henüz yok.
+  - Kademeli yayın, toplu "şimdi eşitle" (birden çok mağazaya) ve cihaz adını / kalite profilini panelden değiştirme henüz yok.
+  - Veritabanı tarafında cihaz için ayrı bir fonksiyon katmanı yazılmadı; sunucu cihazın mağazasını anahtar özetinden buluyor ve bütün sorguları o mağazayla sınırlıyor. Plandaki `showroom_*` fonksiyonları, cihaz mağazaya ait kayıt yazmaya başladığında (teklif, olay) eklenecek.
+
 ## İş 0, 4. dilim: aynı ürün, her mağazada kendi adıyla (15 Kasım 2026)
 
 - **Ne:** Ortak bir ürün mağazaya verilince mağaza onu kendi adı, ürün kodu ve açıklamasıyla gösterir; öne çıkarabilir ya da gizleyebilir. Panel → mağaza sayfası → "Bu mağazada nasıl görünsün".

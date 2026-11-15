@@ -2,108 +2,19 @@ import "server-only";
 import { getRepository } from "@/lib/data";
 import { supabaseEnabled } from "@/lib/supabase/config";
 import { serviceClient } from "@/lib/supabase/server";
-import { PAGE_SIZE, pageOfShops, type ShopQuery, type ShopRow, type ShopStatus } from "./shops";
+import { PAGE_SIZE, type ShopQuery, type ShopRow, type ShopStatus } from "./shops";
+import { PAIRING_TTL_MINUTES, type Device, type DeviceQuality, type SyncStatus } from "@/lib/devices/pairing";
+import { MemoryCentral } from "./memory";
+import { hashToken, newCode, newToken, type AuditEntity, type AuditInput, type CentralStore, type ShopState } from "./types";
+
+export * from "./types";
+export { MemoryCentral };
 
 // The centre's own data (shops as accounts, the change log). Like
 // lib/data, one interface with two backings: Supabase when it is set up,
 // otherwise memory, so the panel can be tried and tested without it.
 // Every call here is made by the server after it has checked the panel
 // user's role (lib/auth/roles.ts).
-
-export const AUDIT_ENTITIES = ["magaza", "urun", "atama", "kumas", "cihaz", "abonelik", "sablon", "uye", "destek"] as const;
-export type AuditEntity = (typeof AUDIT_ENTITIES)[number];
-
-export interface AuditInput {
-  actor: string;
-  actorRole: "admin" | "staff" | "sahip" | "sistem";
-  firmId?: string | null;
-  entity: AuditEntity;
-  entityId?: string | null;
-  action: string;
-  /** One plain Turkish sentence: what changed. Never a customer's name or phone. */
-  summary: string;
-  before?: unknown;
-  after?: unknown;
-  batchId?: string | null;
-}
-
-export interface AuditEntry extends AuditInput {
-  id: string;
-  at: string;
-  undoneAt: string | null;
-}
-
-export interface CentralStore {
-  /** One page of shops. `withFees` false leaves the maintenance date out (ORMEN elemanı). */
-  listShops(q: ShopQuery, opts: { withFees: boolean }): Promise<{ total: number; rows: ShopRow[] }>;
-  getShop(id: string): Promise<ShopRow | null>;
-  setShopStatus(id: string, status: ShopStatus): Promise<void>;
-  writeAudit(e: AuditInput): Promise<void>;
-  /** Newest first. */
-  listAudit(opts: { firmId?: string; limit?: number; offset?: number }): Promise<{ total: number; rows: AuditEntry[] }>;
-}
-
-// ------------------------------------------------------------------ memory
-
-class MemoryCentral implements CentralStore {
-  private extra = new Map<string, Partial<ShopRow>>();
-  private audit: AuditEntry[] = [];
-
-  private async all(): Promise<ShopRow[]> {
-    const repo = getRepository();
-    const [firms, models] = await Promise.all([repo.listFirms(), repo.listAllModels()]);
-    return Promise.all(
-      firms.map(async (f) => {
-        const picks = await repo.getFirmShowcaseIds(f.id);
-        return {
-          id: f.id,
-          name: f.name,
-          slug: f.slug,
-          status: "aktif" as ShopStatus,
-          city: null,
-          region: null,
-          isActive: f.isActive,
-          contentVersion: 1,
-          updateMode: "otomatik" as const,
-          package: null,
-          tags: [],
-          contact: null,
-          installedOn: null,
-          devices: 0,
-          lastSeen: null,
-          syncErrors: 0,
-          products: picks.length + models.filter((m) => m.firmId === f.id).length,
-          nextDue: null,
-          ...this.extra.get(f.id),
-        };
-      }),
-    );
-  }
-
-  async listShops(q: ShopQuery, opts: { withFees: boolean }) {
-    const all = await this.all();
-    return pageOfShops(opts.withFees ? all : all.map((s) => ({ ...s, nextDue: null })), q);
-  }
-
-  async getShop(id: string) {
-    return (await this.all()).find((s) => s.id === id) ?? null;
-  }
-
-  async setShopStatus(id: string, status: ShopStatus) {
-    const now = this.extra.get(id) ?? {};
-    this.extra.set(id, { ...now, status, contentVersion: (now.contentVersion ?? 1) + 1 });
-  }
-
-  async writeAudit(e: AuditInput) {
-    this.audit.unshift({ ...e, id: String(this.audit.length + 1), at: new Date().toISOString(), undoneAt: null });
-  }
-
-  async listAudit(opts: { firmId?: string; limit?: number; offset?: number }) {
-    const hit = this.audit.filter((a) => !opts.firmId || a.firmId === opts.firmId);
-    const offset = opts.offset ?? 0;
-    return { total: hit.length, rows: hit.slice(offset, offset + (opts.limit ?? 50)) };
-  }
-}
 
 // ------------------------------------------------------------------ Supabase
 
@@ -133,6 +44,19 @@ function shopFromJson(r: ShopJson, withFees: boolean): ShopRow {
     syncErrors: Number(r.sync_errors),
     products: Number(r.products),
     nextDue: withFees ? r.next_due : null,
+  };
+}
+
+interface DeviceRow {
+  id: string; firm_id: string; name: string; branch: string | null; quality: DeviceQuality; app_version: string | null; content_version: number | null;
+  sync_status: SyncStatus; last_seen_at: string | null; last_sync_at: string | null; sync_requested_at: string | null; created_at: string;
+}
+
+function deviceFromRow(r: DeviceRow): Device {
+  return {
+    id: r.id, firmId: r.firm_id, name: r.name, branch: r.branch, quality: r.quality, appVersion: r.app_version,
+    contentVersion: r.content_version === null ? null : Number(r.content_version), syncStatus: r.sync_status,
+    lastSeenAt: r.last_seen_at, lastSyncAt: r.last_sync_at, syncRequestedAt: r.sync_requested_at, createdAt: r.created_at,
   };
 }
 
@@ -173,6 +97,82 @@ class SupabaseCentral implements CentralStore {
     check(await this.db.from("firms").update({ status }).eq("id", id));
   }
 
+  async getShopState(firmId: string): Promise<ShopState | null> {
+    const r = check(await this.db.from("firms").select("id, name, slug, status, is_active, content_version, update_mode, features, settings").eq("id", firmId).maybeSingle()) as
+      | { id: string; name: string; slug: string; status: ShopStatus; is_active: boolean; content_version: number; update_mode: "otomatik" | "onayli"; features: Record<string, unknown> | null; settings: Record<string, unknown> | null }
+      | null;
+    return r && { id: r.id, name: r.name, slug: r.slug, status: r.status, isActive: r.is_active, contentVersion: Number(r.content_version), updateMode: r.update_mode, features: r.features ?? {}, settings: r.settings ?? {} };
+  }
+
+  async createPairing(firmId: string, name: string, branch: string | null) {
+    const expiresAt = new Date(Date.now() + PAIRING_TTL_MINUTES * 60_000).toISOString();
+    // old codes are cleared on the way, so the table never grows
+    await this.db.from("device_pairings").delete().lt("expires_at", new Date().toISOString());
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const code = newCode();
+      const res = await this.db.from("device_pairings").insert({ code, firm_id: firmId, name, branch, expires_at: expiresAt });
+      if (!res.error) return { code, expiresAt };
+      if (res.error.code !== "23505") throw new Error(res.error.message);
+    }
+    throw new Error("Eşleştirme kodu üretilemedi; yeniden deneyin.");
+  }
+
+  async claimPairing(code: string) {
+    // deleting and reading in one statement: two screens cannot both use the same code
+    const rows = check(await this.db.from("device_pairings").delete().eq("code", code).select("firm_id, name, branch, expires_at")) as { firm_id: string; name: string; branch: string | null; expires_at: string }[];
+    const p = rows[0];
+    if (!p || Date.parse(p.expires_at) < Date.now()) return null;
+    const token = newToken();
+    const row = check(await this.db.from("devices").insert({ firm_id: p.firm_id, name: p.name, branch: p.branch, token_hash: hashToken(token) }).select("*").single()) as DeviceRow;
+    return { token, device: deviceFromRow(row) };
+  }
+
+  async deviceByToken(token: string) {
+    const r = check(await this.db.from("devices").select("*").eq("token_hash", hashToken(token)).maybeSingle()) as DeviceRow | null;
+    return r ? deviceFromRow(r) : null;
+  }
+
+  async checkIn(deviceId: string, report: { appVersion?: string | null; contentVersion?: number | null; syncStatus?: SyncStatus }) {
+    const now = new Date().toISOString();
+    const before = check(await this.db.from("devices").select("sync_requested_at").eq("id", deviceId).maybeSingle()) as { sync_requested_at: string | null } | null;
+    if (!before) return { syncRequested: false };
+    check(
+      await this.db
+        .from("devices")
+        .update({
+          last_seen_at: now,
+          sync_requested_at: null,
+          ...(report.appVersion !== undefined ? { app_version: report.appVersion } : {}),
+          ...(report.contentVersion !== undefined ? { content_version: report.contentVersion } : {}),
+          ...(report.syncStatus ? { sync_status: report.syncStatus } : {}),
+          ...(report.syncStatus === "guncel" ? { last_sync_at: now } : {}),
+        })
+        .eq("id", deviceId),
+    );
+    return { syncRequested: before.sync_requested_at !== null };
+  }
+
+  async listDevices(firmId: string) {
+    return (check(await this.db.from("devices").select("*").eq("firm_id", firmId).order("created_at")) as DeviceRow[]).map(deviceFromRow);
+  }
+
+  async getDevice(id: string) {
+    const r = check(await this.db.from("devices").select("*").eq("id", id).maybeSingle()) as DeviceRow | null;
+    return r ? deviceFromRow(r) : null;
+  }
+
+  async updateDevice(id: string, patch: { name?: string; branch?: string | null; quality?: DeviceQuality }) {
+    check(await this.db.from("devices").update(patch).eq("id", id));
+  }
+
+  async requestSync(deviceIds: string[]) {
+    if (deviceIds.length) check(await this.db.from("devices").update({ sync_requested_at: new Date().toISOString() }).in("id", deviceIds));
+  }
+
+  async removeDevice(id: string) {
+    check(await this.db.from("devices").delete().eq("id", id));
+  }
+
   async writeAudit(e: AuditInput) {
     check(
       await this.db.from("audit_log").insert({
@@ -208,6 +208,6 @@ class SupabaseCentral implements CentralStore {
 const holder = globalThis as unknown as { __ormenCentral?: CentralStore };
 
 export function getCentral(): CentralStore {
-  holder.__ormenCentral ??= supabaseEnabled() ? new SupabaseCentral() : new MemoryCentral();
+  holder.__ormenCentral ??= supabaseEnabled() ? new SupabaseCentral() : new MemoryCentral(getRepository);
   return holder.__ormenCentral;
 }

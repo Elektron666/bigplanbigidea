@@ -31,3 +31,17 @@ describe("vitrin döngüsü", () => {
     expect(nextAttract([], "A")).toBeUndefined();
   });
 });
+
+describe("paired showroom screen", () => {
+  it("waits 60 s unless the shop was given another time", async () => {
+    const { showroomIdleSeconds } = await import("@/lib/kiosk");
+    expect(showroomIdleSeconds({})).toBe(60);
+    expect(showroomIdleSeconds(null)).toBe(60);
+    expect(showroomIdleSeconds({ vitrinSn: 120 })).toBe(120);
+    expect(showroomIdleSeconds({ vitrinSn: "45" })).toBe(45);
+    // out of range or nonsense falls back to the default
+    expect(showroomIdleSeconds({ vitrinSn: 5 })).toBe(60);
+    expect(showroomIdleSeconds({ vitrinSn: 5000 })).toBe(60);
+    expect(showroomIdleSeconds({ vitrinSn: "uzun" })).toBe(60);
+  });
+});

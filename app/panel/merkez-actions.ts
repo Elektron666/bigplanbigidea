@@ -6,6 +6,7 @@ import { can, DENIED } from "@/lib/auth/roles";
 import { getCentral } from "@/lib/central/store";
 import { getRepository } from "@/lib/data";
 import { validateShopProduct } from "@/lib/catalogue/shop-products";
+import { validateDeviceName } from "@/lib/devices/pairing";
 import { SHOP_STATUSES, SHOP_STATUS_LABELS, type ShopStatus } from "@/lib/central/shops";
 
 // Server actions of the central panel (Showroom package, job 0). Each one
@@ -73,5 +74,51 @@ export async function saveShopProductAction(firmId: string, modelId: string, raw
   });
   revalidatePath(`/panel/firmalar/${firm.id}`);
   revalidatePath(`/f/${firm.slug}`);
+  return { ok: true };
+}
+
+// ------------------------------------------------------------------ screens
+
+/** "Cihaz ekle": a short-lived 6-digit code to type on the new screen. */
+export async function createPairingAction(firmId: string, raw: unknown): Promise<{ ok: true; code: string; expiresAt: string } | { ok: false; error: string }> {
+  const user = await getPanelUser();
+  if (!user) return { ok: false, error: "Oturum süresi doldu. Yeniden giriş yapın." };
+  if (!can(user.role, "kurulum")) return { ok: false, error: DENIED };
+  const v = validateDeviceName(raw);
+  if (!v.ok) return { ok: false, error: v.error };
+  const firm = await getRepository().getFirmById(String(firmId).slice(0, 40));
+  if (!firm) return { ok: false, error: "Mağaza bulunamadı." };
+  const central = getCentral();
+  const pairing = await central.createPairing(firm.id, v.name, v.branch);
+  await central.writeAudit({ actor: user.email, actorRole: user.role, firmId: firm.id, entity: "cihaz", action: "kod-uretildi", summary: `${firm.name}: “${v.name}” için eşleştirme kodu üretildi` });
+  return { ok: true, ...pairing };
+}
+
+/** "Şimdi eşitle" for one screen or all of a shop's screens. */
+export async function requestSyncAction(firmId: string, deviceId?: string): Promise<Result> {
+  const user = await getPanelUser();
+  if (!user) return { ok: false, error: "Oturum süresi doldu. Yeniden giriş yapın." };
+  if (!can(user.role, "kurulum")) return { ok: false, error: DENIED };
+  const central = getCentral();
+  // only screens of the shop named: an id from another shop is ignored
+  const devices = (await central.listDevices(String(firmId).slice(0, 40))).filter((d) => !deviceId || d.id === deviceId);
+  if (!devices.length) return { ok: false, error: "Ekran bulunamadı." };
+  await central.requestSync(devices.map((d) => d.id));
+  await central.writeAudit({ actor: user.email, actorRole: user.role, firmId, entity: "cihaz", entityId: deviceId ?? null, action: "esitleme-istendi", summary: devices.length === 1 ? `“${devices[0].name}” ekranına “şimdi eşitle” gönderildi` : `${devices.length} ekrana “şimdi eşitle” gönderildi` });
+  revalidatePath(`/panel/firmalar/${firmId}`);
+  return { ok: true };
+}
+
+/** Removes a screen: its secret stops working and it asks for a code again. Yönetici only. */
+export async function removeDeviceAction(deviceId: string): Promise<Result> {
+  const user = await getPanelUser();
+  if (!user) return { ok: false, error: "Oturum süresi doldu. Yeniden giriş yapın." };
+  if (!can(user.role, "sil")) return { ok: false, error: DENIED };
+  const central = getCentral();
+  const device = await central.getDevice(String(deviceId).slice(0, 40));
+  if (!device) return { ok: false, error: "Ekran bulunamadı." };
+  await central.removeDevice(device.id);
+  await central.writeAudit({ actor: user.email, actorRole: user.role, firmId: device.firmId, entity: "cihaz", entityId: device.id, action: "kaldirildi", summary: `“${device.name}” ekranı kaldırıldı`, before: { name: device.name, branch: device.branch } });
+  revalidatePath(`/panel/firmalar/${device.firmId}`);
   return { ok: true };
 }

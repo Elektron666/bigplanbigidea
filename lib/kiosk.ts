@@ -44,3 +44,12 @@ export function nextAttract<T extends { code: string }>(list: T[], current: stri
   const i = list.findIndex((f) => f.code === current);
   return list[(i + 1) % list.length];
 }
+
+// Paired showroom screens (Showroom package, job 1): the idle time is a shop
+// setting ("vitrinSn"), 60 s unless the shop was given another.
+export const SHOWROOM_DEFAULT_IDLE = 60;
+
+export function showroomIdleSeconds(settings: Record<string, unknown> | null | undefined): number {
+  const n = Number(settings?.vitrinSn);
+  return Number.isFinite(n) && n >= 30 && n <= 600 ? Math.round(n) : SHOWROOM_DEFAULT_IDLE;
+}
