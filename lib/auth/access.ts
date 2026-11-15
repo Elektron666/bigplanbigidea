@@ -1,9 +1,13 @@
 // Who may use the panel, as a pure decision (no Supabase, no cookies), so it
 // can be tested on its own. lib/auth/panel.ts feeds it the session's facts.
 
+import { staffRole } from "./roles";
+
 export interface PanelUser {
   email: string;
   mode: "supabase" | "demo";
+  /** ORMEN yöneticisi or ORMEN elemanı (lib/auth/roles.ts). */
+  role: "admin" | "staff";
   /** Two-step verification (TOTP) is on for this account and this session passed it. */
   twoFactor?: boolean;
 }
@@ -20,11 +24,11 @@ export type PanelAccess =
   | { state: "tamam"; user: PanelUser };
 
 /** The decision itself, without Supabase (tested on its own). */
-export function decideAccess(a: { email: string | null; isPanelUser: boolean; currentLevel: string | null; nextLevel: string | null; require2fa?: boolean }): PanelAccess {
+export function decideAccess(a: { email: string | null; isPanelUser: boolean; currentLevel: string | null; nextLevel: string | null; require2fa?: boolean; role?: string | null }): PanelAccess {
   if (!a.email || !a.isPanelUser) return { state: "yok" };
   // once a verified TOTP factor exists, the session must have passed it
   if (a.nextLevel === "aal2" && a.currentLevel !== "aal2") return { state: "ikinci-adim", email: a.email };
-  const user: PanelUser = { email: a.email, mode: "supabase", twoFactor: a.currentLevel === "aal2" };
+  const user: PanelUser = { email: a.email, mode: "supabase", role: staffRole(a.role), twoFactor: a.currentLevel === "aal2" };
   // no factor yet, but the panel requires one: set it up before anything else
   if (a.require2fa && !user.twoFactor) return { state: "kurulum", user };
   return { state: "tamam", user };

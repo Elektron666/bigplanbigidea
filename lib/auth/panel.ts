@@ -14,6 +14,7 @@ import { serviceClient, sessionClient } from "@/lib/supabase/server";
 
 export type { PanelAccess, PanelUser } from "./access";
 import { decideAccess, type PanelAccess, type PanelUser } from "./access";
+import { can, DENIED, type Permission } from "./roles";
 
 const COOKIE = "ormen_panel";
 const DAY = 24 * 60 * 60;
@@ -100,12 +101,13 @@ export async function panelAccess(): Promise<PanelAccess> {
     const { data } = await sb.auth.getUser();
     if (!data.user) return { state: "yok" };
     const [{ data: profile }, { data: aal }] = await Promise.all([
-      serviceClient().from("profiles").select("id").eq("id", data.user.id).maybeSingle(),
+      serviceClient().from("profiles").select("id, role").eq("id", data.user.id).maybeSingle(),
       sb.auth.mfa.getAuthenticatorAssuranceLevel(),
     ]);
     return decideAccess({
       email: data.user.email ?? "",
       isPanelUser: !!profile,
+      role: (profile as { role?: string } | null)?.role,
       currentLevel: aal?.currentLevel ?? null,
       nextLevel: aal?.nextLevel ?? null,
       require2fa: twoFactorRequired(),
@@ -135,6 +137,11 @@ export async function getPanelUser(): Promise<PanelUser | null> {
   return a.state === "tamam" ? a.user : null;
 }
 
+/** The demo user is the yönetici unless PANEL_DEMO_ROLE=staff (for trying the narrower role locally). */
+function demoRole(): "admin" | "staff" {
+  return process.env.PANEL_DEMO_ROLE === "staff" ? "staff" : "admin";
+}
+
 async function demoUser(): Promise<PanelUser | null> {
   const demo = demoSetup();
   if (!demo) return null;
@@ -145,7 +152,7 @@ async function demoUser(): Promise<PanelUser | null> {
   try {
     const { e, x } = JSON.parse(Buffer.from(payload, "base64url").toString()) as { e: string; x: number };
     if (Date.now() > x || e.toLowerCase() !== demo.email.toLowerCase()) return null;
-    return { email: e, mode: "demo" };
+    return { email: e, mode: "demo", role: demoRole() };
   } catch {
     return null;
   }
@@ -159,6 +166,25 @@ export async function requirePanelUser(opts: { setup?: boolean } = {}): Promise<
   // two-step verification required but not set up: only the Güvenlik page (and the layout around it)
   if (a.state === "kurulum" && !opts.setup) redirect("/panel/guvenlik");
   return a.user;
+}
+
+/**
+ * For server actions and APIs: the signed-in panel user if they hold the
+ * permission; otherwise an error the caller turns into a message. The check
+ * is here, on the server, so skipping the screen does not skip it.
+ */
+export async function requirePermission(permission: Permission): Promise<PanelUser> {
+  const user = await getPanelUser();
+  if (!user) throw new Error("Oturum süresi doldu. Yeniden giriş yapın.");
+  if (!can(user.role, permission)) throw new PermissionError();
+  return user;
+}
+
+export class PermissionError extends Error {
+  constructor() {
+    super(DENIED);
+    this.name = "PermissionError";
+  }
 }
 
 // ---------------------------------------------------------------- two-step verification (TOTP)

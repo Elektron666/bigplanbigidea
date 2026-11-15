@@ -11,6 +11,7 @@ import { FABRIC_MATERIAL } from "@/lib/three/constants";
 import { cleanSeries, seriesOf } from "@/lib/fabric/allowed";
 import { headers } from "next/headers";
 import { blocked, callerKey, recordFailure } from "@/lib/rate-limit";
+import { can, DENIED, type Permission } from "@/lib/auth/roles";
 import { changePassword, confirmTwoFactor, disableTwoFactor, getPanelUser, signIn, signOut, startTwoFactor, verifyLoginCode } from "@/lib/auth/panel";
 import { validateFabricFields, type FabricFieldErrors, type FabricFields } from "@/lib/panel/fabric-form";
 import { STORAGE_BUCKET, SUPABASE_URL } from "@/lib/supabase/config";
@@ -89,6 +90,13 @@ export async function changePasswordAction(_prev: { error?: string; ok?: boolean
 export async function logoutAction(): Promise<void> {
   await signOut();
   redirect("/panel/giris");
+}
+
+/** True when the signed-in panel user holds the permission; a missing session still throws. */
+async function allowed(permission: Permission): Promise<boolean> {
+  const user = await getPanelUser();
+  if (!user) throw new Error("Oturum süresi doldu. Yeniden giriş yapın.");
+  return can(user.role, permission);
 }
 
 async function guard() {
@@ -402,7 +410,8 @@ export async function updateSampleAction(id: string, patch: { status?: string; l
 }
 
 export async function deleteSampleAction(id: string): Promise<{ ok: boolean; error?: string }> {
-  await guard();
+  // removing for good is the yönetici's alone (ORMEN elemanı: "silme yok")
+  if (!(await allowed("sil"))) return { ok: false, error: DENIED };
   const repo = getRepository();
   if (!(await repo.getSampleRequest(id))) return { ok: false, error: "Talep bulunamadı." };
   await repo.deleteSampleRequest(id);
@@ -411,8 +420,8 @@ export async function deleteSampleAction(id: string): Promise<{ ok: boolean; err
   return { ok: true };
 }
 
-export async function deleteFeedbackAction(id: string): Promise<{ ok: boolean }> {
-  await guard();
+export async function deleteFeedbackAction(id: string): Promise<{ ok: boolean; error?: string }> {
+  if (!(await allowed("sil"))) return { ok: false, error: DENIED };
   await getRepository().deleteFeedback(String(id).slice(0, 40));
   revalidatePath("/panel/geri-bildirim");
   return { ok: true };

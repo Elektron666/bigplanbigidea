@@ -5,7 +5,7 @@ describe("panel erişimi ve iki adımlı doğrulama", () => {
   const base = { email: "fatih@ornek.com", isPanelUser: true };
 
   it("doğrulama kapalıysa şifre yeter", () => {
-    expect(decideAccess({ ...base, currentLevel: "aal1", nextLevel: "aal1" })).toEqual({ state: "tamam", user: { email: "fatih@ornek.com", mode: "supabase", twoFactor: false } });
+    expect(decideAccess({ ...base, currentLevel: "aal1", nextLevel: "aal1" })).toEqual({ state: "tamam", user: { email: "fatih@ornek.com", mode: "supabase", role: "staff", twoFactor: false } });
   });
 
   it("açıksa kod girilene kadar panel açılmaz", () => {
