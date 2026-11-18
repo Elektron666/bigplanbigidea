@@ -10,6 +10,7 @@ import { QuickStrip } from "./QuickStrip";
 import { PresetStrip } from "./PresetStrip";
 import { useOnline } from "@/lib/offline/use-online";
 import type { ProfileChoice } from "@/lib/three/profile";
+import { KartelaScanner } from "@/components/kiosk/KartelaScanner";
 import { KioskCodeEntry } from "@/components/kiosk/KioskCodeEntry";
 import { AttractContext } from "@/components/kiosk/attract";
 import { ATTRACT_STEP_SECONDS, attractChangesModel, attractFabrics, attractModels, nextAttract, nextAttractModel } from "@/lib/kiosk";
@@ -179,6 +180,7 @@ export function Configurator({
   const [split, setSplit] = useState(0.5);
   const favorites = useFavorites();
 
+  const onKartela = useCallback((f: Fabric) => void track("kartela_okutuldu", { firmSlug: firm?.slug, fabricCode: f.code }), [firm?.slug]);
   const select = useCallback(
     (f: Fabric) => {
       if (compare?.active === "sag") {
@@ -551,7 +553,12 @@ export function Configurator({
       <FabricSheet
         header={
           <>
-            {kiosk && <KioskCodeEntry fabrics={modelFabrics} selectedCode={active.code} onSelect={select} />}
+            {kiosk && (
+              <div className="mb-5">
+                <KioskCodeEntry fabrics={modelFabrics} selectedCode={active.code} onSelect={select} />
+                <KartelaScanner fabrics={modelFabrics} onSelect={select} onScanned={onKartela} />
+              </div>
+            )}
             <div className="flex items-start justify-between gap-3">
               <FabricHeadline fabric={shownFabric} loading={loading && ready && shownFabric === active} />
               <div className="-mr-2 mt-3 flex shrink-0 items-center">

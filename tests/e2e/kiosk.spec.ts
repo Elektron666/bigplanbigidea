@@ -50,6 +50,9 @@ test("kiosk: elimdeki kartelanın kodu yazılınca kumaş koltuğa giyer", async
   // visitors only try fabrics: no adding or duplicating pieces, no plan
   await expect(page.getByRole("button", { name: "Mobilya ekle" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Plan", exact: true })).toHaveCount(0);
+  // this test browser has no camera: no "Kartela okut" button, the code box is the way in (job 2)
+  await expect(page.getByLabel("Elinizdeki kartelanın kodu")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Kartela okut" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Çoğalt" })).toHaveCount(0);
   await expect(page.getByRole("link", { name: "Yönetim" })).toHaveCount(0);
   const box = page.getByLabel("Elinizdeki kartelanın kodu");

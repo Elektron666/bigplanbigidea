@@ -14,7 +14,8 @@ export default async function FabricsPage({ searchParams }: PageProps<"/panel/ku
   const sp = await searchParams;
   const saved = typeof sp.kaydedildi === "string" ? codeUpper(sp.kaydedildi) : null;
   const imported = typeof sp.aktarildi === "string" ? Number(sp.aktarildi) : null;
-  const fabrics = await getRepository().listFabrics({ includeInactive: true });
+  const repo = getRepository();
+  const [fabrics, firms] = await Promise.all([repo.listFabrics({ includeInactive: true }), repo.listFirms()]);
   const placeholders = fabrics.filter((f) => f.isPlaceholder).length;
   const livePlaceholders = fabrics.filter((f) => f.isPlaceholder && f.isActive).length;
 
@@ -47,9 +48,32 @@ export default async function FabricsPage({ searchParams }: PageProps<"/panel/ku
         </div>
       )}
 
+      {/* Swatch card labels (job 2): tick fabrics, print their QR labels on a new page */}
+      <form id="kartela" method="get" action="/panel/kartela" target="_blank" className="mb-4 flex flex-wrap items-end gap-3 rounded-2xl border border-cizgi bg-kagit px-4 py-3">
+        <div className="min-w-0 flex-1 basis-64">
+          <p className="font-medium">Kartela etiketi</p>
+          <p className="text-[13px] text-antrasit-70">Aşağıdan kumaşları işaretleyin. Etiketteki QR showroom ekranına tutulunca koltuk o kumaşa geçer; telefonla okutulunca sayfa o kumaşla açılır.</p>
+        </div>
+        <label className="flex flex-col gap-1.5 text-[13px] text-antrasit-70">
+          Telefonla okutulunca açılacak sayfa
+          <select name="magaza" defaultValue="" className="h-11 rounded-lg border border-cizgi bg-white px-3 text-[15px] text-antrasit">
+            <option value="">ORMEN sayfası</option>
+            {firms.map((f) => (
+              <option key={f.id} value={f.id}>
+                {f.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <button type="submit" className={buttonClass.secondary}>
+          Seçilenlerin etiketini aç
+        </button>
+      </form>
+
       <ul className="divide-y divide-cizgi rounded-2xl border border-cizgi bg-kagit">
         {fabrics.map((f) => (
           <li key={f.id} className="flex items-center gap-4 px-4 py-3">
+            <input type="checkbox" form="kartela" name="kod" value={f.code} aria-label={`${f.code}: kartela etiketi`} className="h-5 w-5 shrink-0 accent-[#2a2a28]" />
             {/* eslint-disable-next-line @next/next/no-img-element -- tiny thumbnails from our own storage */}
             <img src={f.texture.thumbUrl} alt="" width={48} height={48} className="h-12 w-12 shrink-0 rounded-lg border border-cizgi object-cover" />
             <Link href={`/panel/kumaslar/${f.id}`} className="min-w-0 flex-1 hover:underline">

@@ -14,6 +14,48 @@ Bu dosyada projede verilen kararlar, yapılan varsayımlar ve bilinen sınırlar
 - **Numune taleplerindeki ad ve telefon** ORMEN panelinde görünmeye devam eder (6 Ekim kararı değişmedi). Yeni kural yalnızca yeni verilere uygulanır: teklifteki müşteri adı ve "ilgilenen müşteriler".
 - Görev tanımının eski kararlarla çeliştiği yerler ve seçilen yol: `PLAN-SHOWROOM.md`, 3. bölüm.
 
+## İş 2: sihirli kartela; Next.js güvenlik yaması (18 Kasım 2026)
+
+**Etiket:**
+- Panel → **Kumaşlar** → kumaşları işaretle → "Telefonla okutulunca açılacak sayfa" (ORMEN ya da bir mağaza) → **Seçilenlerin etiketini aç**. A4, 3 × 8 etiket (L7159, askı etiketleriyle aynı kâğıt).
+- Her etikette QR, kumaş kodu, seri ve renk adı, "Ekrana tutun, koltukta görün".
+- QR yüksek hata düzeltmeli (H) ve 26 mm; etiket elde tutulur, eğilir, çizilir.
+- QR kısa bir adres taşır: `/k/KOD` ya da `/k/magaza/KOD` (`lib/kartela/qr.ts`). Telefon bu adresi açınca mağazanın (ya da ORMEN'in) sayfası kumaş giyilmiş olarak açılır. Raporda "basılı QR" kaynağında, "kartela" etiketiyle sayılır.
+- Bilinmeyen ya da gizli kumaş kodu sayfayı yine açar, yalnızca kumaşı zorlamaz.
+- Eski askı etiketlerinin adresleri (`/f/firma?k=KOD`) ve QR'a yazılmış düz bir kod da ekranda okunur.
+
+**Showroom ekranında "Kartela okut":**
+- Kod kutusunun hemen altında. Kamera açılır; etiket ekrandaki kılavuz kutuya girince kendiliğinden okunur, kamera kapanır ve kumaş açık modelin seçili parçasına (seçim yoksa tamamına) yumuşak geçişle giyer.
+- Okuma cihazda yapılır: tarayıcının kendi okuyucusu (Android'de var) ya da yoksa `jsQR` (ücretsiz, Apache-2.0 lisanslı, yalnızca düğmeye basılınca yüklenir). İkisi de internetsiz çalışır; çevrimdışı katman jsQR'ı da cihazda saklar.
+- Ekran yalnızca koddan kumaşı bulur; QR'daki mağaza adı ekran için önemsizdir. Ekran her zaman kendi mağazasında giydirir.
+- Mağazada olmayan ya da kapatılmış kumaş: "XYZ bu mağazada yok. Başka bir kartela deneyin." 6 saniye görünür, ekran takılmaz. Kartela olmayan bir QR "Bu QR bir kartela etiketi değil" der ve okumaya devam eder.
+- Kamerası olmayan ekranda düğme hiç görünmez. Kamera izni reddedilirse düğme kaybolur ve "kodu yukarıya yazın" denir. Kod kutusu her durumda yerinde.
+- Kamera yalnızca okuma penceresi açıkken çalışır; 30 saniyede okunamazsa kendiliğinden kapanır.
+- Her başarılı okuma "kartela okutuldu" olayı olarak kaydedilir. Okuma süresi (düğmeden kumaşın seçilmesine) `?olcum` kutusunda da görünür.
+
+**Okuma hızı, ölçülerek bulunan iki düzeltme:**
+- İlk sürüm kareyi 720 piksele küçültüyordu; QR'ın kareleri yaklaşık 3,5 piksele düşüyor, okuma bazen sürüyordu. Artık yalnızca kılavuz kutunun içi tam çözünürlükte okunuyor; kareler iki kat büyük, işlenecek piksel daha az.
+- Okuma penceresinin arkasındaki bulanıklık efekti kaldırıldı: kamera görüntüsü her yenilendiğinde bütün ekranın yeniden bulanıklaştırılmasına yol açıyordu ve okumayı yavaşlatıyordu (zayıf bir Android'de de yavaşlatırdı). Yerine koyu, düz bir arka plan geldi.
+- Sonuç: sahte kamerayla, internet kapalı, yazılımsal grafikte 4 ardışık koşuda 508–560 ms. Görev tanımı 2 saniye istiyor.
+
+**Test:**
+- Uçtan uca, ekranın kamerası Chromium'un sahte kamerası. Ona, etiket sayfasının bastığı QR'ın aynısı, gri bir zemin üstünde elde tutulan bir kart gibi veriliyor.
+- Panelde iki kumaş seçilir, etiketler açılır; QR adresi `/k/ornek-mobilya/MISSO-05`.
+- Kısa adres mağaza sayfasına yönlenir ve koltuk MISSO-05 olur; bilinmeyen kod sayfayı kumaşsız açar.
+- Ekran eşleşir, internet kesilir, ekran yeniden açılır; kartela okunur, kamera kapanır, koltuk MISSO-05 olur, süre 2 saniyenin altındadır. Okuma boyunca 100 ms'de bir sayılan kumaşlı parça sayısı hiç sıfıra düşmez (gri ya da boş koltuk yok).
+- Mağazada olmayan kod uyarı verir, ardından kod kutusu çalışır.
+- Kamerası olmayan tarayıcıda düğme görünmez.
+
+**Cihazda doğrulanacak (bu ortamda yapılamaz):**
+- Basılı etiketin gerçek kamerayla 20–40 cm'den okunması. Sahte kamera, kameranın 30 cm'den göreceği boyutta düz, iyi aydınlatılmış bir görüntü veriyor; parlama, bulanıklık, eğik tutma ve mağaza ışığı denenmedi.
+- Tarayıcının kendi okuyucusunun yolu: Linux'taki test tarayıcısında bu okuyucu yok, testler jsQR yolundan geçti. Android'de kendi okuyucusu kullanılacak.
+
+**Next.js güvenlik yaması:**
+- `npm install` sırasında görülen denetim uyarısı kendi eklediğim pakette değildi; Next.js 16.3.8'deydi. Aralarında kimlik doğrulamasız uzaktan kod çalıştırma olan beş açık var (GHSA-2464-fhr4-w9xw, GHSA-673q-mjm6-r5xr ve üçü daha).
+- Next.js ve eslint-config-next 16.4.6'ya (9 Kasım'da çıkan yama sürümü, aynı ana sürüm) yükseltildi; üretim bağımlılıklarında açık kalmadı, bütün testler geçiyor.
+- Kalan uyarılar yalnızca geliştirme araçlarında (kod denetleyici ve test aracının dosya eşleme kütüphaneleri); sitede çalışmıyor, dokunulmadı.
+- **Yayındaki site (`ormen3xd`) hâlâ 16.3.8 ile çalışıyor.** O depoya bu oturumun yazma izni yok. Aynı yükseltme orada da yapılmalı; bu depo yayına alınana kadar bekletmemek gerekir.
+
 ## İş 1, 9. dilim: kalite profili ve vitrin döngüsünde model değişimi (18 Kasım 2026)
 
 **Kalite profili (`lib/three/profile.ts`), yalnızca eşleşmiş showroom ekranında:**

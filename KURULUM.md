@@ -60,12 +60,23 @@ Ekran sağlayıcınızın kiosk modu ya da Google Play'deki bir kiosk başlatıc
 - **Ayarlar → Pil**: Chrome için pil iyileştirmesini kapatın; arka planda kapatılmasın.
 - Ses: dokunma seslerini kapatın.
 
-## 6. Son kontrol (3 dakika)
+## 6. Kamera ve kartela etiketleri (10 dakika)
+
+**Kamera izni (bir kez):** Ekranda showroom'u açın → **Kartela okut** → Chrome kamera izni sorar → **İzin ver** (ya da "Bu siteyi ziyaret ederken"). İzni kalıcı yapmak için Chrome → ⋮ → **Ayarlar → Site ayarları → Kamera** → `atelier.ormentekstil.com.tr` → **İzin ver**. Ana ekrana eklenmiş uygulama aynı izni kullanır. İzin bir kez verilince bir daha sorulmaz.
+
+Kamera izni verilmezse ya da ekranın kamerası yoksa **Kartela okut** düğmesi görünmez; satıcı kodu "Elinizdeki kartelanın kodu" kutusuna yazar.
+
+**Etiketler:** Panel → **Kumaşlar** → mağazadaki kartelaların kumaşlarını işaretleyin → "Telefonla okutulunca açılacak sayfa" kısmında mağazayı seçin → **Seçilenlerin etiketini aç** → **Yazdır**. Kâğıt: L7159 tipi A4 yapışkan etiket (3 × 8). Yazdırırken ölçek %100. Etiketi kartelanın ön yüzüne, kıvrılmayan düz bir yere yapıştırın.
+
+**Deneyin:** Etiketi ekranın kamerasına 20–40 cm'den tutun; koltuk 1–2 saniyede o kumaşa geçmelidir. Okumazsa etiketi biraz yaklaştırın, ışığın etikete yansıyıp parlamadığına bakın.
+
+## 7. Son kontrol (3 dakika)
 
 - [ ] Ekran bir dakika dokunulmadan bekleyince koltuk yavaşça döner ve kumaşlar sırayla değişir.
 - [ ] Ekrana dokununca showroom hemen açılır.
 - [ ] Logoya hızlıca 5 kez dokunun → **Mağaza PIN'i** sorulur → PIN'i yazın → **Ekran ayarları** açılır → **Güncellemeleri denetle** "Ekran güncel" der → **Showroom'a dön**.
 - [ ] Wi-Fi'yi kapatın, ekranı yeniden açın: showroom açılır, altta "İnternet bağlantısı yok" yazar, kumaş denemesi çalışır. Wi-Fi'yi geri açın: yazı kaybolur.
+- [ ] Bir kartela etiketini kameraya tutun: koltuk o kumaşa geçer.
 - [ ] Panelde ekran **Güncel** görünüyor.
 
 ## Gündelik işler
@@ -84,7 +95,6 @@ Ekran sağlayıcınızın kiosk modu ya da Google Play'deki bir kiosk başlatıc
 
 Bu adımlar ilgili iş yazıldığında buraya eklenecek:
 
-- Kamera izni ve kartela etiketlerinin basılması (İş 2, sihirli kartela).
 - Metraj, fire katsayıları ve teklif ayarları (İş 3).
 - Köşe modül setinin yüklenmesi (İş 4).
 - Mağaza bazında özellik açma, kota ve vitrin süresi ayarları (İş 0'ın kalanı).

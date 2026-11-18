@@ -24,7 +24,7 @@ export function KioskCodeEntry({ fabrics, selectedCode, onSelect }: { fabrics: F
   };
 
   return (
-    <div className="mb-5 rounded-2xl border border-cizgi bg-white p-4" data-testid="kiosk-kod">
+    <div className="rounded-2xl border border-cizgi bg-white p-4" data-testid="kiosk-kod">
       <label htmlFor="kiosk-kod-girisi" className="block text-[17px] font-medium text-antrasit">
         Elinizdeki kartelanın kodu
       </label>

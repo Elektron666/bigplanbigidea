@@ -19,6 +19,8 @@ export interface Measurement {
   /** Recent intervals of frames that followed each other closely (seconds). */
   frames: number[];
   ar: "bilinmiyor" | "destekleniyor" | "desteklenmiyor" | "acildi" | "acilamadi";
+  /** Showroom screens only: last swatch QR read, from the button to the fabric chosen (ms). */
+  kartelaMs?: number;
   /** Showroom screens only: the quality profile in use (lib/three/profile.ts). */
   profile?: "hafif" | "tam";
 }
@@ -98,5 +100,6 @@ export function summary(m: Measurement, device: { ua: string; cores?: number; me
     `Hareket hâlinde kare hızı: ${fps === null ? "ölçülmedi (sahneyi döndürün)" : `${fps} fps`}`,
     `İlk kumaş: ${m.firstFabricMs === null ? "gelmedi" : `${(m.firstFabricMs / 1000).toFixed(1).replace(".", ",")} sn`}`,
     `AR: ${AR_TEXT[m.ar]}`,
+    ...(m.kartelaMs !== undefined ? [`Kartela okuma: ${(m.kartelaMs / 1000).toFixed(1).replace(".", ",")} sn`] : []),
   ];
 }
