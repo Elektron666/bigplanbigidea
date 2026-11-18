@@ -138,3 +138,53 @@ test.describe("merkez panel: katalog ve toplu atama", () => {
     await expect(page.locator("main ul").first().getByRole("listitem")).toHaveCount(1);
   });
 });
+
+test.describe("merkez panel: mağaza bazında özellikler", () => {
+  test.skip(({ isMobile }) => isMobile, "panel masaüstü için");
+
+  test("kapatılan özellik mağaza sayfasından kalkar ve uç da reddeder; açınca geri gelir", async ({ page, request }) => {
+    test.setTimeout(150_000);
+    await login(page);
+    const tag = Date.now().toString(36);
+    await page.goto("/panel/firmalar/yeni");
+    await page.getByLabel("Firma adı").fill(`Özellik ${tag}`);
+    await page.getByRole("button", { name: "Kaydet", exact: true }).click();
+    await expect(page.getByText(`Özellik ${tag} kaydedildi.`)).toBeVisible();
+    const slug = (await page.getByText(/\/f\/ozellik-/).first().innerText()).match(/\/f\/(ozellik-[a-z0-9-]+)/)![1];
+    const panelUrl = page.url();
+
+    const site = await page.context().browser()!.newPage();
+    await site.goto(`/f/${slug}`);
+    await expect(site.getByRole("button", { name: "Metraj ve teklif" })).toBeVisible({ timeout: 60_000 });
+    await expect(site.getByRole("tab", { name: "Köşe kur" })).toBeVisible();
+
+    // off
+    const teklif = page.getByRole("switch", { name: "Metraj ve teklif açık" });
+    await expect(teklif).toHaveAttribute("aria-checked", "true");
+    await teklif.click();
+    await expect(teklif).toHaveAttribute("aria-checked", "false");
+    await page.getByRole("switch", { name: "Köşe kurucu açık" }).click();
+    await expect(page.getByRole("switch", { name: "Köşe kurucu açık" })).toHaveAttribute("aria-checked", "false");
+    await site.reload();
+    await expect(site.getByRole("button", { name: "Numune iste" })).toBeVisible({ timeout: 60_000 });
+    await expect(site.getByRole("button", { name: "Metraj ve teklif" })).toHaveCount(0);
+    await expect(site.getByRole("tab", { name: "Köşe kur" })).toHaveCount(0);
+    // not only hidden: the endpoint refuses it too
+    const body = { clientId: `ozl${tag}0001`, number: "T-XZL234", token: `ozl-${tag}-0123456789abcdef`, pieces: [{ modelSlug: "berjer", fabricCode: "MISSO-05" }], firmSlug: slug };
+    expect((await request.post("/api/teklif", { data: body })).status()).toBe(403);
+
+    // the switch survives a reload of the panel, and the firm form's save does not reset it
+    await page.goto(panelUrl);
+    await expect(page.getByRole("switch", { name: "Metraj ve teklif açık" })).toHaveAttribute("aria-checked", "false");
+    await page.getByRole("button", { name: "Kaydet", exact: true }).click();
+    await expect(page.getByText(`Özellik ${tag} kaydedildi.`)).toBeVisible();
+    await expect(page.getByRole("switch", { name: "Metraj ve teklif açık" })).toHaveAttribute("aria-checked", "false");
+
+    // on again
+    await page.getByRole("switch", { name: "Metraj ve teklif açık" }).click();
+    await expect(page.getByRole("switch", { name: "Metraj ve teklif açık" })).toHaveAttribute("aria-checked", "true");
+    await site.reload();
+    await expect(site.getByRole("button", { name: "Metraj ve teklif" })).toBeVisible({ timeout: 60_000 });
+    await site.close();
+  });
+});

@@ -10,6 +10,7 @@ import { DEVICE_QUALITIES, DEVICE_QUALITY_LABELS, validateDeviceName, type Devic
 import { cleanPin, weakPin } from "@/lib/devices/pin";
 import { checkBulkAssign } from "@/lib/catalogue/products";
 import { validateWaste } from "@/lib/teklif/metraj";
+import { cleanFeatures, FEATURE_LABELS, FEATURES, type Feature } from "@/lib/central/features";
 import { getQuotes, ORDER_STATUSES, type OrderStatus } from "@/lib/teklif/store";
 import { SHOP_STATUSES, SHOP_STATUS_LABELS, type ShopStatus } from "@/lib/central/shops";
 
@@ -234,5 +235,33 @@ export async function setOrderStatusAction(id: string, status: string): Promise<
   if (!(ORDER_STATUSES as readonly string[]).includes(status)) return { ok: false, error: "Bilinmeyen durum." };
   if (!(await getQuotes().setOrderStatus(String(id).slice(0, 40), status as OrderStatus))) return { ok: false, error: "Talep bulunamadı." };
   revalidatePath("/panel/siparisler");
+  return { ok: true };
+}
+
+// ------------------------------------------------------------------ features (task section 3)
+
+export async function setFeatureAction(firmId: string, feature: string, on: boolean): Promise<Result> {
+  const user = await getPanelUser();
+  if (!user) return { ok: false, error: "Oturum süresi doldu. Yeniden giriş yapın." };
+  if (!can(user.role, "kurulum")) return { ok: false, error: DENIED };
+  if (!(FEATURES as readonly string[]).includes(feature) || typeof on !== "boolean") return { ok: false, error: "Bilinmeyen özellik." };
+  const repo = getRepository();
+  const firm = await repo.getFirmById(String(firmId).slice(0, 40));
+  if (!firm) return { ok: false, error: "Mağaza bulunamadı." };
+  const before = cleanFeatures(firm.features);
+  await repo.setFirmFeatures(firm.id, { ...before, [feature]: on });
+  await getCentral().writeAudit({
+    actor: user.email,
+    actorRole: user.role,
+    firmId: firm.id,
+    entity: "magaza",
+    entityId: firm.id,
+    action: on ? "ozellik-acildi" : "ozellik-kapandi",
+    summary: `${firm.name}: ${FEATURE_LABELS[feature as Feature].name} ${on ? "açıldı" : "kapandı"}`,
+    before,
+    after: { ...before, [feature]: on },
+  });
+  revalidatePath(`/panel/firmalar/${firm.id}`);
+  revalidatePath(`/f/${firm.slug}`);
   return { ok: true };
 }

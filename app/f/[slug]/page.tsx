@@ -7,6 +7,7 @@ import { parseKiosk } from "@/lib/kiosk";
 import { KioskShell } from "@/components/kiosk/KioskShell";
 import { getQuotes } from "@/lib/teklif/store";
 import { moduleSets, withBuiltSet } from "@/lib/modul/model";
+import { featureOn, type Feature } from "@/lib/central/features";
 
 // A furniture firm's own page: its logo and colour, its models, ORMEN fabrics.
 // Sample requests from here go to the panel and, by WhatsApp, to the firm.
@@ -28,19 +29,20 @@ export default async function FirmPage({ params, searchParams }: PageProps<"/f/[
   if (!cat?.firm || cat.models.length === 0 || cat.fabrics.length === 0) notFound();
   const kiosk = parseKiosk(sp);
   // a shop's page offers "Metraj ve teklif" with ORMEN's waste settings
-  const waste = await getQuotes().getWaste();
+  const on = (f: Feature) => featureOn(cat.firm!.features, f);
+  const waste = on("teklif") ? await getQuotes().getWaste() : undefined;
   // a corner set built from modules (job 4) travels in ?mk=; the shop's page offers the builder
   const models = withBuiltSet(cat.models, sp.mk);
-  const [moduleSet] = moduleSets();
+  const moduleSet = on("kose") ? moduleSets()[0] : undefined;
   return (
     <main>
       <h1 className="sr-only">{cat.firm.name}: kumaşınızı koltuğun üstünde görün</h1>
       {kiosk ? (
         <KioskShell idleSeconds={kiosk.idleSeconds} firm={cat.firm}>
-          <Configurator models={models} fabrics={cat.fabrics} firm={cat.firm} {...initialStateFrom(sp, models, cat.fabrics)} kiosk={!!kiosk} waste={waste} moduleSet={moduleSet} />
+          <Configurator models={models} fabrics={cat.fabrics} firm={cat.firm} {...initialStateFrom(sp, models, cat.fabrics)} kiosk={!!kiosk} waste={waste} moduleSet={moduleSet} kartela={on("kartela")} />
         </KioskShell>
       ) : (
-        <Configurator models={models} fabrics={cat.fabrics} firm={cat.firm} {...initialStateFrom(sp, models, cat.fabrics)} kiosk={!!kiosk} waste={waste} moduleSet={moduleSet} />
+        <Configurator models={models} fabrics={cat.fabrics} firm={cat.firm} {...initialStateFrom(sp, models, cat.fabrics)} kiosk={!!kiosk} waste={waste} moduleSet={moduleSet} kartela={on("kartela")} />
       )}
     </main>
   );

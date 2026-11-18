@@ -5,6 +5,7 @@ import { normaliseParams } from "@/lib/parametric/spec";
 import { cleanLot, newSampleCode, type SampleChoices, type SampleRequest, type SampleRequestInput, type SampleStep } from "@/lib/samples";
 import type { Feedback, FeedbackInput } from "@/lib/feedback";
 import type { ShopProduct } from "@/lib/catalogue/shop-products";
+import { cleanFeatures } from "@/lib/central/features";
 import { PRODUCT_PAGE_SIZE, type ProductCategory, type ProductQuery } from "@/lib/catalogue/products";
 import type { CutReport } from "@/lib/cut-report";
 import { cleanPresets } from "@/lib/firm-presets";
@@ -178,6 +179,7 @@ interface FirmRow {
   fabric_series: string[] | null;
   presets: unknown;
   is_active: boolean;
+  features?: Record<string, unknown> | null;
 }
 
 function firmFromRow(r: FirmRow): Firm {
@@ -190,6 +192,7 @@ function firmFromRow(r: FirmRow): Firm {
     whatsapp: und(r.whatsapp),
     fabricSeries: r.fabric_series ?? [],
     presets: cleanPresets(r.presets),
+    features: cleanFeatures(r.features),
     isActive: r.is_active,
   };
 }
@@ -380,6 +383,10 @@ export class SupabaseRepository implements Repository {
       : await this.db.from("firms").insert(row).select("*").single();
     if (res.error?.code === "23505") throw new DuplicateSlugError(input.slug);
     return firmFromRow(check(res) as FirmRow);
+  }
+
+  async setFirmFeatures(firmId: string, features: Record<string, boolean>) {
+    check(await this.db.from("firms").update({ features }).eq("id", firmId));
   }
 
   async getFirmShowcaseIds(firmId: string) {

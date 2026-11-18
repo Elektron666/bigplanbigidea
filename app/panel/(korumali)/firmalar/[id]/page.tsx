@@ -2,6 +2,7 @@ import { requirePanelUser } from "@/lib/auth/panel";
 import { notFound } from "next/navigation";
 import { getRepository, loadCatalogue } from "@/lib/data";
 import { FirmEditor } from "@/components/panel/FirmEditor";
+import { ShopFeatures } from "@/components/panel/ShopFeatures";
 import { ShopDevices } from "@/components/panel/ShopDevices";
 import { deviceState, type Device } from "@/lib/devices/pairing";
 import { getCentral } from "@/lib/central/store";
@@ -51,6 +52,7 @@ export default async function EditFirmPage({ params, searchParams }: PageProps<"
       ) : (
         <p className="mb-8 rounded-xl bg-cizgi/40 px-4 py-3 text-[14px] text-antrasit-70">Firma sayfası yayında değil; bağlantı ve QR, yayına alınınca burada görünür.</p>
       )}
+      <ShopFeatures firmId={firm.id} features={firm.features} />
       <ShopDevices
         firmId={firm.id}
         devices={withState(devices, shop?.contentVersion ?? 1)}

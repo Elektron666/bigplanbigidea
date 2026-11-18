@@ -90,6 +90,8 @@ export interface Firm {
   fabricSeries?: string[];
   /** Ready-made scenes shown when the page opens (lib/firm-presets.ts). */
   presets?: { name: string; id: string }[];
+  /** Per-shop features (lib/central/features.ts); missing keys take their defaults. */
+  features?: Record<string, boolean>;
   isActive: boolean;
 }
 

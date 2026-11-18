@@ -84,6 +84,8 @@ export interface ConfiguratorProps {
   showroom?: boolean;
   /** The module set the "Köşe kur" tab builds with (job 4); none = no tab. */
   moduleSet?: ModuleSet;
+  /** "Kartela okut" on the kiosk (job 2); a shop may switch it off. */
+  kartela?: boolean;
 }
 
 type Tab = "kumas" | "oda" | "kose";
@@ -116,6 +118,7 @@ export function Configurator({
   waste,
   showroom = false,
   moduleSet,
+  kartela = true,
 }: ConfiguratorProps) {
   // ---------------------------------------------------------------- corner set builder (job 4)
   // the set being built is one more model, at the fixed address "kose-kurucu"
@@ -599,7 +602,7 @@ export function Configurator({
             {kiosk && (
               <div className="mb-5">
                 <KioskCodeEntry fabrics={modelFabrics} selectedCode={active.code} onSelect={select} />
-                <KartelaScanner fabrics={modelFabrics} onSelect={select} onScanned={onKartela} />
+                {kartela && <KartelaScanner fabrics={modelFabrics} onSelect={select} onScanned={onKartela} />}
               </div>
             )}
             <div className="flex items-start justify-between gap-3">

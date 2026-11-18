@@ -11,7 +11,9 @@ function sceneSize(page: Page): Promise<{ x: number; z: number }> {
     type V = { x: number; y: number; z: number };
     type O = { isMesh?: boolean; material?: { name?: string }; geometry?: { computeBoundingBox(): void; boundingBox: { min: V; max: V } }; matrixWorld: unknown };
     const w = window as unknown as { __ormenStage?: { get(): { scene: { updateMatrixWorld(): void; traverse(cb: (o: O) => void): void } } } };
-    const state = w.__ormenStage!.get();
+    // the scene may not be up yet (a page just opened): no size yet, the poll asks again
+    if (!w.__ormenStage) return { x: 0, z: 0 };
+    const state = w.__ormenStage.get();
     state.scene.updateMatrixWorld();
     const min = { x: Infinity, z: Infinity };
     const max = { x: -Infinity, z: -Infinity };

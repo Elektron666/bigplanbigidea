@@ -5,6 +5,7 @@ import { allow, callerKey } from "@/lib/rate-limit";
 import { buildQuote, parseQuoteRequest } from "@/lib/teklif/request";
 import { getQuotes } from "@/lib/teklif/store";
 import { withBuiltSet } from "@/lib/modul/model";
+import { featureOn } from "@/lib/central/features";
 
 // A quote from the configurator (Showroom package, job 3), and with
 // order: true, "ORMEN'e sipariş talebi gönder". The metres are worked out
@@ -33,6 +34,9 @@ export async function POST(request: Request) {
 
   const repo = getRepository();
   const firm = screen ? await repo.getFirmById(screen.shop.id) : q.firmSlug ? await repo.getFirmBySlug(q.firmSlug) : null;
+  // a feature switched off for the shop is off here too, not only hidden on the screen
+  if (firm && !featureOn(firm.features, "teklif")) return NextResponse.json({ error: "Teklif bu mağazada kapalı." }, { status: 403 });
+  if (q.order && firm && !featureOn(firm.features, "siparis")) return NextResponse.json({ error: "Sipariş talebi bu mağazada kapalı." }, { status: 403 });
   const catalogue = await loadCatalogue(firm?.slug ?? null);
   if (!catalogue) return NextResponse.json({ error: "Sayfa bulunamadı." }, { status: 404 });
   const quotes = getQuotes();

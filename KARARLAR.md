@@ -14,6 +14,15 @@ Bu dosyada projede verilen kararlar, yapılan varsayımlar ve bilinen sınırlar
 - **Numune taleplerindeki ad ve telefon** ORMEN panelinde görünmeye devam eder (6 Ekim kararı değişmedi). Yeni kural yalnızca yeni verilere uygulanır: teklifteki müşteri adı ve "ilgilenen müşteriler".
 - Görev tanımının eski kararlarla çeliştiği yerler ve seçilen yol: `PLAN-SHOWROOM.md`, 3. bölüm.
 
+## Mağaza bazında özellikler (18 Kasım 2026)
+
+- Görev tanımı her yeni özelliğin mağaza bazında açılıp kapanmasını istiyor. Panel → mağaza sayfası → **Özellikler**: Metraj ve teklif, ORMEN'e sipariş talebi, Köşe kurucu, Kartela okut, Fotoğraftan dene.
+- Varsayılanlar: ilk dördü açık (paketin parçası), **Fotoğraftan dene kapalı** (ücretli bir sağlayıcı ister). Kayıtta olmayan anahtar varsayılanı alır, bu yüzden var olan mağazalarda hiçbir şey değişmedi.
+- Kapatılan özellik mağazanın sayfasından ve ekranından kalkar; yalnızca gizlenmez, teklif ucu da reddeder (403): teklif kapalıysa teklif, sipariş kapalıysa sipariş talebi.
+- Firma formuyla mağaza kaydedilince özellikler korunur (bellek deposunda siliniyordu; düzeltildi ve uçtan uca testte denendi).
+- Her değişiklik günlüğe yazılır; işlem "kurulum" yetkisi ister (yönetici ve eleman).
+- Showroom ekranı değişikliği bir sonraki eşitlemede alır (özellikler içerik sürümünü artırır).
+
 ## İş 4, 1. dilim: köşe kurucu (örnek setle) (18 Kasım 2026)
 
 **Nasıl çalışıyor:**

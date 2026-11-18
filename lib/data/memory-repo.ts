@@ -107,9 +107,16 @@ export class MemoryRepository implements Repository {
     if (this.firms.some((f) => f.slug === input.slug && f.id !== input.id)) throw new DuplicateSlugError(input.slug);
     const firm: Firm = { ...input, id: input.id ?? crypto.randomUUID() };
     const i = this.firms.findIndex((f) => f.id === firm.id);
+    // the firm form does not carry the features: a save keeps them
+    if (i >= 0 && input.features === undefined && this.firms[i].features) firm.features = this.firms[i].features;
     if (i >= 0) this.firms[i] = firm;
     else this.firms.push(firm);
     return firm;
+  }
+
+  async setFirmFeatures(firmId: string, features: Record<string, boolean>) {
+    const f = this.firms.find((x) => x.id === firmId);
+    if (f) f.features = { ...features };
   }
 
   async getFirmShowcaseIds(firmId: string) {

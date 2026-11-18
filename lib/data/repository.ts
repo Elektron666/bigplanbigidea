@@ -40,6 +40,8 @@ export interface Repository {
   getFirmById(id: string): Promise<Firm | null>;
   /** Throws DuplicateSlugError when the link name is taken. */
   saveFirm(input: FirmInput): Promise<Firm>;
+  /** Switches a shop's features on or off (lib/central/features.ts); the rest of the firm is left alone. */
+  setFirmFeatures(firmId: string, features: Record<string, boolean>): Promise<void>;
   /** ORMEN showcase models the firm chose to show (ids, in order). */
   getFirmShowcaseIds(firmId: string): Promise<string[]>;
   /**
