@@ -188,3 +188,55 @@ test.describe("merkez panel: mağaza bazında özellikler", () => {
     await site.close();
   });
 });
+
+test.describe("merkez panel: değişiklik günlüğü", () => {
+  test.skip(({ isMobile }) => isMobile, "panel masaüstü için");
+
+  test("askıya alma ve toplu atama günlükte görünür ve oradan geri alınır", async ({ page }) => {
+    test.setTimeout(150_000);
+    await login(page);
+    const tag = Date.now().toString(36);
+    await page.goto("/panel/firmalar/yeni");
+    await page.getByLabel("Firma adı").fill(`Günlük ${tag}`);
+    await page.getByRole("button", { name: "Kaydet", exact: true }).click();
+    await expect(page.getByText(`Günlük ${tag} kaydedildi.`)).toBeVisible();
+
+    // suspend it
+    await page.goto(`/panel/magazalar?ara=${encodeURIComponent(`Günlük ${tag}`)}`);
+    const shop = page.getByRole("listitem").filter({ hasText: `Günlük ${tag}` });
+    await shop.getByRole("button", { name: "Askıya al" }).click();
+    await expect(shop.getByRole("button", { name: "Geri aç" })).toBeVisible();
+
+    // give it one product in bulk
+    await page.goto("/panel/katalog?sahip=ortak");
+    await page.locator("main ul").first().getByRole("listitem").first().getByRole("checkbox").check();
+    const panel = page.getByRole("complementary", { name: "Toplu atama" });
+    await panel.getByLabel("Mağaza ara").fill(`Günlük ${tag}`);
+    await panel.getByRole("button", { name: "Listedekilerin hepsini seç" }).click();
+    await panel.getByRole("button", { name: "Mağazalara ekle" }).click();
+    await expect(panel.getByText("1 atama eklendi.")).toBeVisible();
+
+    // both are in the log, newest first; undo them from there
+    await page.goto("/panel/gunluk");
+    const assign = page.getByTestId("gunluk-kaydi").filter({ hasText: "1 mağazaya eklendi" }).first();
+    await expect(assign).toContainText("toplu işlem");
+    await assign.getByRole("button", { name: /^Geri al/ }).click();
+    await assign.getByRole("button", { name: "Evet, geri al" }).click();
+    await expect(page.getByTestId("gunluk-kaydi").filter({ hasText: "Geri alındı:" }).first()).toBeVisible();
+
+    // the original entry only (the undo writes its own "Geri alındı: …" entry with the same words)
+    const suspend = page.getByTestId("gunluk-kaydi").filter({ hasText: new RegExp(`^Günlük ${tag}: Aktif → Askıda`) });
+    await suspend.getByRole("button", { name: /^Geri al/ }).click();
+    await suspend.getByRole("button", { name: "Evet, geri al" }).click();
+    await expect(suspend.getByText("geri alındı")).toBeVisible();
+    // an entry undone has no second undo
+    await expect(suspend.getByRole("button", { name: /^Geri al/ })).toHaveCount(0);
+
+    // the shop is active again and has no products
+    await page.goto(`/panel/magazalar?ara=${encodeURIComponent(`Günlük ${tag}`)}`);
+    await expect(page.getByRole("listitem").filter({ hasText: `Günlük ${tag}` }).getByRole("button", { name: "Askıya al" })).toBeVisible();
+    const shopId = await page.getByRole("link", { name: `Günlük ${tag}` }).getAttribute("href");
+    await page.goto(`/panel/katalog?magaza=${shopId!.split("/").pop()}`);
+    await expect(page.getByText("Bu aramaya uyan ürün yok.")).toBeVisible();
+  });
+});

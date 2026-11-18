@@ -205,11 +205,26 @@ class SupabaseCentral implements CentralStore {
     );
   }
 
+  async getAudit(id: string) {
+    if (!/^\d{1,18}$/.test(id)) return null;
+    const page = await this.listAuditWhere((q) => q.eq("id", Number(id)), 0, 1);
+    return page.rows[0] ?? null;
+  }
+
+  async markUndone(id: string) {
+    if (!/^\d{1,18}$/.test(id)) return false;
+    // only an entry not undone yet: two clicks undo once
+    const rows = check(await this.db.from("audit_log").update({ undone_at: new Date().toISOString() }).eq("id", Number(id)).is("undone_at", null).select("id")) as unknown[];
+    return rows.length > 0;
+  }
+
   async listAudit(opts: { firmId?: string; limit?: number; offset?: number }) {
-    const offset = opts.offset ?? 0;
-    let q = this.db.from("audit_log").select("*", { count: "exact" }).order("at", { ascending: false }).range(offset, offset + (opts.limit ?? 50) - 1);
-    if (opts.firmId) q = q.eq("firm_id", opts.firmId);
-    const res = await q;
+    return this.listAuditWhere((q) => (opts.firmId ? q.eq("firm_id", opts.firmId) : q), opts.offset ?? 0, opts.limit ?? 50);
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private async listAuditWhere(filter: (q: any) => any, offset: number, limit: number) {
+    const res = await filter(this.db.from("audit_log").select("*", { count: "exact" })).order("at", { ascending: false }).range(offset, offset + limit - 1);
     if (res.error) throw new Error(res.error.message);
     type Row = { id: number; at: string; actor: string; actor_role: AuditInput["actorRole"]; firm_id: string | null; entity: AuditEntity; entity_id: string | null; action: string; summary: string; before: unknown; after: unknown; batch_id: string | null; undone_at: string | null };
     return {

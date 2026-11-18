@@ -156,6 +156,17 @@ export class MemoryCentral implements CentralStore {
     this.audit.unshift({ ...e, id: String(this.audit.length + 1), at: new Date().toISOString(), undoneAt: null });
   }
 
+  async getAudit(id: string) {
+    return this.audit.find((a) => a.id === id) ?? null;
+  }
+
+  async markUndone(id: string) {
+    const a = this.audit.find((x) => x.id === id);
+    if (!a || a.undoneAt) return false;
+    a.undoneAt = new Date().toISOString();
+    return true;
+  }
+
   async listAudit(opts: { firmId?: string; limit?: number; offset?: number }) {
     const hit = this.audit.filter((a) => !opts.firmId || a.firmId === opts.firmId);
     const offset = opts.offset ?? 0;

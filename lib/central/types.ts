@@ -81,5 +81,8 @@ export interface CentralStore {
   writeAudit(e: AuditInput): Promise<void>;
   /** Newest first. */
   listAudit(opts: { firmId?: string; limit?: number; offset?: number }): Promise<{ total: number; rows: AuditEntry[] }>;
+  getAudit(id: string): Promise<AuditEntry | null>;
+  /** Marks an entry undone; false when it already was (two clicks undo once). */
+  markUndone(id: string): Promise<boolean>;
 }
 

@@ -14,6 +14,15 @@ Bu dosyada projede verilen kararlar, yapılan varsayımlar ve bilinen sınırlar
 - **Numune taleplerindeki ad ve telefon** ORMEN panelinde görünmeye devam eder (6 Ekim kararı değişmedi). Yeni kural yalnızca yeni verilere uygulanır: teklifteki müşteri adı ve "ilgilenen müşteriler".
 - Görev tanımının eski kararlarla çeliştiği yerler ve seçilen yol: `PLAN-SHOWROOM.md`, 3. bölüm.
 
+## İş 0: değişiklik günlüğü ekranı ve geri alma (18 Kasım 2026)
+
+- Panel → **Günlük** (`/panel/gunluk`): kim, ne zaman, hangi mağazada ya da üründe neyi değiştirdi; mağazaya göre süzülür, sayfada 50 kayıt. Toplu işlemler "toplu işlem" diye işaretli.
+- **Geri alınabilenler:** mağaza durumu (askıya alma dahil), ürünün mağazadaki gösterimi, toplu atama (tersine çevrilir: eklenenler çıkarılır, çıkarılanlar eklenir), özellik anahtarları, fire katsayıları (yalnızca yönetici), ekran kalite profili. Geri alma da günlüğe "Geri alındı: …" diye yazılır.
+- **Geri alınamayanlar:** PIN değişikliği, kaldırılan ekran, eşleştirme kodu, reddedilmiş denemeler. Bunlarda düğme yok.
+- Bir kayıt bir kez geri alınır: veritabanında "henüz geri alınmamışsa" koşuluyla işaretlenir, iki tıklama iki kez geri almaz.
+- Geri alma, yalnızca o kaydın öncesine döner. Arada aynı şey yeniden değiştiyse, geri alma son hâli değil o kaydın öncesini yazar. Bu, panelde onay adımıyla ("Evet, geri al") soruluyor.
+- **Test:** Birim: her türün tersi, geri alınamayanlar, tek seferlik işaret. Uçtan uca: mağaza askıya alınır, ona toplu ürün atanır; ikisi günlükte görünür, oradan geri alınır; mağaza yeniden aktif ve ürünsüz; geri alınmış kayıtta ikinci düğme yok.
+
 ## Mağaza bazında özellikler (18 Kasım 2026)
 
 - Görev tanımı her yeni özelliğin mağaza bazında açılıp kapanmasını istiyor. Panel → mağaza sayfası → **Özellikler**: Metraj ve teklif, ORMEN'e sipariş talebi, Köşe kurucu, Kartela okut, Fotoğraftan dene.

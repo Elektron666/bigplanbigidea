@@ -11,6 +11,7 @@ import { cleanPin, weakPin } from "@/lib/devices/pin";
 import { checkBulkAssign } from "@/lib/catalogue/products";
 import { validateWaste } from "@/lib/teklif/metraj";
 import { cleanFeatures, FEATURE_LABELS, FEATURES, type Feature } from "@/lib/central/features";
+import { undoPermission, undoStep } from "@/lib/central/undo";
 import { getQuotes, ORDER_STATUSES, type OrderStatus } from "@/lib/teklif/store";
 import { SHOP_STATUSES, SHOP_STATUS_LABELS, type ShopStatus } from "@/lib/central/shops";
 
@@ -263,5 +264,46 @@ export async function setFeatureAction(firmId: string, feature: string, on: bool
   });
   revalidatePath(`/panel/firmalar/${firm.id}`);
   revalidatePath(`/f/${firm.slug}`);
+  return { ok: true };
+}
+
+// ------------------------------------------------------------------ undo from the change log (job 0)
+
+export async function undoAuditAction(id: string): Promise<Result> {
+  const user = await getPanelUser();
+  if (!user) return { ok: false, error: "Oturum süresi doldu. Yeniden giriş yapın." };
+  const central = getCentral();
+  const entry = await central.getAudit(String(id).slice(0, 20));
+  if (!entry) return { ok: false, error: "Kayıt bulunamadı." };
+  const step = undoStep(entry);
+  if (!step) return { ok: false, error: "Bu değişiklik geri alınamaz." };
+  if (!can(user.role, undoPermission(step))) return { ok: false, error: DENIED };
+  // marked first: two clicks undo once
+  if (!(await central.markUndone(entry.id))) return { ok: false, error: "Bu değişiklik zaten geri alındı." };
+  const repo = getRepository();
+  switch (step.kind) {
+    case "durum":
+      await central.setShopStatus(step.firmId, step.status);
+      break;
+    case "gosterim":
+      await repo.saveFirmProduct(step.firmId, step.modelId, step.patch);
+      break;
+    case "atama":
+      if (step.mode === "ekle") await repo.assignModels(step.shopIds, step.productIds);
+      else await repo.unassignModels(step.shopIds, step.productIds);
+      break;
+    case "ozellik":
+      await repo.setFirmFeatures(step.firmId, step.features);
+      break;
+    case "fire":
+      await getQuotes().setWaste(step.waste);
+      break;
+    case "kalite":
+      await central.updateDevice(step.deviceId, { quality: step.quality });
+      await central.requestSync([step.deviceId]);
+      break;
+  }
+  await central.writeAudit({ actor: user.email, actorRole: user.role, firmId: entry.firmId, entity: entry.entity, entityId: entry.entityId, action: "geri-alindi", summary: `Geri alındı: ${entry.summary}`.slice(0, 300), before: entry.after, after: entry.before });
+  revalidatePath("/panel/gunluk");
   return { ok: true };
 }

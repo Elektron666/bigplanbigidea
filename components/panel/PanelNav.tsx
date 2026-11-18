@@ -13,6 +13,7 @@ const LINKS = [
   ["/panel/siparisler", "Siparişler"],
   ["/panel/rapor", "Rapor"],
   ["/panel/geri-bildirim", "Fikirler"],
+  ["/panel/gunluk", "Günlük"],
   ["/panel/durum", "Kurulum"],
   ["/panel/guvenlik", "Güvenlik"],
 ] as const;
