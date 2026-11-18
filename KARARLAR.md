@@ -14,6 +14,17 @@ Bu dosyada projede verilen kararlar, yapılan varsayımlar ve bilinen sınırlar
 - **Numune taleplerindeki ad ve telefon** ORMEN panelinde görünmeye devam eder (6 Ekim kararı değişmedi). Yeni kural yalnızca yeni verilere uygulanır: teklifteki müşteri adı ve "ilgilenen müşteriler".
 - Görev tanımının eski kararlarla çeliştiği yerler ve seçilen yol: `PLAN-SHOWROOM.md`, 3. bölüm.
 
+## İş 0: mağaza kaydı, bakım bedeli ve mağaza şablonu (18 Kasım 2026)
+
+- **Mağaza kaydı** (mağazanın sayfası): şehir, bölge, paket, etiketler, yetkili, kurulum tarihi, güncelleme biçimi (otomatik / onaylı), vitrin süresi, aylık fotoğraf denemesi kotası. Mağaza listesinin süzgeçleri ve sıralaması bunlarla çalışır. Yeni tablo yok: 15 Kasım şemasındaki `firms` (şehir, bölge, güncelleme, `settings.vitrinSn`) ve `firm_admin` sütunlarına yazılır; `settings` içindeki başka anahtarlara dokunulmaz.
+- Vitrin süresi boşsa 60 sn (eski davranış); yalnızca 30–600 sn kabul edilir. **Kota boşsa "ORMEN belirlemedi" demektir ve deneme yapılmaz**: varsayılan sayı uydurulmadı (görev tanımı, yapma listesi).
+- **Bakım bedeli**: vade (son ödeme tarihi zorunlu, tutar boş kalabilir), dönem, not; **Ödendi** / **Ödenmedi yap**. Geçmiş ve ödenmemiş vade "gecikti" diye işaretlenir; mağaza listesindeki "bakım vadesi" en erken ödenmemiş vadedir. Yalnızca yönetici: ORMEN elemanı için bölüm sayfaya hiç gelmez (veri okunmaz), işlemler de reddeder; veritabanında zaten yalnızca yönetici kuralı var.
+- **Tutar günlüğe yazılmaz**, ödeme kayıtları da ORMEN elemanının günlüğünde görünmez (süzgeç sorguda, sayfada değil; sayfa sayısı da doğru).
+- **Şablon**: iyi kurulmuş bir mağaza "şablon olarak kaydet" ile ad verilerek saklanır (bütün özellikler varsayılanlar dahil açık/kapalı olarak, kumaş serileri, vitrin süresi, güncelleme biçimi, paket, kota). Yeni mağaza açılınca sayfasında tek seçim + **Şablonu uygula**. Mağazanın adı, adresi, yetkilisi ve ürünleri değişmez. Aynı adla kaydedilen şablon eskisinin yerine geçer. Uçtan uca testte yeni mağazayı açıp şablonu uygulamak 1 saniyenin altında; görev tanımındaki sınır 10 dakika.
+- Ayrı bir şablon düzenleme ekranı yazılmadı: şablonu değiştirmek için bir mağazayı istenen hâle getirip aynı adla yeniden kaydetmek yetiyor. Şablon silme sonraya kaldı (silme yetkisi yöneticide; şimdilik gerek görülmedi).
+- **Geri alma:** mağaza kaydı değişikliği, şablon uygulama (özellikler, seriler ve kayıt birlikte eski hâline döner) ve ödendi işareti günlükten geri alınır. Ödeme geri alması yalnızca yöneticide.
+- **Test:** Birim: doğrulamalar (olmayan tarih, aralık dışı vitrin süresi, bozuk kota, etiket temizliği), en erken ödenmemiş vade, bellek deposu (liste süzgeci, ekranın vitrin süresi, elemandan saklanan ödeme kayıtları, aynı adlı şablon), geri alma adımları. Uçtan uca: kayıt girilir ve listede şehir/etiketle bulunur, şablon kaydedilir, ikinci mağazaya uygulanır, vade gecikti → ödendi, şablon günlükten geri alınır ve özellik ile vitrin süresi eski hâline döner. Ekran görüntüsüyle bakıldı; ilk şablon kaydedildiğinde "Şablonu uygula" düğmesinin seçimsiz kaldığı hata bu sırada bulunup düzeltildi.
+
 ## İş 0: değişiklik günlüğü ekranı ve geri alma (18 Kasım 2026)
 
 - Panel → **Günlük** (`/panel/gunluk`): kim, ne zaman, hangi mağazada ya da üründe neyi değiştirdi; mağazaya göre süzülür, sayfada 50 kayıt. Toplu işlemler "toplu işlem" diye işaretli.

@@ -13,8 +13,11 @@ Yeni bir mağazaya ORMEN Atelier ekranını kurma adımları. Her adımın yanı
 ## 1. Mağazayı açın (5 dakika)
 
 1. Panel → **Firmalar** → **Yeni firma**: ad, logo (PNG), renk, WhatsApp numarası → **Kaydet**.
-2. Panel → **Katalog**: mağazaya verilecek ürünleri soldan, mağazayı sağdan işaretleyin → **Mağazalara ekle**.
-3. Mağazanın sayfasında **Bu mağazada nasıl görünsün** bölümünde, isterseniz ürünlere mağazanın kendi adını ve kodunu verin; vitrinde dönmesini istediklerinizi **Öne çıkar** ile işaretleyin.
+2. Açılan sayfada **Şablon** → bir şablon seçin → **Şablonu uygula**. Özellikler, kumaş serileri, vitrin süresi, güncelleme biçimi, paket ve fotoğraf denemesi kotası tek adımda kurulur. Şablon yoksa, ilk mağazayı elle kurduktan sonra aynı bölümden **Şablon olarak kaydet** deyin.
+3. **Mağaza kaydı**: şehir, bölge, etiketler, yetkili, kurulum tarihi → **Kaydı kaydet**. Mağaza listesi bunlarla süzülür.
+4. Bakım bedeli (yalnızca ORMEN yöneticisi): **Bakım bedeli** → son ödeme tarihi (tutar biliniyorsa) → **Vade ekle**. Ödenince **Ödendi**.
+5. Panel → **Katalog**: mağazaya verilecek ürünleri soldan, mağazayı sağdan işaretleyin → **Mağazalara ekle**.
+6. Mağazanın sayfasında **Bu mağazada nasıl görünsün** bölümünde, isterseniz ürünlere mağazanın kendi adını ve kodunu verin; vitrinde dönmesini istediklerinizi **Öne çıkar** ile işaretleyin.
 
 ## 2. Mağaza PIN'ini girin (1 dakika)
 
@@ -104,5 +107,4 @@ Kamera izni verilmezse ya da ekranın kamerası yoksa **Kartela okut** düğmesi
 Bu adımlar ilgili iş yazıldığında buraya eklenecek:
 
 - Köşe modül setinin yüklenmesi (İş 4).
-- Mağaza bazında özellik açma, kota ve vitrin süresi ayarları (İş 0'ın kalanı).
 - Kalite profili (hafif / tam) panelden seçme (İş 1'in son parçası).

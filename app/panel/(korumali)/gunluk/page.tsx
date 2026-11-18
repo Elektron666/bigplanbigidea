@@ -21,7 +21,7 @@ export default async function LogPage({ searchParams }: PageProps<"/panel/gunluk
   const sp = await searchParams;
   const firmId = typeof sp.magaza === "string" && /^[0-9a-zA-Z-]{1,40}$/.test(sp.magaza) ? sp.magaza : undefined;
   const page = Math.max(1, Math.min(10_000, Number(sp.sayfa) || 1));
-  const [{ total, rows }, firms] = await Promise.all([getCentral().listAudit({ firmId, limit: PAGE, offset: (page - 1) * PAGE }), getRepository().listFirms()]);
+  const [{ total, rows }, firms] = await Promise.all([getCentral().listAudit({ firmId, limit: PAGE, offset: (page - 1) * PAGE, withFees: can(user.role, "abonelik") }), getRepository().listFirms()]);
   const firmName = new Map(firms.map((f) => [f.id, f.name]));
   const pages = Math.max(1, Math.ceil(total / PAGE));
   const href = (p: number) => `/panel/gunluk?${new URLSearchParams({ ...(firmId ? { magaza: firmId } : {}), ...(p > 1 ? { sayfa: String(p) } : {}) })}`;

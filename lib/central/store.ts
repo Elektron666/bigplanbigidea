@@ -6,6 +6,7 @@ import { PAGE_SIZE, type ShopQuery, type ShopRow, type ShopStatus } from "./shop
 import { PAIRING_TTL_MINUTES, type Device, type DeviceQuality, type SyncStatus } from "@/lib/devices/pairing";
 import { hashPin, verifyPin } from "@/lib/devices/pin";
 import { MemoryCentral } from "./memory";
+import type { ShopRecord, ShopTemplate, Subscription } from "./record";
 import { hashToken, newCode, newToken, type AuditEntity, type AuditInput, type CentralStore, type ShopState } from "./types";
 
 export * from "./types";
@@ -59,6 +60,15 @@ function deviceFromRow(r: DeviceRow): Device {
     contentVersion: r.content_version === null ? null : Number(r.content_version), syncStatus: r.sync_status,
     lastSeenAt: r.last_seen_at, lastSyncAt: r.last_sync_at, syncRequestedAt: r.sync_requested_at, createdAt: r.created_at,
   };
+}
+
+type SubRow = { id: string; firm_id: string; amount: number | string | null; period: "aylik" | "yillik"; due_on: string; paid_on: string | null; note: string | null };
+const subFromRow = (r: SubRow): Subscription => ({ id: r.id, amount: r.amount === null ? null : Number(r.amount), period: r.period, dueOn: r.due_on, paidOn: r.paid_on, note: r.note });
+
+type TemplateRow = { id: string; name: string; features: Record<string, boolean> | null; settings: Record<string, unknown> | null; fabric_series: string[] | null; ai_quota: number | null; update_mode: "otomatik" | "onayli"; package: string | null };
+function templateFromRow(r: TemplateRow): ShopTemplate {
+  const v = Number(r.settings?.vitrinSn);
+  return { id: r.id, name: r.name, features: r.features ?? {}, fabricSeries: r.fabric_series ?? [], vitrinSn: Number.isInteger(v) && v > 0 ? v : null, aiQuota: r.ai_quota, updateMode: r.update_mode, package: r.package };
 }
 
 function check<T>(res: { data: T; error: { message: string } | null }): T {
@@ -188,6 +198,85 @@ class SupabaseCentral implements CentralStore {
     return r?.pin_hash ? verifyPin(pin, r.pin_hash) : null;
   }
 
+  async getShopRecord(firmId: string): Promise<ShopRecord | null> {
+    const [f, a] = await Promise.all([
+      this.db.from("firms").select("city, region, update_mode, settings").eq("id", firmId).maybeSingle(),
+      this.db.from("firm_admin").select("package, tags, contact, installed_on, ai_quota").eq("firm_id", firmId).maybeSingle(),
+    ]);
+    const firm = check(f) as { city: string | null; region: string | null; update_mode: "otomatik" | "onayli"; settings: Record<string, unknown> | null } | null;
+    if (!firm) return null;
+    const ad = check(a) as { package: string | null; tags: string[] | null; contact: string | null; installed_on: string | null; ai_quota: number | null } | null;
+    const vitrin = Number(firm.settings?.vitrinSn);
+    return {
+      city: firm.city,
+      region: firm.region,
+      updateMode: firm.update_mode,
+      vitrinSn: Number.isInteger(vitrin) && vitrin > 0 ? vitrin : null,
+      package: ad?.package ?? null,
+      tags: ad?.tags ?? [],
+      contact: ad?.contact ?? null,
+      installedOn: ad?.installed_on ?? null,
+      aiQuota: ad?.ai_quota ?? null,
+    };
+  }
+
+  async saveShopRecord(firmId: string, rec: ShopRecord) {
+    const now = check(await this.db.from("firms").select("settings").eq("id", firmId).maybeSingle()) as { settings: Record<string, unknown> | null } | null;
+    if (!now) throw new Error("Mağaza bulunamadı.");
+    // only the loop time is ours to change; whatever else the settings hold stays
+    const settings = { ...(now.settings ?? {}) };
+    if (rec.vitrinSn) settings.vitrinSn = rec.vitrinSn;
+    else delete settings.vitrinSn;
+    check(await this.db.from("firms").update({ city: rec.city, region: rec.region, update_mode: rec.updateMode, settings }).eq("id", firmId));
+    check(
+      await this.db
+        .from("firm_admin")
+        .upsert({ firm_id: firmId, package: rec.package, tags: rec.tags, contact: rec.contact, installed_on: rec.installedOn, ai_quota: rec.aiQuota }, { onConflict: "firm_id" }),
+    );
+  }
+
+  async listSubscriptions(firmId: string) {
+    const rows = check(await this.db.from("subscriptions").select("*").eq("firm_id", firmId).order("due_on", { ascending: false })) as SubRow[];
+    return rows.map(subFromRow);
+  }
+
+  async addSubscription(firmId: string, v: Omit<Subscription, "id" | "paidOn">) {
+    const row = check(await this.db.from("subscriptions").insert({ firm_id: firmId, amount: v.amount, period: v.period, due_on: v.dueOn, note: v.note }).select("*").single()) as SubRow;
+    return subFromRow(row);
+  }
+
+  async setPaid(id: string, paidOn: string | null) {
+    if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
+    const before = check(await this.db.from("subscriptions").select("*").eq("id", id).maybeSingle()) as SubRow | null;
+    if (!before) return null;
+    check(await this.db.from("subscriptions").update({ paid_on: paidOn }).eq("id", id));
+    return { firmId: before.firm_id, before: subFromRow(before) };
+  }
+
+  async listTemplates() {
+    return (check(await this.db.from("firm_templates").select("*").order("name")) as TemplateRow[]).map(templateFromRow);
+  }
+
+  async getTemplate(id: string) {
+    if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
+    const r = check(await this.db.from("firm_templates").select("*").eq("id", id).maybeSingle()) as TemplateRow | null;
+    return r ? templateFromRow(r) : null;
+  }
+
+  async saveTemplate(t: Omit<ShopTemplate, "id">) {
+    const row = check(
+      await this.db
+        .from("firm_templates")
+        .upsert(
+          { name: t.name, features: t.features, settings: t.vitrinSn ? { vitrinSn: t.vitrinSn } : {}, fabric_series: t.fabricSeries, ai_quota: t.aiQuota, update_mode: t.updateMode, package: t.package },
+          { onConflict: "name" },
+        )
+        .select("*")
+        .single(),
+    ) as TemplateRow;
+    return templateFromRow(row);
+  }
+
   async writeAudit(e: AuditInput) {
     check(
       await this.db.from("audit_log").insert({
@@ -218,8 +307,16 @@ class SupabaseCentral implements CentralStore {
     return rows.length > 0;
   }
 
-  async listAudit(opts: { firmId?: string; limit?: number; offset?: number }) {
-    return this.listAuditWhere((q) => (opts.firmId ? q.eq("firm_id", opts.firmId) : q), opts.offset ?? 0, opts.limit ?? 50);
+  async listAudit(opts: { firmId?: string; limit?: number; offset?: number; withFees?: boolean }) {
+    return this.listAuditWhere(
+      (q) => {
+        let r = opts.firmId ? q.eq("firm_id", opts.firmId) : q;
+        if (opts.withFees === false) r = r.neq("entity", "abonelik");
+        return r;
+      },
+      opts.offset ?? 0,
+      opts.limit ?? 50,
+    );
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

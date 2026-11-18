@@ -240,3 +240,96 @@ test.describe("merkez panel: değişiklik günlüğü", () => {
     await expect(page.getByText("Bu aramaya uyan ürün yok.")).toBeVisible();
   });
 });
+
+test.describe("merkez panel: mağaza kaydı, bakım bedeli, şablon", () => {
+  test.skip(({ isMobile }) => isMobile, "panel masaüstü için");
+
+  test("kayıt listeye yansır; şablon yeni mağazayı tek adımda kurar ve günlükten geri alınır; vade gecikince görünür", async ({ page }) => {
+    test.setTimeout(180_000);
+    await login(page);
+    const tag = Date.now().toString(36);
+    const newShop = async (name: string) => {
+      await page.goto("/panel/firmalar/yeni");
+      await page.getByLabel("Firma adı").fill(name);
+      await page.getByRole("button", { name: "Kaydet", exact: true }).click();
+      await expect(page.getByText(`${name} kaydedildi.`)).toBeVisible();
+    };
+
+    // the first shop, set up by hand
+    await newShop(`Kaynak ${tag}`);
+    const rec = page.getByRole("region", { name: "Mağaza kaydı" });
+    await rec.getByLabel("Şehir").fill(`Şehir${tag}`);
+    await rec.getByLabel("Paket").fill("Pilot");
+    await rec.getByLabel("Etiketler").fill(`Pilot-${tag}, siteler`);
+    await rec.getByLabel("Yetkili").fill("Ayşe Hanım");
+    await rec.getByLabel("Vitrin süresi (sn)").fill("90");
+    await rec.getByLabel("Güncellemeler").selectOption("onayli");
+    await rec.getByRole("button", { name: "Kaydı kaydet" }).click();
+    await expect(rec.getByRole("status")).toHaveText("Mağaza kaydı kaydedildi.");
+    // a loop time out of range is refused with the reason
+    await rec.getByLabel("Vitrin süresi (sn)").fill("5");
+    await rec.getByRole("button", { name: "Kaydı kaydet" }).click();
+    await expect(rec.getByRole("alert")).toHaveText("Vitrin süresi 30–600 saniye arasında bir sayı olmalı.");
+    await page.reload();
+    await expect(page.getByRole("region", { name: "Mağaza kaydı" }).getByLabel("Vitrin süresi (sn)")).toHaveValue("90");
+    await page.getByRole("switch", { name: "Köşe kurucu açık" }).click();
+    await expect(page.getByRole("switch", { name: "Köşe kurucu açık" })).toHaveAttribute("aria-checked", "false");
+    const tpl = page.getByRole("region", { name: "Şablon" });
+    await tpl.getByLabel("Bu mağazanın ayarlarını şablon olarak kaydet").fill(`Pilot ${tag}`);
+    await tpl.getByRole("button", { name: "Şablon olarak kaydet" }).click();
+    await expect(tpl.getByRole("status")).toHaveText("Şablon kaydedildi.");
+
+    // the shop list filters by what was entered
+    await page.goto(`/panel/magazalar?etiket=${encodeURIComponent(`pilot-${tag}`)}`);
+    const row = page.getByRole("listitem").filter({ hasText: `Kaynak ${tag}` });
+    await expect(row).toContainText(`Şehir${tag} · Pilot · Ayşe Hanım`);
+    await page.goto(`/panel/magazalar?sehir=${encodeURIComponent(`Şehir${tag}`)}`);
+    await expect(page.getByRole("listitem").filter({ hasText: `Kaynak ${tag}` })).toHaveCount(1);
+
+    // a second shop from the template: one choice, one tap
+    const started = Date.now();
+    await newShop(`Yeni ${tag}`);
+    const tpl2 = page.getByRole("region", { name: "Şablon" });
+    await tpl2.getByLabel("Şablondan kur").selectOption({ label: `Pilot ${tag}` });
+    await expect(tpl2).toContainText("kapalı: Köşe kurucu");
+    await tpl2.getByRole("button", { name: "Şablonu uygula" }).click();
+    await expect(tpl2.getByRole("status")).toContainText(`“Pilot ${tag}” uygulandı.`);
+    const rec2 = page.getByRole("region", { name: "Mağaza kaydı" });
+    await expect(rec2.getByLabel("Vitrin süresi (sn)")).toHaveValue("90");
+    await expect(rec2.getByLabel("Güncellemeler")).toHaveValue("onayli");
+    await expect(rec2.getByLabel("Paket")).toHaveValue("Pilot");
+    // its own record stays its own
+    await expect(rec2.getByLabel("Yetkili")).toHaveValue("");
+    await expect(page.getByRole("switch", { name: "Köşe kurucu açık" })).toHaveAttribute("aria-checked", "false");
+    console.log(`SABLON kurulum: ${((Date.now() - started) / 1000).toFixed(1)} sn`);
+    expect(Date.now() - started).toBeLessThan(10 * 60_000);
+    const shopUrl = page.url();
+
+    // maintenance fee: a past due date shows as late, then paid
+    const fees = page.getByRole("region", { name: "Bakım bedeli" });
+    await fees.getByLabel("Son ödeme tarihi").fill("2026-11-01");
+    await fees.getByLabel("Tutar (TL)").fill("2.500");
+    await fees.getByRole("button", { name: "Vade ekle" }).click();
+    const due = fees.getByRole("list", { name: "Vadeler" }).getByRole("listitem").first();
+    await expect(due).toContainText("1 Kasım 2026");
+    await expect(due).toContainText("2.500");
+    await expect(due).toContainText("gecikti");
+    await page.goto(`/panel/magazalar?ara=${encodeURIComponent(`Yeni ${tag}`)}`);
+    await expect(page.getByRole("listitem").filter({ hasText: `Yeni ${tag}` })).toContainText("bakım vadesi 1 Kas");
+    await page.goto(shopUrl);
+    await page.getByRole("region", { name: "Bakım bedeli" }).getByRole("button", { name: "Ödendi" }).click();
+    await expect(page.getByRole("region", { name: "Bakım bedeli" }).getByRole("listitem").first()).toContainText("ödendi");
+
+    // the template is undone from the log: the feature comes back, the loop time goes
+    await page.goto("/panel/gunluk");
+    const applied = page.getByTestId("gunluk-kaydi").filter({ hasText: new RegExp(`^Yeni ${tag}: “Pilot ${tag}” şablonu uygulandı`) });
+    await applied.getByRole("button", { name: /^Geri al/ }).click();
+    await applied.getByRole("button", { name: "Evet, geri al" }).click();
+    await expect(applied.getByText("geri alındı")).toBeVisible();
+    // the amount never reaches the log
+    await expect(page.getByTestId("gunluk-kaydi").filter({ hasText: "2.500" })).toHaveCount(0);
+    await page.goto(shopUrl);
+    await expect(page.getByRole("switch", { name: "Köşe kurucu açık" })).toHaveAttribute("aria-checked", "true");
+    await expect(page.getByRole("region", { name: "Mağaza kaydı" }).getByLabel("Vitrin süresi (sn)")).toHaveValue("");
+  });
+});

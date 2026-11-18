@@ -2,9 +2,12 @@ import type { Repository } from "@/lib/data/repository";
 import { PAIRING_TTL_MINUTES, type Device, type DeviceQuality, type SyncStatus } from "@/lib/devices/pairing";
 import { hashPin, verifyPin } from "@/lib/devices/pin";
 import { pageOfShops, type ShopQuery, type ShopRow, type ShopStatus } from "./shops";
+import { EMPTY_RECORD, nextDue, type ShopRecord, type ShopTemplate, type Subscription } from "./record";
 import { hashToken, newCode, newToken, type AuditEntry, type AuditInput, type CentralStore, type ShopState } from "./types";
 
 // ------------------------------------------------------------------ memory
+
+const pub = (x: Subscription): Subscription => ({ id: x.id, amount: x.amount, period: x.period, dueOn: x.dueOn, paidOn: x.paidOn, note: x.note });
 
 export class MemoryCentral implements CentralStore {
   /** `repo` gives the catalogue store; without one (tests of pairing alone) there are no shops. */
@@ -13,6 +16,9 @@ export class MemoryCentral implements CentralStore {
   private extra = new Map<string, Partial<ShopRow>>();
   private audit: AuditEntry[] = [];
   private pins = new Map<string, string>();
+  private records = new Map<string, ShopRecord>();
+  private subs = new Map<string, Subscription & { firmId: string }>();
+  private templates: ShopTemplate[] = [];
   private pairings = new Map<string, { firmId: string; name: string; branch: string | null; expiresAt: string }>();
   /** keyed by the hash of the screen's secret */
   private devices = new Map<string, Device>();
@@ -29,24 +35,23 @@ export class MemoryCentral implements CentralStore {
           name: f.name,
           slug: f.slug,
           status: "aktif" as ShopStatus,
-          city: null,
-          region: null,
           isActive: f.isActive,
           contentVersion: 1,
-          updateMode: "otomatik" as const,
-          package: null,
-          tags: [],
-          contact: null,
-          installedOn: null,
           syncErrors: 0,
           products: picks.length + models.filter((m) => m.firmId === f.id).length,
-          nextDue: null,
+          ...this.recordCols(f.id),
+          nextDue: nextDue([...this.subs.values()].filter((x) => x.firmId === f.id)),
           ...this.extra.get(f.id),
           devices: [...this.devices.values()].filter((d) => d.firmId === f.id).length,
           lastSeen: [...this.devices.values()].filter((d) => d.firmId === f.id && d.lastSeenAt).map((d) => d.lastSeenAt!).sort().at(-1) ?? null,
         };
       }),
     );
+  }
+
+  private recordCols(firmId: string) {
+    const r = this.records.get(firmId) ?? EMPTY_RECORD;
+    return { city: r.city, region: r.region, package: r.package, tags: r.tags, contact: r.contact, installedOn: r.installedOn, updateMode: r.updateMode };
   }
 
   async listShops(q: ShopQuery, opts: { withFees: boolean }) {
@@ -65,7 +70,58 @@ export class MemoryCentral implements CentralStore {
 
   async getShopState(firmId: string): Promise<ShopState | null> {
     const s = await this.getShop(firmId);
-    return s && { id: s.id, name: s.name, slug: s.slug, status: s.status, isActive: s.isActive, contentVersion: s.contentVersion, updateMode: s.updateMode, features: {}, settings: {} };
+    if (!s) return null;
+    const firm = await this.repo?.().getFirmById(firmId);
+    const vitrinSn = this.records.get(firmId)?.vitrinSn;
+    return { id: s.id, name: s.name, slug: s.slug, status: s.status, isActive: s.isActive, contentVersion: s.contentVersion, updateMode: s.updateMode, features: firm?.features ?? {}, settings: vitrinSn ? { vitrinSn } : {} };
+  }
+
+  async getShopRecord(firmId: string) {
+    if (!(await this.getShop(firmId))) return null;
+    return structuredClone(this.records.get(firmId) ?? EMPTY_RECORD);
+  }
+
+  async saveShopRecord(firmId: string, rec: ShopRecord) {
+    this.records.set(firmId, structuredClone(rec));
+    const now = this.extra.get(firmId) ?? {};
+    this.extra.set(firmId, { ...now, contentVersion: (now.contentVersion ?? 1) + 1 });
+  }
+
+  async listSubscriptions(firmId: string) {
+    return [...this.subs.values()]
+      .filter((x) => x.firmId === firmId)
+      .sort((a, b) => b.dueOn.localeCompare(a.dueOn))
+      .map(pub);
+  }
+
+  async addSubscription(firmId: string, s: Omit<Subscription, "id" | "paidOn">) {
+    const row = { ...s, id: crypto.randomUUID(), paidOn: null, firmId };
+    this.subs.set(row.id, row);
+    return pub(row);
+  }
+
+  async setPaid(id: string, paidOn: string | null) {
+    const row = this.subs.get(id);
+    if (!row) return null;
+    const before = pub(row);
+    row.paidOn = paidOn;
+    return { firmId: row.firmId, before };
+  }
+
+  async listTemplates() {
+    return structuredClone([...this.templates].sort((a, b) => a.name.localeCompare(b.name, "tr")));
+  }
+
+  async getTemplate(id: string) {
+    const t = this.templates.find((x) => x.id === id);
+    return t ? structuredClone(t) : null;
+  }
+
+  async saveTemplate(t: Omit<ShopTemplate, "id">) {
+    const same = this.templates.find((x) => x.name.toLocaleLowerCase("tr") === t.name.toLocaleLowerCase("tr"));
+    const row: ShopTemplate = { ...structuredClone(t), id: same?.id ?? crypto.randomUUID() };
+    this.templates = [...this.templates.filter((x) => x !== same), row];
+    return structuredClone(row);
   }
 
   async createPairing(firmId: string, name: string, branch: string | null) {
@@ -167,8 +223,8 @@ export class MemoryCentral implements CentralStore {
     return true;
   }
 
-  async listAudit(opts: { firmId?: string; limit?: number; offset?: number }) {
-    const hit = this.audit.filter((a) => !opts.firmId || a.firmId === opts.firmId);
+  async listAudit(opts: { firmId?: string; limit?: number; offset?: number; withFees?: boolean }) {
+    const hit = this.audit.filter((a) => (!opts.firmId || a.firmId === opts.firmId) && (opts.withFees !== false || a.entity !== "abonelik"));
     const offset = opts.offset ?? 0;
     return { total: hit.length, rows: hit.slice(offset, offset + (opts.limit ?? 50)) };
   }

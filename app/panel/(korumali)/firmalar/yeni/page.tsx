@@ -15,6 +15,9 @@ export default async function NewFirmPage() {
   return (
     <>
       <PageHeader title="Yeni firma" eyebrow="Firmalar" />
+      <p className="mb-6 rounded-xl bg-cizgi/40 px-4 py-3 text-[14px] text-antrasit-70">
+        Ad ve adresi girip kaydedin. Açılan sayfada bir şablon seçerek özellikleri, kumaş serilerini ve ekran ayarlarını tek adımda kurabilirsiniz.
+      </p>
       <FirmEditor showcase={showcase} allSeries={seriesOf(fabrics)} />
     </>
   );

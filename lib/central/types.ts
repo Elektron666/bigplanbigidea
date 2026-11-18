@@ -5,6 +5,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import type { ShopQuery, ShopRow, ShopStatus } from "./shops";
 import { pairingCodeFrom, type Device, type DeviceQuality, type SyncStatus } from "@/lib/devices/pairing";
+import type { ShopRecord, ShopTemplate, Subscription } from "./record";
 
 export const AUDIT_ENTITIES = ["magaza", "urun", "atama", "kumas", "cihaz", "abonelik", "sablon", "uye", "destek"] as const;
 export type AuditEntity = (typeof AUDIT_ENTITIES)[number];
@@ -78,9 +79,25 @@ export interface CentralStore {
   /** True or false for a PIN tried against the shop's; null when the shop has no PIN yet. */
   checkShopPin(firmId: string, pin: string): Promise<boolean | null>;
 
+  /** The shop's own record (city, package, contact, loop time…); null for an unknown shop. */
+  getShopRecord(firmId: string): Promise<ShopRecord | null>;
+  saveShopRecord(firmId: string, rec: ShopRecord): Promise<void>;
+
+  /** Maintenance fees, newest due date first. Yönetici only (the caller checks). */
+  listSubscriptions(firmId: string): Promise<Subscription[]>;
+  addSubscription(firmId: string, s: Omit<Subscription, "id" | "paidOn">): Promise<Subscription>;
+  /** Marks a fee paid (or not, with null); returns its shop, or null for an unknown fee. */
+  setPaid(id: string, paidOn: string | null): Promise<{ firmId: string; before: Subscription } | null>;
+
+  listTemplates(): Promise<ShopTemplate[]>;
+  getTemplate(id: string): Promise<ShopTemplate | null>;
+  /** A template of the same name is replaced. */
+  saveTemplate(t: Omit<ShopTemplate, "id">): Promise<ShopTemplate>;
+
   writeAudit(e: AuditInput): Promise<void>;
   /** Newest first. */
-  listAudit(opts: { firmId?: string; limit?: number; offset?: number }): Promise<{ total: number; rows: AuditEntry[] }>;
+  /** `withFees` false leaves the maintenance-fee entries out (ORMEN elemanı never sees them). */
+  listAudit(opts: { firmId?: string; limit?: number; offset?: number; withFees?: boolean }): Promise<{ total: number; rows: AuditEntry[] }>;
   getAudit(id: string): Promise<AuditEntry | null>;
   /** Marks an entry undone; false when it already was (two clicks undo once). */
   markUndone(id: string): Promise<boolean>;

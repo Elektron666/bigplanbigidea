@@ -3,6 +3,9 @@ import { notFound } from "next/navigation";
 import { getRepository, loadCatalogue } from "@/lib/data";
 import { FirmEditor } from "@/components/panel/FirmEditor";
 import { ShopFeatures } from "@/components/panel/ShopFeatures";
+import { ShopRecordForm } from "@/components/panel/ShopRecordForm";
+import { ShopFees } from "@/components/panel/ShopFees";
+import { ShopTemplates } from "@/components/panel/ShopTemplates";
 import { ShopDevices } from "@/components/panel/ShopDevices";
 import { deviceState, type Device } from "@/lib/devices/pairing";
 import { getCentral } from "@/lib/central/store";
@@ -33,7 +36,17 @@ export default async function EditFirmPage({ params, searchParams }: PageProps<"
     repo.listFabrics(),
   ]);
   const central = getCentral();
-  const [devices, shop, hasPin] = await Promise.all([central.listDevices(firm.id), central.getShopState(firm.id), central.hasShopPin(firm.id)]);
+  const withFees = can(user.role, "abonelik");
+  const [devices, shop, hasPin, record, templates, fees] = await Promise.all([
+    central.listDevices(firm.id),
+    central.getShopState(firm.id),
+    central.hasShopPin(firm.id),
+    central.getShopRecord(firm.id),
+    central.listTemplates(),
+    // never read for ORMEN elemanı, not only hidden
+    withFees ? central.listSubscriptions(firm.id) : null,
+  ]);
+  const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Istanbul" });
   const showcaseIds = products.map((p) => p.modelId);
   const showcase = all.filter((m) => m.firmId === null && m.isActive);
   const own = all.filter((m) => m.firmId === firm.id);
@@ -52,7 +65,10 @@ export default async function EditFirmPage({ params, searchParams }: PageProps<"
       ) : (
         <p className="mb-8 rounded-xl bg-cizgi/40 px-4 py-3 text-[14px] text-antrasit-70">Firma sayfası yayında değil; bağlantı ve QR, yayına alınınca burada görünür.</p>
       )}
-      <ShopFeatures firmId={firm.id} features={firm.features} />
+      {can(user.role, "kurulum") && <ShopTemplates firmId={firm.id} templates={templates} />}
+      {record && <ShopRecordForm firmId={firm.id} record={record} />}
+      <ShopFeatures key={JSON.stringify(firm.features ?? {})} firmId={firm.id} features={firm.features} />
+      {fees && <ShopFees firmId={firm.id} rows={fees} today={today} />}
       <ShopDevices
         firmId={firm.id}
         devices={withState(devices, shop?.contentVersion ?? 1)}
@@ -67,7 +83,7 @@ export default async function EditFirmPage({ params, searchParams }: PageProps<"
           return m ? [{ ...p, centralName: m.name, size: `${m.dimensionsCm.w} × ${m.dimensionsCm.d} × ${m.dimensionsCm.h} cm` }] : [];
         })}
       />
-      <FirmEditor key={firm.id} allSeries={seriesOf(fabrics)} firm={firm} showcaseIds={showcaseIds} showcase={showcase} ownModels={own} />
+      <FirmEditor key={`${firm.id}:${(firm.fabricSeries ?? []).join(",")}`} allSeries={seriesOf(fabrics)} firm={firm} showcaseIds={showcaseIds} showcase={showcase} ownModels={own} />
     </>
   );
 }

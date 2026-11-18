@@ -10,10 +10,12 @@ import { DEVICE_QUALITIES, DEVICE_QUALITY_LABELS, validateDeviceName, type Devic
 import { cleanPin, weakPin } from "@/lib/devices/pin";
 import { checkBulkAssign } from "@/lib/catalogue/products";
 import { validateWaste } from "@/lib/teklif/metraj";
-import { cleanFeatures, FEATURE_LABELS, FEATURES, type Feature } from "@/lib/central/features";
+import { cleanFeatures, FEATURE_LABELS, FEATURES, featureOn, type Feature } from "@/lib/central/features";
 import { undoPermission, undoStep } from "@/lib/central/undo";
 import { getQuotes, ORDER_STATUSES, type OrderStatus } from "@/lib/teklif/store";
 import { SHOP_STATUSES, SHOP_STATUS_LABELS, type ShopStatus } from "@/lib/central/shops";
+import { validateShopRecord, validateSubscription, validateTemplate, type ShopRecord } from "@/lib/central/record";
+import { cleanSeries, seriesOf } from "@/lib/fabric/allowed";
 
 // Server actions of the central panel (Showroom package, job 0). Each one
 // checks the session and the role itself, then writes the change log.
@@ -267,6 +269,138 @@ export async function setFeatureAction(firmId: string, feature: string, on: bool
   return { ok: true };
 }
 
+// ------------------------------------------------------------------ the shop's record, fees, templates (job 0)
+
+async function firmFor(id: string) {
+  return getRepository().getFirmById(String(id).slice(0, 40));
+}
+
+function refreshShop(firm: { id: string; slug: string }) {
+  revalidatePath(`/panel/firmalar/${firm.id}`);
+  revalidatePath("/panel/magazalar");
+  revalidatePath(`/f/${firm.slug}`);
+}
+
+/** City, region, package, tags, contact, install date, loop time, update mode, try-on quota. */
+export async function saveShopRecordAction(firmId: string, raw: unknown): Promise<Result> {
+  const user = await getPanelUser();
+  if (!user) return { ok: false, error: "Oturum süresi doldu. Yeniden giriş yapın." };
+  if (!can(user.role, "kurulum")) return { ok: false, error: DENIED };
+  const v = validateShopRecord(raw);
+  if (!v.ok) return v;
+  const firm = await firmFor(firmId);
+  if (!firm) return { ok: false, error: "Mağaza bulunamadı." };
+  const central = getCentral();
+  const before = await central.getShopRecord(firm.id);
+  if (!before) return { ok: false, error: "Mağaza bulunamadı." };
+  if (JSON.stringify(before) === JSON.stringify(v.value)) return { ok: true };
+  await central.saveShopRecord(firm.id, v.value);
+  await central.writeAudit({ actor: user.email, actorRole: user.role, firmId: firm.id, entity: "magaza", entityId: firm.id, action: "kayit-degisti", summary: `${firm.name}: mağaza kaydı güncellendi (${changedFields(before, v.value).join(", ")})`, before, after: v.value });
+  refreshShop(firm);
+  return { ok: true };
+}
+
+const RECORD_LABELS: Record<keyof ShopRecord, string> = { city: "şehir", region: "bölge", package: "paket", tags: "etiketler", contact: "yetkili", installedOn: "kurulum tarihi", updateMode: "güncelleme", vitrinSn: "vitrin süresi", aiQuota: "deneme kotası" };
+function changedFields(a: ShopRecord, b: ShopRecord): string[] {
+  return (Object.keys(RECORD_LABELS) as (keyof ShopRecord)[]).filter((k) => JSON.stringify(a[k]) !== JSON.stringify(b[k])).map((k) => RECORD_LABELS[k]);
+}
+
+export async function addSubscriptionAction(firmId: string, raw: unknown): Promise<Result> {
+  const user = await getPanelUser();
+  if (!user) return { ok: false, error: "Oturum süresi doldu. Yeniden giriş yapın." };
+  if (!can(user.role, "abonelik")) return { ok: false, error: DENIED };
+  const v = validateSubscription(raw);
+  if (!v.ok) return v;
+  const firm = await firmFor(firmId);
+  if (!firm) return { ok: false, error: "Mağaza bulunamadı." };
+  const central = getCentral();
+  const sub = await central.addSubscription(firm.id, v.value);
+  // the amount stays out of the log: the log is read by ORMEN elemanı too
+  await central.writeAudit({ actor: user.email, actorRole: user.role, firmId: firm.id, entity: "abonelik", entityId: sub.id, action: "vade-eklendi", summary: `${firm.name}: bakım bedeli vadesi eklendi (${v.value.dueOn})` });
+  refreshShop(firm);
+  return { ok: true };
+}
+
+export async function setPaidAction(id: string, paid: boolean): Promise<Result> {
+  const user = await getPanelUser();
+  if (!user) return { ok: false, error: "Oturum süresi doldu. Yeniden giriş yapın." };
+  if (!can(user.role, "abonelik")) return { ok: false, error: DENIED };
+  const central = getCentral();
+  const today = new Date().toISOString().slice(0, 10);
+  const r = await central.setPaid(String(id).slice(0, 40), paid ? today : null);
+  if (!r) return { ok: false, error: "Kayıt bulunamadı." };
+  const firm = await firmFor(r.firmId);
+  await central.writeAudit({
+    actor: user.email,
+    actorRole: user.role,
+    firmId: r.firmId,
+    entity: "abonelik",
+    entityId: r.before.id,
+    action: paid ? "odendi" : "odenmedi",
+    summary: `${firm?.name ?? "Mağaza"}: ${r.before.dueOn} vadeli bakım bedeli ${paid ? "ödendi" : "ödenmedi olarak düzeltildi"}`,
+    before: { paidOn: r.before.paidOn },
+    after: { paidOn: paid ? today : null },
+  });
+  if (firm) refreshShop(firm);
+  return { ok: true };
+}
+
+/** "Bu mağazayı şablon olarak kaydet": its features, fabric series and settings, under a name. */
+export async function saveTemplateFromShopAction(firmId: string, name: string): Promise<Result> {
+  const user = await getPanelUser();
+  if (!user) return { ok: false, error: "Oturum süresi doldu. Yeniden giriş yapın." };
+  if (!can(user.role, "kurulum")) return { ok: false, error: DENIED };
+  const firm = await firmFor(firmId);
+  if (!firm) return { ok: false, error: "Mağaza bulunamadı." };
+  const central = getCentral();
+  const rec = await central.getShopRecord(firm.id);
+  // every feature as it stands, defaults included: applied, the new shop ends up exactly like this one
+  const features = Object.fromEntries(FEATURES.map((f) => [f, featureOn(firm.features, f)]));
+  const v = validateTemplate({ name, features, fabricSeries: firm.fabricSeries ?? [], vitrinSn: rec?.vitrinSn ?? null, aiQuota: rec?.aiQuota ?? null, updateMode: rec?.updateMode, package: rec?.package ?? null });
+  if (!v.ok) return v;
+  const t = await central.saveTemplate(v.value);
+  await central.writeAudit({ actor: user.email, actorRole: user.role, firmId: firm.id, entity: "sablon", entityId: t.id, action: "sablon-kaydedildi", summary: `“${t.name}” şablonu ${firm.name} ayarlarından kaydedildi`, after: t });
+  revalidatePath("/panel/firmalar", "layout");
+  return { ok: true };
+}
+
+/**
+ * A new shop set up from a template in one step: features, fabric series,
+ * loop time, update mode, package, try-on quota. Its name, address and
+ * contact stay its own. Undone from the change log.
+ */
+export async function applyTemplateAction(firmId: string, templateId: string): Promise<Result> {
+  const user = await getPanelUser();
+  if (!user) return { ok: false, error: "Oturum süresi doldu. Yeniden giriş yapın." };
+  if (!can(user.role, "kurulum")) return { ok: false, error: DENIED };
+  const firm = await firmFor(firmId);
+  if (!firm) return { ok: false, error: "Mağaza bulunamadı." };
+  const central = getCentral();
+  const [t, rec] = await Promise.all([central.getTemplate(String(templateId).slice(0, 40)), central.getShopRecord(firm.id)]);
+  if (!t) return { ok: false, error: "Şablon bulunamadı." };
+  if (!rec) return { ok: false, error: "Mağaza bulunamadı." };
+  const repo = getRepository();
+  const before = { record: rec, features: cleanFeatures(firm.features), fabricSeries: firm.fabricSeries ?? [] };
+  const series = cleanSeries(t.fabricSeries, seriesOf(await repo.listFabrics({ includeInactive: true })));
+  const record: ShopRecord = { ...rec, vitrinSn: t.vitrinSn, aiQuota: t.aiQuota, updateMode: t.updateMode, package: t.package ?? rec.package };
+  await repo.setFirmFeatures(firm.id, { ...before.features, ...t.features });
+  await repo.saveFirm({ ...firm, fabricSeries: series });
+  await central.saveShopRecord(firm.id, record);
+  await central.writeAudit({
+    actor: user.email,
+    actorRole: user.role,
+    firmId: firm.id,
+    entity: "sablon",
+    entityId: t.id,
+    action: "sablon-uygulandi",
+    summary: `${firm.name}: “${t.name}” şablonu uygulandı`,
+    before,
+    after: { record, features: { ...before.features, ...t.features }, fabricSeries: series },
+  });
+  refreshShop(firm);
+  return { ok: true };
+}
+
 // ------------------------------------------------------------------ undo from the change log (job 0)
 
 export async function undoAuditAction(id: string): Promise<Result> {
@@ -301,6 +435,19 @@ export async function undoAuditAction(id: string): Promise<Result> {
     case "kalite":
       await central.updateDevice(step.deviceId, { quality: step.quality });
       await central.requestSync([step.deviceId]);
+      break;
+    case "kayit":
+      await central.saveShopRecord(step.firmId, step.record);
+      break;
+    case "sablon": {
+      const firm = await repo.getFirmById(step.firmId);
+      if (firm) await repo.saveFirm({ ...firm, fabricSeries: step.fabricSeries });
+      await repo.setFirmFeatures(step.firmId, step.features);
+      await central.saveShopRecord(step.firmId, step.record);
+      break;
+    }
+    case "odeme":
+      await central.setPaid(step.subscriptionId, step.paidOn);
       break;
   }
   await central.writeAudit({ actor: user.email, actorRole: user.role, firmId: entry.firmId, entity: entry.entity, entityId: entry.entityId, action: "geri-alindi", summary: `Geri alındı: ${entry.summary}`.slice(0, 300), before: entry.after, after: entry.before });

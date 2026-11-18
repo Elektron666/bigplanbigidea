@@ -6,6 +6,7 @@
 import type { AuditEntry } from "./types";
 import { SHOP_STATUSES, type ShopStatus } from "./shops";
 import { cleanFeatures } from "./features";
+import { validateShopRecord, type ShopRecord } from "./record";
 
 export type UndoStep =
   | { kind: "durum"; firmId: string; status: ShopStatus }
@@ -13,7 +14,10 @@ export type UndoStep =
   | { kind: "atama"; mode: "ekle" | "cikar"; productIds: string[]; shopIds: string[] }
   | { kind: "ozellik"; firmId: string; features: Record<string, boolean> }
   | { kind: "fire"; waste: { duz: number | null; donuk: number | null; raporlu: number | null; roundStep: number } }
-  | { kind: "kalite"; deviceId: string; quality: "oto" | "hafif" | "tam" };
+  | { kind: "kalite"; deviceId: string; quality: "oto" | "hafif" | "tam" }
+  | { kind: "kayit"; firmId: string; record: ShopRecord }
+  | { kind: "sablon"; firmId: string; record: ShopRecord; features: Record<string, boolean>; fabricSeries: string[] }
+  | { kind: "odeme"; subscriptionId: string; paidOn: string | null };
 
 const obj = (v: unknown): Record<string, unknown> => (v && typeof v === "object" ? (v as Record<string, unknown>) : {});
 const ids = (v: unknown) => (Array.isArray(v) && v.every((x) => typeof x === "string") ? (v as string[]) : null);
@@ -54,12 +58,26 @@ export function undoStep(e: AuditEntry): UndoStep | null {
       const q = before.quality;
       return e.entityId && (q === "oto" || q === "hafif" || q === "tam") ? { kind: "kalite", deviceId: e.entityId, quality: q } : null;
     }
+    case "kayit-degisti": {
+      const r = validateShopRecord(before);
+      return e.firmId && r.ok ? { kind: "kayit", firmId: e.firmId, record: r.value } : null;
+    }
+    case "sablon-uygulandi": {
+      const r = validateShopRecord(before.record);
+      const series = ids(before.fabricSeries);
+      return e.firmId && r.ok && series ? { kind: "sablon", firmId: e.firmId, record: r.value, features: cleanFeatures(before.features), fabricSeries: series } : null;
+    }
+    case "odendi":
+    case "odenmedi": {
+      const p = before.paidOn;
+      return e.entityId && (p === null || (typeof p === "string" && /^\d{4}-\d{2}-\d{2}$/.test(p))) ? { kind: "odeme", subscriptionId: e.entityId, paidOn: p } : null;
+    }
     default:
       return null;
   }
 }
 
-/** Undoing the waste figures is the yönetici's (they are ORMEN's own figures); the rest is setup work. */
-export function undoPermission(step: UndoStep): "geri-al" | "fiyat" {
-  return step.kind === "fire" ? "fiyat" : "geri-al";
+/** Undoing the waste figures or a fee is the yönetici's (ORMEN's own figures); the rest is setup work. */
+export function undoPermission(step: UndoStep): "geri-al" | "fiyat" | "abonelik" {
+  return step.kind === "fire" ? "fiyat" : step.kind === "odeme" ? "abonelik" : "geri-al";
 }
