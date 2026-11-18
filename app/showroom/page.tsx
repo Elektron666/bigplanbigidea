@@ -11,6 +11,7 @@ import { PairScreen } from "@/components/kiosk/PairScreen";
 import { OfflineAgent } from "@/components/kiosk/OfflineAgent";
 import { warmUrls } from "@/lib/offline/warm";
 import { getQuotes } from "@/lib/teklif/store";
+import { moduleSets, withBuiltSet } from "@/lib/modul/model";
 import { ShowroomLock } from "@/components/kiosk/ShowroomLock";
 import { SyncAgent } from "@/components/kiosk/SyncAgent";
 import { accentStyle } from "@/lib/firm";
@@ -59,12 +60,14 @@ export default async function ShowroomPage({ searchParams }: PageProps<"/showroo
 
   const sp = await searchParams;
   const waste = await getQuotes().getWaste();
+  const models = withBuiltSet(cat.models, sp.mk);
+  const [moduleSet] = moduleSets();
   const warm = { "1k": warmUrls(cat, "1k"), "2k": warmUrls(cat, "2k") };
   return (
     <main data-showroom>
       <h1 className="sr-only">{cat.firm.name}: kumaşınızı koltuğun üstünde görün</h1>
       <KioskShell idleSeconds={showroomIdleSeconds(shop.settings)} firm={cat.firm} showroom>
-        <Configurator models={cat.models} fabrics={cat.fabrics} firm={cat.firm} {...initialStateFrom(sp, cat.models, cat.fabrics)} kiosk profileChoice={who.device.quality} waste={waste} showroom />
+        <Configurator models={models} fabrics={cat.fabrics} firm={cat.firm} {...initialStateFrom(sp, models, cat.fabrics)} kiosk profileChoice={who.device.quality} waste={waste} showroom moduleSet={moduleSet} />
         <SyncAgent contentVersion={shop.contentVersion} appVersion={version} />
       </KioskShell>
       <ShowroomLock contentVersion={shop.contentVersion} appVersion={version} />

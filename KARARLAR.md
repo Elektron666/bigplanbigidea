@@ -14,6 +14,42 @@ Bu dosyada projede verilen kararlar, yapılan varsayımlar ve bilinen sınırlar
 - **Numune taleplerindeki ad ve telefon** ORMEN panelinde görünmeye devam eder (6 Ekim kararı değişmedi). Yeni kural yalnızca yeni verilere uygulanır: teklifteki müşteri adı ve "ilgilenen müşteriler".
 - Görev tanımının eski kararlarla çeliştiği yerler ve seçilen yol: `PLAN-SHOWROOM.md`, 3. bölüm.
 
+## İş 4, 1. dilim: köşe kurucu (örnek setle) (18 Kasım 2026)
+
+**Nasıl çalışıyor:**
+- Mağaza sayfasında ve showroom ekranında üçüncü sekme: **Köşe kur**.
+- Alttaki şeritte büyük düğmeler: sol kol, tekli oturum, köşe, sağ kol, sol / sağ şezlong; her birinde ölçüsü yazılı.
+- Dokunulan modül yerine oturur: sol kol ve sol şezlong başa, sağ kol ve sağ şezlong sona, oturum ve köşe sağ ucun hemen önüne. Sıradaki modül parmakla sürüklenerek taşınır (dokunmatik ekranda tarayıcının sürükle-bırak özelliği çalışmadığı için kendi sürükleme kodu), × ile çıkarılır.
+- Köşe dizilimi 90 derece döndürür; iki köşe U takımdır. **Sağ ↔ sol çevir** tek düğme.
+- Canlı ölçü: arka, sol kol, sağ kol ve kapladığı alan, hem ölçeğe göre çizilmiş üstten şemada hem 3D sahnede (sekme açıkken sahnenin ölçüleri hep görünür).
+- **Arka duvar** ve **Yan duvar** girilince: "Duvarlara sığıyor." ya da "Arka duvardan 65 cm taşıyor."
+- Kurulan takım seçili parçaya hemen uygulanır ve kumaşı giyer. Adrese yazılır (`?mk=ornek-set:kol-sol.tekli.kose…`): paylaşım bağlantısı, yeniden açılış ve teklif aynı takımı kurar.
+
+**Kurallar (`lib/modul/dizilim.ts`, saf ve testli):**
+- Reddedilen (hiç uygulanmayan, nedeni yazılan): sol kol ya da sol şezlong sol uçtan başka yerde; sağ uçtakiler sağdan başka yerde (iki kol yan yana dahil); iki köşe yan yana; üçten fazla köşe; köşeli kolun ucunda şezlong; ikinci bir sol / sağ uç.
+- Uyarı (kurulumda bir ara adım olabilir): açıkta kalan uç ("Sol uç açıkta…"), uçta duran köşe ("Köşenin sağına modül ekleyin"). Uçta köşesi olan takım çizilmez; sahnede son geçerli hâl kalır.
+- **Bulunan ve düzeltilen tasarım hatası:** İlk sürüm uçtaki köşeyi hata sayıyordu. Takımı adım adım kuran biri köşeyi eklediği anda köşe sonda durduğu için, ekleme hiç yapılmıyordu. Uçtan uca test yakaladı.
+- **Aynalama:** Sıra ve ölçüler aynı kalır, sol kol sağa geçer. İlk taslakta aynalamayı "diziyi ters çevir" diye düşünmüştüm; tek köşeli L'de bu ayna görüntüsü değil, başka bir takım üretiyordu. Yazmadan önce fark edip düzelttim.
+- Ölçüler yalnızca modül ölçülerinin toplamı: köşe kare (eni arka duvar boyunca, derinliği yan duvar boyunca); sol kol = köşe derinliği + soldaki modüllerin enleri.
+
+**3D:** Takım, mevcut "seçerek oluştur" köşe koltuğuyla çiziliyor; ölçüleri tam takımınkiler. Böylece kumaş giydirme, bölgeler, plan, yerleşim ve teklif hazır geldi. Sahnede ölçülen boy 316 × 186 cm (minder kabarıklığı 1 cm ekliyor; test payı 2 cm).
+- **Bulunan ve düzeltilen hata:** Kurulan takıma "kumaş alacak malzeme" adı verilmemişti; koltuk gri ve kumaşsız görünüyordu. Görev tanımı "gri ya da boş koltuk hiç görünmez" diyor. Uçtan uca test bunu artık sahnenin kendisinden denetliyor.
+
+**Metraj:** Takımın metrajı modüllerin metrajlarının bölge bölge toplamı (`setMetres`). Teklif ekranına bu bölge toplamlarıyla gelir (Kasa 5,5 · Kollar 1,8 · Oturak 3,8 · Sırt 3,5 m). Sunucu teklifte takımı dizilim kodundan yeniden kurar; ekranın verdiği metreye güvenmez.
+
+**Örnek set (`lib/modul/ornek-set.ts`):** kol 25 cm, tekli oturum 65 cm, köşe 95 × 95 cm, şezlong 90 × 160 cm, puf 70 cm; derinlik 95 cm. Ekranda "Örnek set" diye işaretli. **Metrajları test için uydurulmuş sayılar, ORMEN'in sayıları değil.** Görev tanımına göre demo kalitesinde sayılmıyor.
+
+**Test:**
+- Birim (`tests/unit/dizilim.test.ts`, her sayının yanında elle hesabı): L, ayna, U, şezlonglu düz takım, kurallar, metraj toplamı, şema (modüller ölçülen kutunun içinde ve üst üste binmiyor), bağlantı kodu, modelin kumaş malzemesi.
+- Uçtan uca (`tests/e2e/kose.spec.ts`): 3,15 × 2,40 m duvara L köşe **8 dokunuş ve 21 saniyede** kurulur (sınır 3 dakika). Ölçüler 315 / 185 cm, "Duvarlara sığıyor.", şema; 3D sahnedeki koltuk kumaşı giymiş ve 315 × 185 cm (±2). İkinci sol kol reddedilir. Aynalama ölçüyü sağa taşır, 3D boyut değişmez. Fazla oturum "65 cm taşıyor" der. Teklif bölge metrajları modül toplamlarıdır. Bağlantıyla açılan sayfa aynı takımı aynı boyda kurar.
+
+**Bu dilimde olmayanlar (İş 4, 2. dilim):**
+- Panelden modül seti yükleme (GLB, ölçü, bağlantı noktaları, parça metrajları) ve GLB modüllerin yan yana dizilerek çizilmesi. Şimdilik yalnızca örnek set var; o da koddan çiziliyor.
+- Takımda minder ve kırlenti ayrı kumaşla giydirme: bölge seçimi (Oturak, Sırt…) bunu zaten yapıyor; ayrıca bir düğme eklenmedi.
+- Takım şeması PDF'te yok.
+- Hafif profilde 8 modüllü dizilimin kare hızı: ölçüm ekranı (`?olcum`) hazır, gerçek cihazda doğrulanacak.
+- Puf modülü dizilime girmiyor (ayrı parça); eklemek için "Mobilya ekle" kullanılıyor.
+
 ## İş 3: metraj ve teklif (18 Kasım 2026)
 
 **Hesap (`lib/teklif/metraj.ts`, tek saf işlev; ekran, PDF, telefon sayfası ve sipariş talebi aynı işlevi kullanır):**

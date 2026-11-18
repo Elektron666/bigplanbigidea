@@ -3,7 +3,8 @@
 // The id is base64url of a tiny query string, e.g. "y=…&oda=koyu-salon&g=plan".
 // "f" is the firm slug when the combination was made on a firm's page.
 
-const KEYS = ["y", "oda", "g", "f"] as const;
+// "mk": a corner set built from modules (lib/modul), when the combination has one
+const KEYS = ["y", "oda", "g", "f", "mk"] as const;
 export type ShareState = Partial<Record<(typeof KEYS)[number], string>>;
 
 export function toBase64Url(s: string): string {

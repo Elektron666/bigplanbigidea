@@ -135,4 +135,6 @@ export interface FurnitureModel {
   shopNote?: string;
   /** Brought forward by the shop. */
   featured?: boolean;
+  /** A corner set built from modules on the screen (lib/modul): its arrangement code. */
+  kurulum?: string;
 }

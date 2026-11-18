@@ -130,7 +130,7 @@ export function QuoteDialog({
       clientId,
       number: newQuoteNumber(),
       token: newQuoteToken(),
-      pieces: pieces.map(({ p }) => ({ modelSlug: p.modelSlug, fabricCode: p.fabricCode, ...(p.zones ? { zones: p.zones } : {}), ...(p.yon === "donuk" ? { turned: true } : {}) })),
+      pieces: pieces.map(({ p, input }) => ({ modelSlug: p.modelSlug, fabricCode: p.fabricCode, ...(input.model.kurulum ? { kurulum: input.model.kurulum } : {}), ...(p.zones ? { zones: p.zones } : {}), ...(p.yon === "donuk" ? { turned: true } : {}) })),
       customerName: customer,
       note,
       price: price.trim() || null,

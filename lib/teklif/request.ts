@@ -34,6 +34,8 @@ export function newQuoteToken(): string {
 
 export interface QuotePieceInput {
   modelSlug: string;
+  /** A corner set built from modules (lib/modul): its arrangement code; the server builds it again. */
+  kurulum?: string;
   fabricCode: string;
   zones?: ZoneCodes;
   turned?: boolean;
@@ -80,7 +82,8 @@ export function parseQuoteRequest(raw: unknown): { ok: true; value: QuoteRequest
       }
       zones = cleanZones(fabricCode, z);
     }
-    pieces.push({ modelSlug: p.modelSlug, fabricCode, ...(zones ? { zones } : {}), ...(p.turned === true ? { turned: true } : {}) });
+    const kurulum = typeof p.kurulum === "string" && p.kurulum.length <= 400 ? p.kurulum : undefined;
+    pieces.push({ modelSlug: p.modelSlug, fabricCode, ...(kurulum ? { kurulum } : {}), ...(zones ? { zones } : {}), ...(p.turned === true ? { turned: true } : {}) });
   }
   let price: number | null = null;
   if (r.price !== undefined && r.price !== null && r.price !== "") {

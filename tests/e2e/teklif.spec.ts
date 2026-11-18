@@ -5,6 +5,12 @@ import { login, sceneFabrics } from "./helpers";
 // Showroom package, job 3: metres and quote. Every figure the test expects is
 // worked out by hand in the comment beside it.
 
+/** Opens a collapsible panel section unless it is already open (a click would close it). */
+async function openSection(page: import("@playwright/test").Page, summary: string) {
+  const details = page.locator("details", { has: page.locator("summary", { hasText: summary }) });
+  if (!(await details.evaluate((d) => (d as HTMLDetailsElement).open))) await details.locator("summary").click();
+}
+
 const hasPoppler = (() => {
   try {
     execFileSync("which", ["pdftotext"]);
@@ -43,12 +49,13 @@ test.describe("metraj ve teklif", () => {
     await page.getByRole("link", { name: "Köşe Takımı", exact: true }).click();
     await page.getByLabel("Bir adet için kumaş (m)").fill("14");
     await page.getByLabel("Hangi kumaş eninde (cm)").fill("140");
-    await page.getByText("Bölge başına metraj").click();
+    // these sections open by themselves when the model already has figures (another test may have set them)
+    await openSection(page, "Bölge başına metraj");
     await page.getByLabel("Kasa metrajı").fill("9");
     await page.getByLabel("Kollar metrajı").fill("");
     await page.getByLabel("Oturak metrajı").fill("2,5");
     await page.getByLabel("Sırt metrajı").fill("2");
-    await page.getByText("Ek parçalar (kırlent, biye…)").click();
+    await openSection(page, "Ek parçalar (kırlent, biye…)");
     if ((await page.getByLabel("1. ek parçanın adı").count()) === 0) await page.getByRole("button", { name: "+ Ek parça" }).click();
     await page.getByLabel("1. ek parçanın adı").fill("Kırlent");
     await page.getByLabel("1. ek parçanın metrajı").fill("0,5");

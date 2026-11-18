@@ -11,6 +11,9 @@ import { PresetStrip } from "./PresetStrip";
 import { useOnline } from "@/lib/offline/use-online";
 import type { ProfileChoice } from "@/lib/three/profile";
 import type { WasteSettings } from "@/lib/teklif/metraj";
+import { decodeArrangement, type Arrangement, type ModuleSet } from "@/lib/modul/dizilim";
+import { builtModel, KURULUM_SLUG } from "@/lib/modul/model";
+import { CornerBuilder } from "./CornerBuilder";
 import { KartelaScanner } from "@/components/kiosk/KartelaScanner";
 import { KioskCodeEntry } from "@/components/kiosk/KioskCodeEntry";
 import { AttractContext } from "@/components/kiosk/attract";
@@ -79,9 +82,11 @@ export interface ConfiguratorProps {
   waste?: WasteSettings;
   /** A paired shop screen: the quote can be sent to ORMEN as a fabric order request. */
   showroom?: boolean;
+  /** The module set the "Köşe kur" tab builds with (job 4); none = no tab. */
+  moduleSet?: ModuleSet;
 }
 
-type Tab = "kumas" | "oda";
+type Tab = "kumas" | "oda" | "kose";
 type Slot = "sol" | "sag";
 interface CompareState {
   right: Fabric;
@@ -98,7 +103,7 @@ function setQuery(params: Record<string, string | null>) {
 }
 
 export function Configurator({
-  models,
+  models: catalogueModels,
   initialModelSlug,
   fabrics,
   initialFabricCode,
@@ -110,7 +115,14 @@ export function Configurator({
   profileChoice,
   waste,
   showroom = false,
+  moduleSet,
 }: ConfiguratorProps) {
+  // ---------------------------------------------------------------- corner set builder (job 4)
+  // the set being built is one more model, at the fixed address "kose-kurucu"
+  const [built, setBuilt] = useState<FurnitureModel | null>(() => catalogueModels.find((m) => m.slug === KURULUM_SLUG) ?? null);
+  const models = useMemo(() => (built ? [...catalogueModels.filter((m) => m.slug !== KURULUM_SLUG), built] : catalogueModels.filter((m) => m.slug !== KURULUM_SLUG)), [catalogueModels, built]);
+  const [arrangement, setArrangement] = useState<Arrangement>(() => decodeArrangement(built?.kurulum)?.arrangement ?? { ids: [], mirrored: false });
+  const [buildError, setBuildError] = useState<string | null>(null);
   const byCode = useMemo(() => new Map(fabrics.map((f) => [f.code, f])), [fabrics]);
   const bySlug = useMemo(() => new Map(models.map((m) => [m.slug, m])), [models]);
   const dimsOf = useCallback((slug: string): Dims => {
@@ -146,6 +158,19 @@ export function Configurator({
     window.clearTimeout(urlTimer.current);
     urlTimer.current = window.setTimeout(() => setQuery({ y: encodeLayout(next), m: null, k: null }), 350);
   }, []);
+
+  // a valid set goes on the selected piece at once (3D, sizes, metres); an invalid one keeps the last good set
+  const changeArrangement = (a: Arrangement) => {
+    setArrangement(a);
+    if (!moduleSet || !a.ids.length) return setBuildError(null);
+    const r = builtModel(moduleSet, a);
+    if (!r.ok) return setBuildError(r.error);
+    setBuildError(null);
+    setBuilt(r.model);
+    const dims = modelDims(r.model);
+    commit(items.map((p) => (p.id === selectedItem.id ? constrain({ ...p, modelSlug: KURULUM_SLUG, zones: undefined }, dims, room) : p)));
+    setQuery({ mk: r.model.kurulum ?? null });
+  };
 
   const [shownCodes, setShownCodes] = useState<Record<string, string>>({});
   const [ready, setReady] = useState(false);
@@ -351,8 +376,8 @@ export function Configurator({
   const [printing, setPrinting] = useState<PrintData | null>(null);
 
   const shareId = useCallback(
-    () => encodeShare({ y: encodeLayout(items), oda: matchingPreset(room)?.id ?? encodeRoom(room), g: plan ? "plan" : undefined, f: firm?.slug }),
-    [items, room, plan, firm],
+    () => encodeShare({ y: encodeLayout(items), oda: matchingPreset(room)?.id ?? encodeRoom(room), g: plan ? "plan" : undefined, f: firm?.slug, mk: items.some((p) => p.modelSlug === KURULUM_SLUG) ? built?.kurulum : undefined }),
+    [items, room, plan, firm, built],
   );
   const shareUrl = useCallback(() => `${window.location.origin}/p/${shareId()}`, [shareId]);
 
@@ -444,7 +469,7 @@ export function Configurator({
             compareFabric={compare?.right ?? null}
             split={split}
             closeUp={closeUp}
-            showDimensions={showDims}
+            showDimensions={showDims || tab === "kose"}
             plan={plan}
             onFabricShown={onFabricShown}
             onError={() => setFailed(true)}
@@ -595,10 +620,11 @@ export function Configurator({
               </div>
             </div>
             {phone && <QuickStrip fabrics={modelFabrics} selectedCode={active.code} onSelect={select} />}
-            <div role="tablist" aria-label="Panel" className="mt-4 grid grid-cols-2 border-b border-cizgi">
+            <div role="tablist" aria-label="Panel" className={`mt-4 grid border-b border-cizgi ${moduleSet ? "grid-cols-3" : "grid-cols-2"}`}>
               {(
                 [
                   ["kumas", "Kumaş"],
+                  ...(moduleSet ? ([["kose", "Köşe kur"]] as const) : []),
                   ["oda", "Oda"],
                 ] as const
               ).map(([id, label]) => (
@@ -739,6 +765,11 @@ export function Configurator({
           {/* the "Kendi koltuğunuzda görün — yakında" card was removed (2nd meeting, 5 Oct): the brief
               rules out real AI, so it was a promise we could not keep. lib/ai/reupholster.ts stays for Faz 3. */}
         </div>
+        {moduleSet && (
+          <div id="bolum-kose" role="tabpanel" aria-labelledby="sekme-kose" hidden={tab !== "kose"}>
+            {tab === "kose" && <CornerBuilder set={moduleSet} value={arrangement} onChange={changeArrangement} error={buildError} />}
+          </div>
+        )}
         <div id="bolum-oda" role="tabpanel" aria-labelledby="sekme-oda" hidden={tab !== "oda"}>
           {roomTabUsed && <RoomPanel spec={room} onChange={changeRoom} furnitureCm={selectedModel.dimensionsCm} />}
         </div>
