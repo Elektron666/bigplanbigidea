@@ -17,3 +17,6 @@ Projede kullanılan görsel ve yazı tipi kaynakları ile lisansları. İnternet
 | AR görüntüleyici | `@google/model-viewer` (npm paketi) | Apache License 2.0 |
 | Draco çözücüsü (`public/draco/`) | Google Draco, `three` paketiyle gelen derleme | Apache License 2.0 |
 | Arayüz ikonları (`components/ui/icons.tsx`) | Bu proje için çizildi | Projeye ait |
+| Teklif PDF'inin yazı tipi (`public/fonts/teklif/`) | Inter, `@fontsource/inter` paketinden WOFF dosyaları (latin ve latin-ext, 400 ve 600) | SIL Open Font License 1.1 |
+| QR okuma (`jsqr` paketi) | npm, showroom ekranında kartela etiketini okumak için | Apache License 2.0 |
+| PDF üretimi (`pdf-lib`, `@pdf-lib/fontkit`) | npm, teklif PDF'i için | MIT |

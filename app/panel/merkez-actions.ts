@@ -9,6 +9,8 @@ import { validateShopProduct } from "@/lib/catalogue/shop-products";
 import { DEVICE_QUALITIES, DEVICE_QUALITY_LABELS, validateDeviceName, type DeviceQuality } from "@/lib/devices/pairing";
 import { cleanPin, weakPin } from "@/lib/devices/pin";
 import { checkBulkAssign } from "@/lib/catalogue/products";
+import { validateWaste } from "@/lib/teklif/metraj";
+import { getQuotes, ORDER_STATUSES, type OrderStatus } from "@/lib/teklif/store";
 import { SHOP_STATUSES, SHOP_STATUS_LABELS, type ShopStatus } from "@/lib/central/shops";
 
 // Server actions of the central panel (Showroom package, job 0). Each one
@@ -204,5 +206,33 @@ export async function setDeviceQualityAction(deviceId: string, quality: string):
   await central.requestSync([device.id]);
   await central.writeAudit({ actor: user.email, actorRole: user.role, firmId: device.firmId, entity: "cihaz", entityId: device.id, action: "kalite-degisti", summary: `“${device.name}” ekranının kalite profili: ${DEVICE_QUALITY_LABELS[device.quality]} → ${DEVICE_QUALITY_LABELS[quality as DeviceQuality]}`, before: { quality: device.quality }, after: { quality } });
   revalidatePath(`/panel/firmalar/${device.firmId}`);
+  return { ok: true };
+}
+
+// ------------------------------------------------------------------ quotes and orders (job 3)
+
+/** ORMEN's waste figures and rounding step. Empty stays empty: nothing is added then. Yönetici only. */
+export async function setWasteAction(raw: { duz?: string; donuk?: string; raporlu?: string; roundStep?: string }): Promise<Result> {
+  const user = await getPanelUser();
+  if (!user) return { ok: false, error: "Oturum süresi doldu. Yeniden giriş yapın." };
+  // the waste figures are ORMEN's own decision (task section 6: "katsayıyı ben gireceğim")
+  if (!can(user.role, "fiyat")) return { ok: false, error: DENIED };
+  const v = validateWaste(raw);
+  if (!v.ok) return { ok: false, error: v.error };
+  const quotes = getQuotes();
+  const before = await quotes.getWaste();
+  await quotes.setWaste(v.value);
+  await getCentral().writeAudit({ actor: user.email, actorRole: user.role, entity: "kumas", action: "fire-degisti", summary: `Fire: düz ${v.value.duz ?? "boş"}, dönük ${v.value.donuk ?? "boş"}, raporlu ${v.value.raporlu ?? "boş"}; yuvarlama ${v.value.roundStep} m`, before, after: v.value });
+  revalidatePath("/panel/siparisler");
+  return { ok: true };
+}
+
+export async function setOrderStatusAction(id: string, status: string): Promise<Result> {
+  const user = await getPanelUser();
+  if (!user) return { ok: false, error: "Oturum süresi doldu. Yeniden giriş yapın." };
+  if (!can(user.role, "icerik")) return { ok: false, error: DENIED };
+  if (!(ORDER_STATUSES as readonly string[]).includes(status)) return { ok: false, error: "Bilinmeyen durum." };
+  if (!(await getQuotes().setOrderStatus(String(id).slice(0, 40), status as OrderStatus))) return { ok: false, error: "Talep bulunamadı." };
+  revalidatePath("/panel/siparisler");
   return { ok: true };
 }

@@ -70,13 +70,21 @@ Kamera izni verilmezse ya da ekranın kamerası yoksa **Kartela okut** düğmesi
 
 **Deneyin:** Etiketi ekranın kamerasına 20–40 cm'den tutun; koltuk 1–2 saniyede o kumaşa geçmelidir. Okumazsa etiketi biraz yaklaştırın, ışığın etikete yansıyıp parlamadığına bakın.
 
-## 7. Son kontrol (3 dakika)
+## 7. Metraj ve fire (ORMEN, bir kez; her model için 5 dakika)
+
+- **Fire katsayıları (yalnızca ORMEN yöneticisi, bir kez):** Panel → **Siparişler** → "Fire ve yuvarlama": düz kumaş, desen yönü çevrilmiş, raporlu kumaş için yüzde; yuvarlama adımı (0,5 m). Boş bırakılan için fire eklenmez, teklifte "fire dahil değildir" yazar.
+- **Kumaş:** Panel → Kumaşlar → kumaş → **En (cm)**, **Desen** (düz / desenli, desenliyse rapor ölçüsü) ve **Kesim yönü**. Desen bilgisi girilmemiş kumaşta teklif sayı vermez.
+- **Model:** Panel → Modeller → model → **Metraj**: bir adet için kumaş, hangi en için (140 cm), **Bölge başına metraj** (Kasa, Kollar, Oturak, Sırt) ve **Ek parçalar** (Kırlent…). Sayılar firmanın ustasından alınır.
+- Deneme: showroom ekranında **Metraj ve teklif** → toplamın yanındaki açıklamayı elle hesapla karşılaştırın.
+
+## 8. Son kontrol (3 dakika)
 
 - [ ] Ekran bir dakika dokunulmadan bekleyince koltuk yavaşça döner ve kumaşlar sırayla değişir.
 - [ ] Ekrana dokununca showroom hemen açılır.
 - [ ] Logoya hızlıca 5 kez dokunun → **Mağaza PIN'i** sorulur → PIN'i yazın → **Ekran ayarları** açılır → **Güncellemeleri denetle** "Ekran güncel" der → **Showroom'a dön**.
 - [ ] Wi-Fi'yi kapatın, ekranı yeniden açın: showroom açılır, altta "İnternet bağlantısı yok" yazar, kumaş denemesi çalışır. Wi-Fi'yi geri açın: yazı kaybolur.
 - [ ] Bir kartela etiketini kameraya tutun: koltuk o kumaşa geçer.
+- [ ] **Metraj ve teklif** → **Teklifi oluştur** → **PDF indir** tek sayfalık PDF verir; telefonla QR'ı okutun, teklif açılır.
 - [ ] Panelde ekran **Güncel** görünüyor.
 
 ## Gündelik işler
@@ -95,7 +103,6 @@ Kamera izni verilmezse ya da ekranın kamerası yoksa **Kartela okut** düğmesi
 
 Bu adımlar ilgili iş yazıldığında buraya eklenecek:
 
-- Metraj, fire katsayıları ve teklif ayarları (İş 3).
 - Köşe modül setinin yüklenmesi (İş 4).
 - Mağaza bazında özellik açma, kota ve vitrin süresi ayarları (İş 0'ın kalanı).
 - Kalite profili (hafif / tam) panelden seçme (İş 1'in son parçası).

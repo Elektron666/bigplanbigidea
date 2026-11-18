@@ -10,6 +10,7 @@ import { QuickStrip } from "./QuickStrip";
 import { PresetStrip } from "./PresetStrip";
 import { useOnline } from "@/lib/offline/use-online";
 import type { ProfileChoice } from "@/lib/three/profile";
+import type { WasteSettings } from "@/lib/teklif/metraj";
 import { KartelaScanner } from "@/components/kiosk/KartelaScanner";
 import { KioskCodeEntry } from "@/components/kiosk/KioskCodeEntry";
 import { AttractContext } from "@/components/kiosk/attract";
@@ -42,6 +43,7 @@ const Stage = dynamic(() => import("@/components/three/Stage").then((m) => m.Sta
 });
 // Dialogs, the offer sheet and the room panel: their code is fetched the first time they
 // open, not with the page (gece toplantısı, 12 Oct: less JavaScript before the first view)
+const QuoteDialog = dynamic(() => import("./QuoteDialog").then((m) => m.QuoteDialog), { ssr: false, loading: () => null });
 const SampleDialog = dynamic(() => import("./SampleDialog").then((m) => m.SampleDialog), { ssr: false, loading: () => null });
 const ShareDialog = dynamic(() => import("./ShareDialog").then((m) => m.ShareDialog), { ssr: false, loading: () => null });
 const PrintSheet = dynamic(() => import("./PrintSheet").then((m) => m.PrintSheet), { ssr: false, loading: () => null });
@@ -73,6 +75,10 @@ export interface ConfiguratorProps {
   kiosk?: boolean;
   /** Paired showroom screen: its quality profile as set in the panel (lib/three/profile.ts). */
   profileChoice?: ProfileChoice;
+  /** ORMEN's waste settings: given on a shop's page, they turn on "Metraj ve teklif" (job 3). */
+  waste?: WasteSettings;
+  /** A paired shop screen: the quote can be sent to ORMEN as a fabric order request. */
+  showroom?: boolean;
 }
 
 type Tab = "kumas" | "oda";
@@ -102,6 +108,8 @@ export function Configurator({
   firm,
   kiosk = false,
   profileChoice,
+  waste,
+  showroom = false,
 }: ConfiguratorProps) {
   const byCode = useMemo(() => new Map(fabrics.map((f) => [f.code, f])), [fabrics]);
   const bySlug = useMemo(() => new Map(models.map((m) => [m.slug, m])), [models]);
@@ -338,6 +346,7 @@ export function Configurator({
   }, []);
   const online = useOnline();
   const [sampleOpen, setSampleOpen] = useState(false);
+  const [quoteOpen, setQuoteOpen] = useState(false);
   const [share, setShare] = useState<{ image: Blob | null; snapshot: string; url: string } | null>(null);
   const [printing, setPrinting] = useState<PrintData | null>(null);
 
@@ -467,6 +476,15 @@ export function Configurator({
                 <IconShare width={17} height={17} className="sm:hidden" />
                 <span className="max-sm:sr-only">{kiosk ? "Telefona al" : "Paylaş"}</span>
               </button>
+              {waste && (
+                <button
+                  type="button"
+                  onClick={() => setQuoteOpen(true)}
+                  className="flex h-10 items-center whitespace-nowrap rounded-full border border-cizgi bg-kagit/90 px-3 text-[13px] text-antrasit backdrop-blur-[2px] transition-colors hover:border-cizgi-koyu focus-visible:outline-2 focus-visible:outline-antrasit sm:px-4"
+                >
+                  Metraj ve teklif
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => setSampleOpen(true)}
@@ -743,6 +761,20 @@ export function Configurator({
           )}
         </p>
       </FabricSheet>
+      {quoteOpen && waste && (
+        <QuoteDialog
+          open
+          onClose={() => setQuoteOpen(false)}
+          items={items}
+          models={bySlug}
+          fabrics={byCode}
+          waste={waste}
+          firm={firm ?? null}
+          kiosk={kiosk}
+          showroom={showroom}
+          snapshot={() => stageApi.current?.snapshot() ?? null}
+        />
+      )}
       {sampleOpen && (
         <SampleDialog
           open

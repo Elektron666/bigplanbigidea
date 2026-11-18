@@ -73,6 +73,7 @@ interface ModelRow {
   meterage_m: number | null;
   meterage_ref_width_cm: number | null;
   meterage_zones?: Record<string, number> | null;
+  meterage_extra?: { name: string; metres: number }[] | null;
   cover_path: string | null;
   manufacturer?: string | null;
   category?: ProductCategory | null;
@@ -158,7 +159,7 @@ function modelFromRow(r: ModelRow): FurnitureModel {
     dimensionsCm: { w: Number(r.width_cm), d: Number(r.depth_cm), h: Number(r.height_cm) },
     defaultFabricCode: und(r.default_fabric_code),
     fabricSeries: r.fabric_series ?? [],
-    meterage: r.meterage_m != null && r.meterage_ref_width_cm != null ? { metres: Number(r.meterage_m), refWidthCm: Number(r.meterage_ref_width_cm), ...zonesOf(r.meterage_zones) } : undefined,
+    meterage: r.meterage_m != null && r.meterage_ref_width_cm != null ? { metres: Number(r.meterage_m), refWidthCm: Number(r.meterage_ref_width_cm), ...zonesOf(r.meterage_zones), ...extraOf(r.meterage_extra) } : undefined,
     coverUrl: publicFileUrl(r.cover_path),
     manufacturer: und(r.manufacturer ?? null),
     category: und(r.category ?? null),
@@ -194,6 +195,12 @@ function firmFromRow(r: FirmRow): Firm {
 }
 
 /** Zone metres as stored: only known zones with a number (anything else is dropped). */
+function extraOf(raw: unknown): { extra?: { name: string; metres: number }[] } {
+  if (!Array.isArray(raw)) return {};
+  const extra = raw.flatMap((e) => (e && typeof e === "object" && typeof (e as { name?: unknown }).name === "string" && Number.isFinite(Number((e as { metres?: unknown }).metres)) ? [{ name: (e as { name: string }).name, metres: Number((e as { metres: unknown }).metres) }] : []));
+  return extra.length ? { extra } : {};
+}
+
 function zonesOf(raw: Record<string, unknown> | null | undefined): { zones?: Partial<Record<"govde" | "kol" | "oturak" | "sirt", number>> } {
   if (!raw || typeof raw !== "object") return {};
   const zones: Partial<Record<"govde" | "kol" | "oturak" | "sirt", number>> = {};
@@ -318,6 +325,7 @@ export class SupabaseRepository implements Repository {
       meterage_m: input.meterage?.metres ?? null,
       meterage_ref_width_cm: input.meterage?.refWidthCm ?? null,
       meterage_zones: input.meterage?.zones ?? null,
+      meterage_extra: input.meterage?.extra ?? null,
       cover_path: toStored(input.coverUrl),
       is_active: input.isActive,
       sort_order: input.sortOrder,
@@ -326,6 +334,13 @@ export class SupabaseRepository implements Repository {
       input.id ? this.db.from("models").update(r).eq("id", input.id).select("*").single() : this.db.from("models").insert(r).select("*").single();
     let res = await write(row);
     // the zone-metres column comes with a later migration; a model without zone figures saves without it
+    // the extra-parts column comes with the quote migration; a model without extra parts saves without it
+    if (res.error && /meterage_extra/.test(res.error.message)) {
+      if (input.meterage?.extra?.length) throw new Error("Ek parça metrajı için Supabase'te 20261118000100_teklif.sql dosyasını çalıştırın.");
+      const rest: Partial<typeof row> = { ...row };
+      delete rest.meterage_extra;
+      res = await write(rest);
+    }
     if (res.error && /meterage_zones/.test(res.error.message)) {
       if (input.meterage?.zones) throw new Error("Bölge metrajı için Supabase'te 20261011000000_bolge_metraji.sql dosyasını çalıştırın.");
       const rest: Partial<typeof row> = { ...row };

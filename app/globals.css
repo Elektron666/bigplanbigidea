@@ -94,6 +94,13 @@ body {
     zoom: 1.25;
   }
 }
+/* windows on the showroom screen (quote, sample, QR) are read from a step back
+   too; on a wide screen they grow with the rest (Showroom package, job 3) */
+@media (min-width: 1280px) {
+  [data-kiosk] dialog {
+    zoom: 1.2;
+  }
+}
 
 /* Teklif föyü: hidden on screen, the only thing on paper when printing. */
 #foy-root {

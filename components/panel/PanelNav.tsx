@@ -10,6 +10,7 @@ const LINKS = [
   ["/panel/katalog", "Katalog"],
   ["/panel/firmalar", "Firmalar"],
   ["/panel/talepler", "Talepler"],
+  ["/panel/siparisler", "Siparişler"],
   ["/panel/rapor", "Rapor"],
   ["/panel/geri-bildirim", "Fikirler"],
   ["/panel/durum", "Kurulum"],

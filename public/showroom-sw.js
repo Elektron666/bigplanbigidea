@@ -35,7 +35,7 @@ self.addEventListener("activate", (event) => {
 });
 
 function isStatic(url) {
-  return url.origin === self.location.origin && (url.pathname.startsWith("/_next/static/") || url.pathname.startsWith("/draco/"));
+  return url.origin === self.location.origin && (url.pathname.startsWith("/_next/static/") || url.pathname.startsWith("/draco/") || url.pathname.startsWith("/fonts/"));
 }
 
 function isMedia(url, request) {

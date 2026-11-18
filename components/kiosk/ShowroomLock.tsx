@@ -34,7 +34,8 @@ export function ShowroomLock({ contentVersion, appVersion }: { contentVersion: n
       const a = (e.target as Element | null)?.closest?.("a[href]") as HTMLAnchorElement | null;
       if (!a) return;
       const raw = a.getAttribute("href") ?? "";
-      if (raw.startsWith("#")) return;
+      // in-page anchors, and files the screen made itself (a quote's PDF) are not "out"
+      if (raw.startsWith("#") || (raw.startsWith("blob:") && a.hasAttribute("download"))) return;
       // every other link would leave the showroom
       e.preventDefault();
       e.stopPropagation();

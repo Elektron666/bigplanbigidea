@@ -4,6 +4,7 @@
 
 import type { Fabric, Firm, FurnitureModel, TextureSize } from "@/lib/types";
 import { FLOORS } from "@/lib/room/spec";
+import { PDF_FONT_FILES } from "@/lib/teklif/sabitler";
 
 export const DRACO_FILES = ["/draco/draco_decoder.js", "/draco/draco_decoder.wasm", "/draco/draco_wasm_wrapper.js"] as const;
 
@@ -25,5 +26,7 @@ export function warmUrls(p: { fabrics: Fabric[]; models: FurnitureModel[]; firm:
   for (const fl of FLOORS) for (const u of [fl.albedo, fl.roughness, fl.normal, fl.thumb]) add(u);
   add(p.firm?.logoUrl);
   for (const d of DRACO_FILES) add(d);
+  // the quote's PDF is made on the screen, offline too
+  for (const f of [...PDF_FONT_FILES.regular, ...PDF_FONT_FILES.bold]) add(f);
   return [...out];
 }

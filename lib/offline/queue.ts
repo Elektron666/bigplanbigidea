@@ -15,7 +15,7 @@ export interface QueuedItem {
 }
 
 /** Only these addresses may be queued: our own record endpoints, nothing else. */
-export const QUEUE_URLS = ["/api/olay"] as const;
+export const QUEUE_URLS = ["/api/olay", "/api/teklif"] as const;
 export type QueueUrl = (typeof QUEUE_URLS)[number];
 
 export const QUEUE_MAX = 2000;

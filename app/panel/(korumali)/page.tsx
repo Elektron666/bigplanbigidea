@@ -3,6 +3,7 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import { gatherSetupFacts } from "@/lib/setup-facts";
 import { evaluateSetup, overall } from "@/lib/setup-check";
+import { getQuotes } from "@/lib/teklif/store";
 import { getRepository } from "@/lib/data";
 import { PageHeader, buttonClass } from "@/components/panel/ui";
 import { overdueCount } from "@/lib/pilot-metrics";
@@ -13,7 +14,7 @@ export default async function PanelHome() {
   const repo = getRepository();
   const now = new Date();
   const weekAgo = new Date(now.getTime() - 7 * 86_400_000);
-  const [fabrics, models, firms, samples, week, feedback] = await Promise.all([
+  const [fabrics, models, firms, samples, week, feedback, orders] = await Promise.all([
     repo.listFabrics({ includeInactive: true }),
     repo.listAllModels(),
     repo.listFirms(),
@@ -21,7 +22,10 @@ export default async function PanelHome() {
     // visits: a random per-tab id, never a person (lib/events.ts)
     repo.eventReport(weekAgo, now).catch(() => null),
     repo.listFeedback().catch(() => []),
+    // fabric order requests from the showroom screens (job 3); the panel says so like the sample requests
+    getQuotes().listOrders(50).catch(() => []),
   ]);
+  const newOrders = orders.filter((o) => o.status === "yeni");
   const newFeedback = feedback.filter((f) => new Date(f.createdAt) >= weekAgo).length;
   const waiting = feedback.filter((f) => f.contact && new Date(f.createdAt) >= weekAgo).length;
   const todayKey = now.toLocaleDateString("en-CA", { timeZone: "Europe/Istanbul" });
@@ -33,6 +37,7 @@ export default async function PanelHome() {
     { href: "/panel/rapor", title: "Ziyaret (bugün)", value: today, note: week ? `son 7 gün: ${week.sessions}` : "rapor okunamadı" },
     { href: "/panel/geri-bildirim", title: "Fikirler", value: newFeedback, note: `son 7 gün${waiting ? ` · ${waiting} dönüş bekliyor` : ""}` },
     { href: "/panel/talepler", title: "Numune talepleri", value: samples.length, note: samples[0] ? `son: ${new Date(samples[0].createdAt).toLocaleDateString("tr-TR")}` : "henüz yok" },
+    { href: "/panel/siparisler", title: "Sipariş talepleri", value: newOrders.length, note: newOrders.length ? "yeni, bekliyor" : orders[0] ? `son: ${new Date(orders[0].createdAt).toLocaleDateString("tr-TR")}` : "henüz yok" },
   ];
   const overdue = overdueCount(samples);
   const setup = overall(evaluateSetup(await gatherSetupFacts((await headers()).get("host"))));
@@ -46,6 +51,14 @@ export default async function PanelHome() {
       {user.mode === "supabase" && !user.twoFactor && (
         <Link href="/panel/guvenlik" className="mb-6 block rounded-xl border border-[#e7c3bd] bg-[#fbeeec] px-4 py-3 text-[14px] hover:border-[#b4483c]">
           Hesabınızda iki adımlı doğrulama kapalı. <span className="underline">Güvenlik sayfasından açın</span> (2 dakika, telefon gerekir).
+        </Link>
+      )}
+      {newOrders.length > 0 && (
+        <Link href="/panel/siparisler" role="alert" className="mb-6 block rounded-xl border border-[#e7c3bd] bg-[#fbeeec] px-4 py-3 text-[14px] text-[#7a2f27] hover:border-[#b4483c]">
+          <strong>
+            {newOrders.length} yeni kumaş sipariş talebi: {[...new Set(newOrders.map((o) => o.firmName ?? "mağaza"))].slice(0, 3).join(", ")}.
+          </strong>{" "}
+          <span className="underline">Siparişlere git</span>
         </Link>
       )}
       {overdue > 0 && (

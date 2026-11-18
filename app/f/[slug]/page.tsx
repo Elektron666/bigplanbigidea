@@ -5,6 +5,7 @@ import { Configurator } from "@/components/configurator/Configurator";
 import { initialStateFrom } from "@/lib/page-state";
 import { parseKiosk } from "@/lib/kiosk";
 import { KioskShell } from "@/components/kiosk/KioskShell";
+import { getQuotes } from "@/lib/teklif/store";
 
 // A furniture firm's own page: its logo and colour, its models, ORMEN fabrics.
 // Sample requests from here go to the panel and, by WhatsApp, to the firm.
@@ -25,15 +26,17 @@ export default async function FirmPage({ params, searchParams }: PageProps<"/f/[
   const cat = await loadCatalogue(slug);
   if (!cat?.firm || cat.models.length === 0 || cat.fabrics.length === 0) notFound();
   const kiosk = parseKiosk(sp);
+  // a shop's page offers "Metraj ve teklif" with ORMEN's waste settings
+  const waste = await getQuotes().getWaste();
   return (
     <main>
       <h1 className="sr-only">{cat.firm.name}: kumaşınızı koltuğun üstünde görün</h1>
       {kiosk ? (
         <KioskShell idleSeconds={kiosk.idleSeconds} firm={cat.firm}>
-          <Configurator models={cat.models} fabrics={cat.fabrics} firm={cat.firm} {...initialStateFrom(sp, cat.models, cat.fabrics)} kiosk={!!kiosk} />
+          <Configurator models={cat.models} fabrics={cat.fabrics} firm={cat.firm} {...initialStateFrom(sp, cat.models, cat.fabrics)} kiosk={!!kiosk} waste={waste} />
         </KioskShell>
       ) : (
-        <Configurator models={cat.models} fabrics={cat.fabrics} firm={cat.firm} {...initialStateFrom(sp, cat.models, cat.fabrics)} kiosk={!!kiosk} />
+        <Configurator models={cat.models} fabrics={cat.fabrics} firm={cat.firm} {...initialStateFrom(sp, cat.models, cat.fabrics)} kiosk={!!kiosk} waste={waste} />
       )}
     </main>
   );

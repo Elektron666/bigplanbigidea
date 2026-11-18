@@ -14,6 +14,51 @@ Bu dosyada projede verilen kararlar, yapılan varsayımlar ve bilinen sınırlar
 - **Numune taleplerindeki ad ve telefon** ORMEN panelinde görünmeye devam eder (6 Ekim kararı değişmedi). Yeni kural yalnızca yeni verilere uygulanır: teklifteki müşteri adı ve "ilgilenen müşteriler".
 - Görev tanımının eski kararlarla çeliştiği yerler ve seçilen yol: `PLAN-SHOWROOM.md`, 3. bölüm.
 
+## İş 3: metraj ve teklif (18 Kasım 2026)
+
+**Hesap (`lib/teklif/metraj.ts`, tek saf işlev; ekran, PDF, telefon sayfası ve sipariş talebi aynı işlevi kullanır):**
+- Parçalar: modelin bölge metrajları (Kasa, Kollar, Oturak, Sırt) ve yeni **ek parçalar** (Kırlent, Biye…; panelde model → Metraj → Ek parçalar, en çok 8). Bölge metrajı yoksa "Bir adet" tek parça sayılır.
+- Her parça kendi bölgesine seçilen kumaşı alır; ek parçalar koltuğun ana kumaşını.
+- Fire sınıfı: desenli kumaş → raporlu; yan çevrilmiş kesim → dönük; ötekiler → düz. Panelde **Siparişler** sayfasında girilir, yüzde olarak.
+- **Fire katsayıları boş başlıyor**, "ORMEN girecek" notuyla. Boşken fire eklenmiyor ve teklifte "Fire dahil değildir." yazıyor. Varsayılan sayı önermedim. Katsayıları yalnızca yönetici değiştirebiliyor.
+- Yuvarlama adımı varsayılan 0,5 m (görev tanımından); toplam kumaş başına, bütün parçalar toplandıktan sonra yukarı yuvarlanır (her parçayı ayrı yuvarlamak fazla yazardı; testte örneği var).
+- **Kumaş eni 140 cm kararı:** Metrajın girildiği enden farklı enli kumaşta sayı verilmiyor, "Kumaşın eni X cm; metraj 140 cm en için girilmiş, usta hesaplar." yazıyor. Desen bilgisi girilmemiş kumaşta ve bölgelere bölünmüş ama bölge metrajı olmayan modelde de sayı yok, nedeni var. Bir kumaşın parçalarından biri sayısızsa o kumaşa kısmi toplam gösterilmiyor.
+- Hesabın her adımı yazılıyor: "Kasa 6 m + Sırt 1,5 m + Kırlent 0,6 m = 8,1 m · Fire (düz kumaş): %10 · Fireyle 8,91 m, 0,5 m adımla yukarı yuvarlandı: 9 m".
+- **Elle hesap testi (görev tanımının kabul ölçütü):** `tests/unit/teklif-metraj.test.ts`. Üç kumaşlı bir üçlü (ana kumaş SIENA-04, kollar desenli JAKAR-02, oturak MISSO-05); her beklenen sayının yanında elle hesabı yazılı: SIENA-04 8,1 × 1,10 = 8,91 → 9 m; JAKAR-02 2,5 × 1,25 = 3,125 → 3,5 m; MISSO-05 2 × 1,10 = 2,2 → 2,5 m.
+- Bulunan ve düzeltilen hata: kayan nokta kalıntısı (9,0000001 m) yarım metre fazladan yuvarlanıyordu; yuvarlamadan önce değer milimetreye indiriliyor.
+
+**Teklif ekranı ("Metraj ve teklif"):**
+- Mağaza sayfalarında ve showroom ekranında; ORMEN'in kendi ana sayfasında yok (mağaza yok).
+- Parça–kumaş–metraj tablosu, kumaş başına toplam ve açıklaması; müşteri adı, satıcı notu, fiyat isteğe bağlı.
+- "Teklifi oluştur" sonrası: telefona alma QR'ı, WhatsApp QR'ı (kioskta WhatsApp bağlantısı ekrandan dışarı çıkamayacağı için; müşteri telefonuyla okutup kendi WhatsApp'ında açar; web sayfasında düz bağlantı), "PDF indir".
+- **"ORMEN'e sipariş talebi gönder" yalnızca eşleşmiş showroom ekranında.** Web sayfasından gelen sipariş isteği reddediliyor (403): sipariş mağazanın ORMEN'e verdiği siparişidir, evdeki müşterinin değil.
+- Kioskta bütün pencereler geniş ekranda 1,2 kat büyüyor (bir metreden okunmaları için; kartela ve numune pencereleri de).
+
+**Güvenlik ve bütünlük:**
+- Sunucu ekranın gönderdiği metrelere güvenmiyor: ekran yalnızca model, kumaş, bölge ve kesim yönünü gönderiyor; sunucu merkezdeki modeller, kumaşlar ve fire ayarlarıyla toplamı yeniden hesaplıyor. Sipariş talebindeki metre değiştirilemez.
+- Teklif numarası ve telefon bağlantısı ekranda üretiliyor; internet yokken de teklif oluşuyor ve kuyruktan bağlantı gelince aynı numarayla gidiyor. Aynı teklif iki kez gelirse tek kayıt (cihazda verilen kayıt numarası tekil); bir teklif tek sipariş talebi açar, kaç kez gönderilirse gönderilsin (veritabanında tekil kısıt; uçtan uca testte iki gönderim, tek talep).
+- **Müşterinin adı ve satıcı notu ayrı bir tabloda** (`quote_private`); ORMEN kullanıcılarına bu tabloda hiçbir okuma kuralı yok. Panelin Siparişler sayfası yalnızca mağazayı, teklif numarasını, kumaş kodlarını ve metreleri gösteriyor. PGlite testi: yönetici ve eleman müşteri adını hiçbir sorguyla okuyamıyor; başka mağazanın sahibi teklifi göremiyor.
+- Telefon bağlantısı 128 bit rastgele; bağlantıyı bilen teklifi görür (paylaşım bağlantıları gibi). Mağaza paneli yazılınca "firma kendi tekliflerini görür" oradan gelecek; şimdilik teklif listesi yalnızca sipariş talepleri üzerinden ORMEN panelinde.
+
+**PDF (`lib/teklif/pdf.ts`):**
+- Tarayıcıda üretiliyor (kioskta yazdırma penceresi açılamaz; çevrimdışı da çalışmalı): `pdf-lib` ve `@pdf-lib/fontkit` (MIT, ücretsiz).
+- Yazı tipi sitenin kendi yazı tipi Inter. Paket alfabeyi iki dosyaya bölüyor (düz harfler ayrı, ğ ş İ ayrı); iki dosya birlikte gömülüyor, her harf onu içeren dosyadan yazılıyor. ₺ işareti hiçbir dosyada yok; fiyat "TL" ile yazılıyor. WOFF2 biçimi kütüphanede çöktüğü için WOFF kullanıldı.
+- Tek sayfa: mağazanın logosu (PNG/JPEG; SVG ya da bozuk logoda mağaza adı), teklif numarası ve tarih, müşteri, 3D sahneden alınmış kare (beyaz zeminde JPEG), tablo, kumaş başına toplam ve açıklaması, fiyat, not; altta sabit "Ekran renkleri bağlayıcı değildir; renk onayı numuneyle verilir." Uzun teklifte önce görsel, sonra yazı küçülüyor.
+- ORMEN adı yalnızca kumaş kodlarının yanında "(ORMEN)" olarak geçiyor; belge mağazanın belgesi.
+- Test `pdftotext` ile metni geri okuyor: Türkçe harfler gerçek metin, 28 satırlık teklif bile tek sayfa, logosuz mağazada çalışıyor, bozuk logo PDF'i durdurmuyor, "ORMEN" yalnızca kod yanında.
+- Telefon sayfasındaki PDF'te 3D görsel yok: sahne görüntüsü sunucuda saklanmıyor (gereksiz depolama ve boyut).
+
+**Bildirim:** Sipariş talepleri panelde **Siparişler** sayfasına ve panelin açılış sayfasına (numune talepleri gibi uyarı ve kart olarak) düşüyor. E-posta yok (para harcamama kararı).
+
+**Veritabanı (`20261118000100_teklif.sql`, geri alma dosyasıyla):** `meterage_settings` (tek satır), `models.meterage_extra`, `quotes`, `quote_private`, `order_requests`. Canlıya uygulanmadı.
+
+**Uçtan uca test (`tests/e2e/teklif.spec.ts`):** Yönetici fireleri girer; kumaşa en ve desen, köşe takımına bölge metrajı ve kırlent girilir; yeni mağazanın ekranında teklif: 9 + 2,5 + 2 + 0,5 = 14 m × 1,10 = 15,4 → 15,5 m ekranda ve açıklamada birebir; PDF iner, tek sayfa, mağaza adı, numara, müşteri, "MISSO-05 (ORMEN)", 15,5 m ve 42.500 TL içinde; sipariş talebi gider, düğme kilitlenir; aynı teklif sipariş talebiyle iki kez gönderilince ikincisi "zaten var" der; panelde talep bir kez, müşteri adı yok; panel açılışında uyarı; telefon sayfası girişsiz açılır; bilinmeyen bağlantı sakin bir mesaj verir; web'den sipariş 403.
+
+**Eksik / sonraya:**
+- Satıcı modundaki firma fiyatı (İş 7) ve mağaza panelinde teklif listesi.
+- Köşe kurucunun (İş 4) şeması PDF'e henüz girmiyor.
+- Teklifin çevrimdışı oluşturulması birim ve kuyruk testleriyle kapsanıyor; uçtan uca çevrimdışı teklif testi yazılmadı.
+
 ## İş 2: sihirli kartela; Next.js güvenlik yaması (18 Kasım 2026)
 
 **Etiket:**

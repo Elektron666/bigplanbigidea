@@ -27,9 +27,11 @@ export interface ModelMeterage {
    * have; with no split at all, a piece in several fabrics stays the upholsterer's call.
    */
   zones?: Partial<Record<MeterageZone, number>>;
+  /** Parts counted beyond the zones (Kırlent, Biye…), same width (Showroom package, job 3). */
+  extra?: { name: string; metres: number }[];
 }
 
-export const METERAGE_LIMITS = { metres: [0.5, 60] as const, refWidthCm: [100, 340] as const, zone: [0.1, 40] as const };
+export const METERAGE_LIMITS = { metres: [0.5, 60] as const, refWidthCm: [100, 340] as const, zone: [0.1, 40] as const, extra: [0.1, 20] as const, extraCount: 8 };
 
 export function validateMeterage(m: Partial<ModelMeterage> | null | undefined): string | null {
   if (!m || (m.metres === undefined && m.refWidthCm === undefined)) return null;
@@ -44,6 +46,16 @@ export function validateMeterage(m: Partial<ModelMeterage> | null | undefined): 
     if (values.some((v) => !(v >= zlo && v <= zhi))) return `Bölge metrajı ${nf.format(zlo)}–${zhi} m arasında olmalı.`;
     // the parts can carry a little more waste than the whole, not much more
     if (values.reduce((a, b) => a + b, 0) > m.metres * 1.1 + 1e-9) return "Bölge metrajlarının toplamı bir adetin metrajını geçiyor.";
+  }
+  if (m.extra) {
+    const [elo, ehi] = METERAGE_LIMITS.extra;
+    if (m.extra.length > METERAGE_LIMITS.extraCount) return `En çok ${METERAGE_LIMITS.extraCount} ek parça girilebilir.`;
+    for (const e of m.extra) {
+      const name = e.name.trim();
+      if (name.length < 2 || name.length > 30) return "Ek parçaya 2–30 harflik bir ad verin (ör. Kırlent).";
+      if (!(e.metres >= elo && e.metres <= ehi)) return `${name}: ek parça metrajı ${nf.format(elo)}–${ehi} m arasında olmalı.`;
+    }
+    if (new Set(m.extra.map((e) => e.name.trim().toLocaleLowerCase("tr"))).size !== m.extra.length) return "Aynı adla iki ek parça var.";
   }
   return null;
 }
