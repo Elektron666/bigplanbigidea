@@ -19,6 +19,8 @@ export interface Measurement {
   /** Recent intervals of frames that followed each other closely (seconds). */
   frames: number[];
   ar: "bilinmiyor" | "destekleniyor" | "desteklenmiyor" | "acildi" | "acilamadi";
+  /** Showroom screens only: the quality profile in use (lib/three/profile.ts). */
+  profile?: "hafif" | "tam";
 }
 
 const empty = (): Measurement => ({
@@ -91,7 +93,7 @@ export function summary(m: Measurement, device: { ua: string; cores?: number; me
   return [
     `Cihaz: ${device.ua}`,
     `Ekran: ${device.screen} · çekirdek ${device.cores ?? "?"} · bellek ${device.memoryGb !== undefined ? `${device.memoryGb} GB` : "?"}`,
-    `Kalite: ${m.tier ?? "?"} · doku ${m.textureSize ?? "?"}`,
+    `Kalite: ${m.tier ?? "?"}${m.profile ? ` · profil ${m.profile}` : ""} · doku ${m.textureSize ?? "?"}`,
     `Piksel oranı: ${m.startDpr ?? "?"} → ${m.dpr ?? "?"}${m.lowered ? ` (${m.lowered} kez düştü)` : " (düşmedi)"}`,
     `Hareket hâlinde kare hızı: ${fps === null ? "ölçülmedi (sahneyi döndürün)" : `${fps} fps`}`,
     `İlk kumaş: ${m.firstFabricMs === null ? "gelmedi" : `${(m.firstFabricMs / 1000).toFixed(1).replace(".", ",")} sn`}`,

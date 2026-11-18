@@ -266,6 +266,8 @@ export class MemoryRepository implements Repository {
   }
 
   async recordEvent(e: UsageEvent) {
+    // the same record twice (same device-made id) is stored once
+    if (e.clientId && this.events.some((x) => x.clientId === e.clientId)) return;
     this.events.unshift({ ...e, createdAt: new Date().toISOString() });
     if (this.events.length > 50_000) this.events.length = 50_000;
   }

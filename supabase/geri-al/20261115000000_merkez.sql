@@ -1,5 +1,7 @@
 -- Undoes supabase/migrations/20261115000000_merkez.sql. Removes only what that
 -- file added; the tables and columns that existed before it are left as they were.
+-- Undo files run newest first: undo 20261118000000_olay_kaydi.sql (and any
+-- later file) before this one, or the devices table cannot be dropped.
 -- NOTE: this drops the data in the tables it removes (shops' devices, prices,
 -- subscriptions, change log). Take a backup first.
 

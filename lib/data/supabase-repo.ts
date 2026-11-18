@@ -553,18 +553,26 @@ export class SupabaseRepository implements Repository {
   }
 
   async recordEvent(e: UsageEvent) {
-    check(
-      await this.db.from("events").insert({
-        type: e.type,
-        session_id: e.sessionId,
-        device: e.device ?? null,
-        firm_slug: e.firmSlug ?? null,
-        model_slug: e.modelSlug ?? null,
-        fabric_code: e.fabricCode ?? null,
-        source: e.source ?? null,
-        tag: e.tag ?? null,
-      }),
-    );
+    const row = {
+      type: e.type,
+      session_id: e.sessionId,
+      device: e.device ?? null,
+      firm_slug: e.firmSlug ?? null,
+      model_slug: e.modelSlug ?? null,
+      fabric_code: e.fabricCode ?? null,
+      source: e.source ?? null,
+      tag: e.tag ?? null,
+      zone: e.zone ?? null,
+      n: e.n ?? null,
+      n2: e.n2 ?? null,
+      device_id: e.deviceId ?? null,
+      client_id: e.clientId ?? null,
+    };
+    // a record that already arrived (same device-made id) is left as it is
+    const res = row.client_id
+      ? await this.db.from("events").upsert(row, { onConflict: "client_id", ignoreDuplicates: true })
+      : await this.db.from("events").insert(row);
+    check(res);
   }
 
   async listEvents(since: Date, firmSlug?: string) {

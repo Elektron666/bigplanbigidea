@@ -6,7 +6,7 @@ import { can, DENIED } from "@/lib/auth/roles";
 import { getCentral } from "@/lib/central/store";
 import { getRepository } from "@/lib/data";
 import { validateShopProduct } from "@/lib/catalogue/shop-products";
-import { validateDeviceName } from "@/lib/devices/pairing";
+import { DEVICE_QUALITIES, DEVICE_QUALITY_LABELS, validateDeviceName, type DeviceQuality } from "@/lib/devices/pairing";
 import { cleanPin, weakPin } from "@/lib/devices/pin";
 import { checkBulkAssign } from "@/lib/catalogue/products";
 import { SHOP_STATUSES, SHOP_STATUS_LABELS, type ShopStatus } from "@/lib/central/shops";
@@ -186,5 +186,23 @@ export async function setShopPinAction(firmId: string, pin: string): Promise<Res
   await central.setShopPin(firm.id, clean);
   await central.writeAudit({ actor: user.email, actorRole: user.role, firmId: firm.id, entity: "magaza", entityId: firm.id, action: "pin-degisti", summary: `${firm.name}: mağaza PIN’i değiştirildi` });
   revalidatePath(`/panel/firmalar/${firm.id}`);
+  return { ok: true };
+}
+
+/** A screen's quality profile: "oto" (measured on the device), "hafif" or "tam". Applied at the screen's next start. */
+export async function setDeviceQualityAction(deviceId: string, quality: string): Promise<Result> {
+  const user = await getPanelUser();
+  if (!user) return { ok: false, error: "Oturum süresi doldu. Yeniden giriş yapın." };
+  if (!can(user.role, "kurulum")) return { ok: false, error: DENIED };
+  if (!(DEVICE_QUALITIES as readonly string[]).includes(quality)) return { ok: false, error: "Bilinmeyen kalite profili." };
+  const central = getCentral();
+  const device = await central.getDevice(String(deviceId).slice(0, 40));
+  if (!device) return { ok: false, error: "Ekran bulunamadı." };
+  if (device.quality === quality) return { ok: true };
+  await central.updateDevice(device.id, { quality: quality as DeviceQuality });
+  // the screen restarts at its next check, so it opens with the new profile
+  await central.requestSync([device.id]);
+  await central.writeAudit({ actor: user.email, actorRole: user.role, firmId: device.firmId, entity: "cihaz", entityId: device.id, action: "kalite-degisti", summary: `“${device.name}” ekranının kalite profili: ${DEVICE_QUALITY_LABELS[device.quality]} → ${DEVICE_QUALITY_LABELS[quality as DeviceQuality]}`, before: { quality: device.quality }, after: { quality } });
+  revalidatePath(`/panel/firmalar/${device.firmId}`);
   return { ok: true };
 }

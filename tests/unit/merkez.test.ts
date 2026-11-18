@@ -51,12 +51,17 @@ const version = async (id: string) => Number((await db.query<{ content_version: 
 beforeAll(async () => {
   db = new PGlite();
   await db.exec(STUBS);
-  for (const f of files()) await db.exec(readFileSync(path.join(dir, f), "utf8"));
-  // the undo file really undoes it, and the migration applies again afterwards
-  await db.exec(readFileSync(path.join(process.cwd(), "supabase/geri-al", MERKEZ), "utf8"));
-  const left = await db.query("select 1 from information_schema.columns where table_schema = 'public' and table_name = 'firms' and column_name = 'content_version'");
-  expect(left.rows).toHaveLength(0);
-  await db.exec(readFileSync(path.join(dir, MERKEZ), "utf8"));
+  for (const f of files()) {
+    await db.exec(readFileSync(path.join(dir, f), "utf8"));
+    if (f !== MERKEZ) continue;
+    // Right after it is applied (undo files run newest first, before the later
+    // migrations that build on it): the undo file really undoes it, and the
+    // migration applies again afterwards.
+    await db.exec(readFileSync(path.join(process.cwd(), "supabase/geri-al", MERKEZ), "utf8"));
+    const left = await db.query("select 1 from information_schema.columns where table_schema = 'public' and table_name = 'firms' and column_name = 'content_version'");
+    expect(left.rows).toHaveLength(0);
+    await db.exec(readFileSync(path.join(dir, MERKEZ), "utf8"));
+  }
   await db.exec(GRANTS);
 
   await db.exec(`

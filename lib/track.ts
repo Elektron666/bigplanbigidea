@@ -2,6 +2,8 @@
 
 import type { Device, EventType } from "@/lib/events";
 import { detectSource, type VisitSource } from "@/lib/source";
+import { enqueue, flush } from "@/lib/offline/outbox";
+import { newClientId } from "@/lib/offline/queue";
 
 // Fire-and-forget usage events. The visit id is random, lives only in this
 // tab (sessionStorage) and identifies no one; it only lets the report count
@@ -49,7 +51,19 @@ function visitSource(): VisitSource | null {
 
 const recent = new Map<string, number>();
 
-export function track(type: EventType, data: { firmSlug?: string | null; modelSlug?: string | null; fabricCode?: string | null } = {}): void {
+export type TrackData = { firmSlug?: string | null; modelSlug?: string | null; fabricCode?: string | null; zone?: string | null; n?: number | null; n2?: number | null };
+
+/** The page is a paired showroom screen: records go through its outbox (they survive no internet). */
+function onShowroom(): boolean {
+  return !!document.querySelector("[data-showroom]");
+}
+
+/**
+ * Records one usage event. Resolves once the record is on its way: on a
+ * showroom screen, once it is safely in the outbox (so a reset that reloads
+ * the page right after does not lose it).
+ */
+export async function track(type: EventType, data: TrackData = {}): Promise<void> {
   // no automated traffic in the report (tests opt in with window.__ormenTrack)
   if (typeof window === "undefined" || (navigator.webdriver && !(window as { __ormenTrack?: boolean }).__ormenTrack)) return;
   // the same thing twice within 2 s counts once (double taps, re-renders)
@@ -58,7 +72,17 @@ export function track(type: EventType, data: { firmSlug?: string | null; modelSl
   if (now - (recent.get(key) ?? 0) < 2000) return;
   recent.set(key, now);
   const from = visitSource();
-  const body = JSON.stringify({ type, sessionId: sessionId(), device: device(), source: from?.source, tag: from?.tag, ...data });
+  const clientId = newClientId();
+  const body = JSON.stringify({ type, sessionId: sessionId(), device: device(), source: from?.source, tag: from?.tag, clientId, ...data });
+  if (onShowroom()) {
+    try {
+      await enqueue("/api/olay", body, clientId);
+      void flush();
+      return;
+    } catch {
+      // storage blocked: send it straight away like any page
+    }
+  }
   try {
     if (!navigator.sendBeacon?.("/api/olay", new Blob([body], { type: "application/json" }))) {
       void fetch("/api/olay", { method: "POST", body, keepalive: true, headers: { "content-type": "application/json" } }).catch(() => undefined);

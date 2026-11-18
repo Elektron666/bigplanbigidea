@@ -2,8 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { createPairingAction, removeDeviceAction, requestSyncAction, setShopPinAction } from "@/app/panel/merkez-actions";
-import { PAIRING_TTL_MINUTES, type Device } from "@/lib/devices/pairing";
+import { createPairingAction, removeDeviceAction, requestSyncAction, setDeviceQualityAction, setShopPinAction } from "@/app/panel/merkez-actions";
+import { DEVICE_QUALITIES, DEVICE_QUALITY_LABELS, PAIRING_TTL_MINUTES, type Device } from "@/lib/devices/pairing";
 import { Badge, Field, buttonClass, inputClass } from "./ui";
 
 const when = new Intl.DateTimeFormat("tr-TR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Istanbul" });
@@ -74,6 +74,25 @@ export function ShopDevices({ firmId, devices, showroomUrl, canRemove, hasPin }:
                   </p>
                 </div>
                 <Badge tone={state.tone}>{state.label}</Badge>
+                <label className="flex items-center gap-1.5 text-[13px] text-antrasit-70">
+                  Kalite
+                  <select
+                    aria-label={`${d.name}: kalite profili`}
+                    defaultValue={d.quality}
+                    disabled={pending}
+                    onChange={(e) => {
+                      const q = e.target.value;
+                      run(() => setDeviceQualityAction(d.id, q), `Kalite profili kaydedildi (${DEVICE_QUALITY_LABELS[q as Device["quality"]]}). “${d.name}” ekranı birkaç dakika içinde yeniden açılıp bu profile geçer.`);
+                    }}
+                    className="h-9 rounded-full border border-cizgi bg-white px-3 text-[13px] text-antrasit"
+                  >
+                    {DEVICE_QUALITIES.map((q) => (
+                      <option key={q} value={q}>
+                        {DEVICE_QUALITY_LABELS[q]}
+                      </option>
+                    ))}
+                  </select>
+                </label>
                 <button type="button" disabled={pending} onClick={() => run(() => requestSyncAction(firmId, d.id), `“${d.name}” ekranına “şimdi eşitle” gönderildi.`)} className={buttonClass.quiet} aria-label={`${d.name}: şimdi eşitle`}>
                   Şimdi eşitle
                 </button>

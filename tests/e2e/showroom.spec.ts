@@ -1,5 +1,5 @@
 import { expect, test } from "./fixtures";
-import { login } from "./helpers";
+import { login, sceneFabrics } from "./helpers";
 import type { Page } from "@playwright/test";
 
 // Showroom package, job 1: a screen is tied to a shop with a code from the
@@ -38,9 +38,11 @@ test.describe("showroom ekranı", () => {
     await typeCode(screen, code === "111111" ? "222222" : "111111");
     await expect(screen.getByText("Kod hatalı ya da süresi geçti.")).toBeVisible();
 
-    // the right code opens the shop's showroom
+    // the right code opens the shop's showroom, in the shop's own words
     await typeCode(screen, code);
     await expect(screen.getByRole("button", { name: "Başlamak için dokunun" })).toBeVisible();
+    await expect(screen.getByText("Dokunun, kumaşı siz seçin")).toBeVisible();
+    await expect(screen.getByText(/ORMEN kumaşlarını/)).toHaveCount(0);
     await expect(screen.getByRole("heading", { name: /Örnek Mobilya/ })).toBeAttached();
 
     // the code worked once: a second screen cannot reuse it
@@ -162,6 +164,142 @@ test.describe("showroom ekranı", () => {
     await expect(sheet.getByText("Ekran güncel.")).toBeVisible();
     await sheet.getByRole("button", { name: "Showroom’a dön" }).click();
     await expect(sheet).toHaveCount(0);
+    await context.close();
+  });
+
+  test("çevrimdışı: ekran açılır, kumaş değişir, kayıtlar bağlantı gelince bir kez gider", async ({ page, browser }) => {
+    test.setTimeout(240_000);
+    await login(page);
+    await page.goto("/panel/firmalar");
+    await page.getByRole("link", { name: "Örnek Mobilya" }).click();
+    const code = await newCode(page, `Çevrimdışı ${Date.now().toString(36)}`);
+
+    const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+    // the test browser is automated; let the usage log record anyway
+    await context.addInitScript(() => ((window as unknown as { __ormenTrack: boolean }).__ormenTrack = true));
+    const screen = await context.newPage();
+    await screen.goto("/showroom");
+    await typeCode(screen, code);
+    await expect(screen.getByRole("button", { name: "Başlamak için dokunun" })).toBeVisible();
+    // the helper is in charge and every fabric of the shop is on the device
+    await screen.waitForFunction(() => !!navigator.serviceWorker?.controller, null, { timeout: 60_000 });
+    await expect(screen.locator("html")).toHaveAttribute("data-onbellek", "hazir", { timeout: 120_000 });
+
+    const delivered = () => screen.evaluate(() => (window as unknown as { __ormenGiden?: { id: string; type: string }[] }).__ormenGiden ?? []);
+    const queued = () =>
+      screen.evaluate(
+        () =>
+          new Promise<number>((resolve) => {
+            const open = indexedDB.open("ormen-showroom", 1);
+            open.onsuccess = () => {
+              const req = open.result.transaction("kuyruk").objectStore("kuyruk").count();
+              req.onsuccess = () => {
+                resolve(req.result);
+                open.result.close();
+              };
+            };
+            open.onerror = () => resolve(-1);
+          }),
+      );
+
+    // no internet, and the screen is restarted
+    await context.setOffline(true);
+    const reopened = await screen.reload();
+    // it opened from the copy on the device, and the network really is gone
+    expect(reopened?.headers()["x-ormen-kaynak"]).toBe("cihaz");
+    expect(await screen.evaluate(() => fetch("/api/showroom/esitle", { method: "POST" }).then(() => "ag", () => "yok"))).toBe("yok");
+    await screen.getByRole("button", { name: "Başlamak için dokunun" }).click();
+    await expect(screen.getByTestId("cevrimdisi")).toBeVisible();
+    // what needs the internet says so instead of failing
+    await expect(screen.getByRole("button", { name: /Numune iste/ })).toBeDisabled();
+
+    // a fabric is tried from the swatch code: it goes on the sofa from the device copy
+    const before = await sceneFabrics(screen);
+    await screen.getByLabel("Elinizdeki kartelanın kodu").fill("MISSO-05");
+    await expect.poll(() => sceneFabrics(screen), { timeout: 60_000 }).toContain("MISSO-05");
+    expect(before).not.toContain("MISSO-05");
+
+    // "Telefona al" still gives the QR (the visitor's phone has its own internet)
+    await screen.getByRole("button", { name: "Telefona al" }).click();
+    await expect(screen.getByRole("dialog")).toBeVisible();
+    await screen.keyboard.press("Escape");
+
+    // the records wait on the device
+    await expect.poll(queued, { timeout: 30_000 }).toBeGreaterThan(0);
+    // nothing got through while offline
+    expect(await delivered()).toHaveLength(0);
+
+    // the connection is back: everything goes, each record once
+    await context.setOffline(false);
+    await expect.poll(queued, { timeout: 90_000 }).toBe(0);
+    await expect(screen.getByTestId("cevrimdisi")).toHaveCount(0);
+    const sent = await delivered();
+    expect(sent.map((e) => e.type)).toContain("kumas_denendi");
+    expect(sent.map((e) => e.type)).toContain("oturum_basladi");
+    const ids = sent.map((e) => e.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    await context.close();
+  });
+
+  test("kalite profili: hafif profilde detay azalır, kumaşın rengi ve ölçeği aynı kalır", async ({ page, browser }) => {
+    test.setTimeout(180_000);
+    await login(page);
+    await page.goto("/panel/firmalar");
+    await page.getByRole("link", { name: "Örnek Mobilya" }).click();
+    const name = `Profil ${Date.now().toString(36)}`;
+    const code = await newCode(page, name);
+    const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+    const screen = await context.newPage();
+    await screen.goto("/showroom");
+    await typeCode(screen, code);
+    await expect(screen.getByRole("button", { name: "Başlamak için dokunun" })).toBeVisible();
+
+    // what the profile may and may not change, read from the scene itself
+    type Look = { fabrics: { name: string; color: string; repeat: [number, number]; mapWidth: number }[]; shadows: boolean };
+    const look = () =>
+      screen.evaluate((): Look => {
+        type Tex = { image?: { width?: number }; repeat?: { x: number; y: number } };
+        type O = { isMesh?: boolean; isDirectionalLight?: boolean; castShadow?: boolean; material?: { name?: string; color?: { getHexString(): string }; map?: Tex } };
+        const s = (window as unknown as { __ormenStage?: { get(): { scene: { traverse(cb: (o: O) => void): void } } } }).__ormenStage;
+        const fabrics: Look["fabrics"] = [];
+        let shadows = false;
+        s?.get().scene.traverse((o) => {
+          if (o.isDirectionalLight && o.castShadow) shadows = true;
+          const m = o.material;
+          if (!o.isMesh || !m?.name?.startsWith("kumas:") || !m.map?.repeat) return;
+          fabrics.push({ name: m.name, color: m.color?.getHexString() ?? "", repeat: [Math.round(m.map.repeat.x * 1e4) / 1e4, Math.round(m.map.repeat.y * 1e4) / 1e4], mapWidth: m.map.image?.width ?? 0 });
+        });
+        const seen = new Set<string>();
+        return { fabrics: fabrics.filter((f) => (seen.has(f.name + f.repeat.join()) ? false : (seen.add(f.name + f.repeat.join()), true))), shadows };
+      });
+    const settle = async (profil: string) => {
+      await expect(screen.locator("html")).toHaveAttribute("data-profil", profil, { timeout: 60_000 });
+      await expect.poll(async () => (await look()).fabrics.length, { timeout: 60_000 }).toBeGreaterThan(0);
+      await screen.waitForTimeout(1500);
+      return look();
+    };
+
+    // the panel sets "tam", the screen restarts with it
+    const row = page.getByRole("listitem").filter({ hasText: name });
+    await page.reload();
+    await row.getByLabel(`${name}: kalite profili`).selectOption("tam");
+    await expect(page.getByText(/Kalite profili kaydedildi \(Tam\)/)).toBeVisible();
+    await screen.evaluate(() => (window as unknown as { __ormenSync: () => Promise<void> }).__ormenSync());
+    const tam = await settle("tam");
+    expect(tam.shadows).toBe(true);
+
+    // then "hafif"
+    await row.getByLabel(`${name}: kalite profili`).selectOption("hafif");
+    await expect(page.getByText(/Kalite profili kaydedildi \(Hafif\)/)).toBeVisible();
+    await screen.evaluate(() => (window as unknown as { __ormenSync: () => Promise<void> }).__ormenSync());
+    const hafif = await settle("hafif");
+
+    // detail goes down: no cast shadows, textures at most 1K
+    expect(hafif.shadows).toBe(false);
+    for (const f of hafif.fabrics) expect(f.mapWidth, f.name).toBeLessThanOrEqual(1024);
+    // the fabric's colour and its real-world scale are exactly the same
+    const key = (l: Look) => l.fabrics.map((f) => `${f.name} ${f.color} ${f.repeat.join("x")}`).sort();
+    expect(key(hafif)).toEqual(key(tam));
     await context.close();
   });
 

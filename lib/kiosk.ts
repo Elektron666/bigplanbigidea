@@ -53,3 +53,25 @@ export function showroomIdleSeconds(settings: Record<string, unknown> | null | u
   const n = Number(settings?.vitrinSn);
   return Number.isFinite(n) && n >= 30 && n <= 600 ? Math.round(n) : SHOWROOM_DEFAULT_IDLE;
 }
+
+// Showroom loop, models (task section 4): every few fabrics the sofa makes way
+// for the next model the shop brought forward; a shop that brought none
+// forward shows all its models in turn. A single model simply stays.
+export const ATTRACT_MODEL_EVERY = 3;
+
+export function attractModels<M extends { slug: string; featured?: boolean }>(models: M[]): M[] {
+  const featured = models.filter((m) => m.featured);
+  return featured.length ? featured : models;
+}
+
+/** Whether this step of the loop changes the model (and not only the fabric). */
+export function attractChangesModel(step: number, modelCount: number): boolean {
+  return modelCount > 1 && step > 0 && step % ATTRACT_MODEL_EVERY === 0;
+}
+
+/** The model after `current` in the loop (the first one when `current` is not in it). */
+export function nextAttractModel<M extends { slug: string }>(list: M[], current: string): M | undefined {
+  if (!list.length) return undefined;
+  const i = list.findIndex((m) => m.slug === current);
+  return list[(i + 1) % list.length];
+}

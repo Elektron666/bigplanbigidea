@@ -45,3 +45,23 @@ describe("paired showroom screen", () => {
     expect(showroomIdleSeconds({ vitrinSn: "uzun" })).toBe(60);
   });
 });
+
+describe("showroom loop: models", () => {
+  it("turns through the models the shop brought forward, or all of them when none", async () => {
+    const { attractModels, nextAttractModel } = await import("@/lib/kiosk");
+    const models = [{ slug: "a" }, { slug: "b", featured: true }, { slug: "c" }, { slug: "d", featured: true }];
+    expect(attractModels(models).map((m) => m.slug)).toEqual(["b", "d"]);
+    expect(attractModels([{ slug: "a" }, { slug: "c" }]).map((m) => m.slug)).toEqual(["a", "c"]);
+    expect(nextAttractModel(attractModels(models), "b")?.slug).toBe("d");
+    expect(nextAttractModel(attractModels(models), "d")?.slug).toBe("b");
+    // the piece on screen is not one of them (a shared link, a preset): start from the first
+    expect(nextAttractModel(attractModels(models), "a")?.slug).toBe("b");
+  });
+
+  it("changes the model every third fabric, never with a single model", async () => {
+    const { attractChangesModel } = await import("@/lib/kiosk");
+    expect([1, 2, 3, 4, 5, 6].map((s) => attractChangesModel(s, 2))).toEqual([false, false, true, false, false, true]);
+    expect(attractChangesModel(3, 1)).toBe(false);
+    expect(attractChangesModel(0, 3)).toBe(false);
+  });
+});

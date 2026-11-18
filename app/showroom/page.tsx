@@ -8,6 +8,8 @@ import { Configurator } from "@/components/configurator/Configurator";
 import { BrandMark } from "@/components/configurator/BrandMark";
 import { KioskShell } from "@/components/kiosk/KioskShell";
 import { PairScreen } from "@/components/kiosk/PairScreen";
+import { OfflineAgent } from "@/components/kiosk/OfflineAgent";
+import { warmUrls } from "@/lib/offline/warm";
 import { ShowroomLock } from "@/components/kiosk/ShowroomLock";
 import { SyncAgent } from "@/components/kiosk/SyncAgent";
 import { accentStyle } from "@/lib/firm";
@@ -55,14 +57,16 @@ export default async function ShowroomPage({ searchParams }: PageProps<"/showroo
   }
 
   const sp = await searchParams;
+  const warm = { "1k": warmUrls(cat, "1k"), "2k": warmUrls(cat, "2k") };
   return (
-    <main>
+    <main data-showroom>
       <h1 className="sr-only">{cat.firm.name}: kumaşınızı koltuğun üstünde görün</h1>
-      <KioskShell idleSeconds={showroomIdleSeconds(shop.settings)} firm={cat.firm}>
-        <Configurator models={cat.models} fabrics={cat.fabrics} firm={cat.firm} {...initialStateFrom(sp, cat.models, cat.fabrics)} kiosk />
+      <KioskShell idleSeconds={showroomIdleSeconds(shop.settings)} firm={cat.firm} showroom>
+        <Configurator models={cat.models} fabrics={cat.fabrics} firm={cat.firm} {...initialStateFrom(sp, cat.models, cat.fabrics)} kiosk profileChoice={who.device.quality} />
         <SyncAgent contentVersion={shop.contentVersion} appVersion={version} />
       </KioskShell>
       <ShowroomLock contentVersion={shop.contentVersion} appVersion={version} />
+      <OfflineAgent warm={warm} />
     </main>
   );
 }

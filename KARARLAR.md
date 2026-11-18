@@ -14,6 +14,65 @@ Bu dosyada projede verilen kararlar, yapılan varsayımlar ve bilinen sınırlar
 - **Numune taleplerindeki ad ve telefon** ORMEN panelinde görünmeye devam eder (6 Ekim kararı değişmedi). Yeni kural yalnızca yeni verilere uygulanır: teklifteki müşteri adı ve "ilgilenen müşteriler".
 - Görev tanımının eski kararlarla çeliştiği yerler ve seçilen yol: `PLAN-SHOWROOM.md`, 3. bölüm.
 
+## İş 1, 9. dilim: kalite profili ve vitrin döngüsünde model değişimi (18 Kasım 2026)
+
+**Kalite profili (`lib/three/profile.ts`), yalnızca eşleşmiş showroom ekranında:**
+- **Tam:** cihazın kendi kademesi (önceki gibi), gölgeler açık, doku boyutunu ekran seçer.
+- **Hafif:** 1K doku, düşen gölge kapalı, ışık yansıması daha küçük çözünürlükte, piksel oranı 1. Zemindeki temas gölgesi iki profilde de duruyor (ucuz ve koltuğu yere oturtuyor).
+- **Kendisi seçsin (varsayılan):** açılışta, koltuğun ilk dönüşündeki art arda gelen 45 kare ölçülür; ortanca kare 30 fps'in altındaysa hafif, değilse tam seçilir. Karar cihazda saklanır; sonraki açılışlar ölçmeden doğru profille başlar.
+- **Panelden:** mağaza sayfası → Cihazlar → her ekranın yanında "Kalite" seçimi. Değişince ekrana "şimdi eşitle" gider; ekran bir sonraki denetiminde yeniden açılır ve yeni profille başlar.
+- **Değişmeyen:** kumaşın rengi, desen ölçeği (bir doku karesinin gerçek boyutu) ve ışığın rengi. Profil yalnızca detayı azaltır. Uçtan uca test bunu sahnenin kendisinden ölçüyor: aynı ekran önce tam, sonra hafif profille açılıyor; her kumaş parçasının rengi ve doku tekrarı birebir aynı, hafifte gölge yok ve dokular en çok 1024 piksel.
+- `?olcum` kutusunda profil de yazıyor.
+
+**Vitrin döngüsü:**
+- Koltuk her üç kumaşta bir, mağazanın panelde "Öne çıkar" ile işaretlediği sonraki modele geçer; öne çıkan yoksa bütün modeller sırayla döner. Tek modelli mağazada model değişmez. Yeni modelde o modele açık gerçek kumaşlardan biri giyer (mümkünse aynı kumaş).
+- Sahnede birden çok parça varsa (hazır sahne ya da paylaşılan kombinasyon) model değişmez; yalnızca kumaş döner.
+- Eşleşmiş ekranın karşılamasında görev tanımındaki yazı var: mağazanın logosu ve "Dokunun, kumaşı siz seçin". ORMEN adı geçmiyor. Eski `?kiosk` adresinin karşılaması değişmedi.
+- Model sırası ve "üç kumaşta bir" kuralı birim testli. Döngüde modelin gerçekten değiştiği uçtan uca denenmedi (6 saniyelik adımlarla en az 18 saniye ve yazılımsal grafikte yavaş); bunu cihaz testinde gözle doğrulamak gerekiyor.
+
+## İş 1, 8. dilim: çevrimdışı çalışma ve olay kaydı (18 Kasım 2026)
+
+**Servis çalışanı (`public/showroom-sw.js`), yalnızca eşleşmiş `/showroom` sayfasında:**
+- **Showroom sayfası:** her açılışta önce ağdan istenir (6 saniye bekler); ağ cevap vermezse cihazdaki son çalışan kopya açılır. Böylece yeni sürüm ulaşılabildiği an alınır, yarım kalan bir güncelleme ekranı kilitlemez. Cihazda hiç kopya yoksa sakin bir "İnternet bağlantısı yok" sayfası çıkar ve bağlantı gelince kendini yeniler.
+- **Uygulama dosyaları (`/_next/static`, Draco):** aynı adla hiç değişmedikleri için doğrudan cihazdaki kopya kullanılır.
+- **Dokular, modeller, logolar:** önce cihazdaki kopya. En çok 600 dosya tutulur; sınır ya da depolama dolunca en uzun süredir kullanılmayanlar atılır. Depolama hatası ekranı düşürmez, yalnızca o dosya saklanmaz.
+- **Önceden indirme:** Servis çalışanı devreye girince sayfa ona mağazanın bütün kumaşlarının dokularını (ekranın kullandığı boyutta), model dosyalarını, zeminleri, logoyu ve 3D çözücüyü verir; boşta tek tek indirilir. Böylece hiç denenmemiş bir kumaş da çevrimdışı giyer.
+- **Kod parçaları:** 3D sahne ve pencereler ayrı parçalar hâlinde sonradan yükleniyor. Servis çalışanı indirdiği her parçanın içinde adı geçen diğer parçaları da izleyip indirir; ekranın ulaşabileceği bütün kod cihaza alınır, yalnızca o an açılmış olanlar değil.
+
+**Kayıt kuyruğu (`lib/offline/outbox.ts`):**
+- Showroom ekranındaki her olay önce cihazdaki kuyruğa (IndexedDB) yazılır, sonra gönderilir. Bağlantı yoksa bekler; bağlantı gelince, dakikada bir ve sayfa her açıldığında yeniden denenir. Yeniden başlatma ve elektrik kesintisinde kaybolmaz.
+- Her kaydın cihazda verilmiş tekil bir numarası var; sunucu bir numarayı bir kez saklar (veritabanında tekil dizin). Bu yüzden yeniden denemek her zaman güvenli: aynı kayıt iki kez sayılmaz.
+- Sunucu kaydı kabul ettiyse ya da kalıcı olarak reddettiyse (bozuk kayıt) silinir; sunucu hatası, "çok sık" ya da cevap yoksa bekletilir. Kuyruk sınırsız büyümez: 30 günden eski ve en yeni 2.000'in dışındaki kayıtlar atılır.
+- Kuyruk şimdilik yalnızca olay kayıtlarını taşıyor; teklif ve sipariş talebi İş 3'te aynı kuyruğa eklenecek. Numune talebi (ad ve telefon içeriyor) bilerek kuyruğa alınmıyor: ortak bir ekranda müşterinin telefonunu cihazda bekletmek istemedim.
+
+**Ekranda:**
+- Bağlantı yokken altta tek satır çıkar: "İnternet bağlantısı yok · kumaş deneme ve ölçüler çalışıyor; N kayıt bağlantı gelince gönderilecek."
+- "Numune iste" bağlantı yokken pasif; neden yazdığı açıklama ekran okuyucuya da gidiyor. "Telefona al" çalışmaya devam ediyor: QR cihazda üretiliyor, müşterinin telefonu kendi internetini kullanıyor (kısa bağlantı alınamazsa uzun bağlantı veriliyor).
+
+**Olay kaydı (`20261118000000_olay_kaydi.sql`, yalnızca ekler, geri alma dosyası var):**
+- Görev tanımının 9. bölümündeki türler eklendi: oturum başladı/bitti, model görüntülendi, kartela okutuldu, fotoğraftan deneme istendi/başarılı/başarısız, köşe kuruldu, teklif oluşturuldu, sipariş talebi, vitrin başladı/bitti.
+- Yeni alanlar: parça (kasa, kol…), iki sayı (oturum süresi; köşede modül sayısı ve uzunluk gibi), ekran ve cihazda verilen kayıt numarası.
+- Ekran ve mağaza istekten alınmaz; sunucu, ekranın gizli anahtarından kendisi yazar.
+- Şimdilik kaydedilenler: vitrin başladı/bitti (döngü süresiyle), oturum başladı/bitti (oturum süresiyle). Öteki türler kendi işleriyle birlikte yazılmaya başlayacak.
+- Müşterinin adı ve fotoğrafı olaya giremez: kayıt yalnızca bilinen alanları alır, gerisini atar (testli).
+- Raporun SQL fonksiyonu yeni türlerle de çalışıyor (testli).
+
+**Bulunan ve düzeltilen hatalar:**
+1. Servis çalışanı eşleşmiş sayfada kaydolduğu için o sayfa hiç saklanmıyordu; ilk çevrimdışı açılış boş sayfa veriyordu. Artık devreye girer girmez sayfayı kendisi indirip saklıyor.
+2. 3D sahne kodu servis çalışanından önce yüklendiği için saklanmamıştı; çevrimdışı "Sahne yüklenemedi" çıkıyordu. Artık sayfanın o ana kadar yüklediği kod da saklanıyor.
+3. Ciddi: kullanılan her doku, "yeni kullanıldı" diye sırası tazelenirken önbellekten siliniyordu (kopya, dosya sayfaya verildikten sonra alınmaya çalışılıyor ve sessizce başarısız oluyordu). Kopya artık önce alınıyor.
+4. Kiosk sıfırlaması yarım saniyede bir tetiklenebiliyordu; oturum sonu kaydı birden çok kez yazılabilirdi. Tek sefere bağlandı.
+
+**Test:**
+- Uçtan uca: ekran eşleşir, mağazanın bütün dosyaları indirilir. İnternet kesilir ve ekran yeniden başlatılır; sayfa cihazdaki kopyadan açılır (sunucuya giden istek gerçekten başarısız). Bilgi şeridi görünür, "Numune iste" pasif. Hiç denenmemiş bir kumaş kartela kodundan koltuğa giyer. "Telefona al" QR'ı açılır. Kayıtlar cihazda bekler, hiçbiri gitmez. Bağlantı gelince kuyruk boşalır, kumaş denemesi ve oturum başlangıcı kayıtları gider, her numara bir kez.
+- Birim: kuyruk kuralları; olay alanları; aynı numaranın bir kez saklanması (bellek ve PGlite); geri al ve yeniden uygula.
+
+**Sınırlar:**
+- Gerçek Android cihazda denenmedi; çevrimdışı test Chromium'un çevrimdışı benzetimiyle yapıldı.
+- Ekran internete hiç bağlanmadan ilk kez açılamaz; ilk açılış ve eşleşme bağlantı ister.
+- Kod parçası izleme, Next.js'in parça adlarını kodun içine düz metin olarak yazmasına dayanıyor; Next.js bunu değiştirirse yalnızca çevrimiçi açılmış pencereler çevrimdışı açılır. Çevrimdışı testi bunu yakalar.
+- Hafif / tam kalite profili ve açılışta kare hızı ölçümü henüz yok (İş 1'in son parçası).
+
 ## İş 1, 7. dilim: kilit, mağaza PIN'i, ana ekrana kurulum (18 Kasım 2026)
 
 - **Kilit (`components/kiosk/ShowroomLock.tsx`, yalnızca `/showroom`):**

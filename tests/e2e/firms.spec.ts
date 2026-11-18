@@ -43,7 +43,7 @@ test.describe("firma sayfaları", () => {
     await page.getByLabel("WhatsApp numarası").fill("0532 765 43 21");
     await page.getByLabel("Renk kodu").fill("#7A2E2E");
     await page.getByRole("checkbox", { name: /^Berjer ORMEN vitrini$/ }).check();
-    await page.getByRole("button", { name: "Kaydet" }).click();
+    await page.getByRole("button", { name: "Kaydet", exact: true }).click();
     await expect(page.getByRole("status")).toContainText(`${firmName} kaydedildi`);
     await expect(page.getByTestId("firma-baglantisi")).toHaveText(new RegExp(`/f/${slug}$`));
 
@@ -62,7 +62,7 @@ test.describe("firma sayfaları", () => {
     await expect(page.getByRole("checkbox", { name: /kumas/ })).toBeChecked({ timeout: 30_000 });
     await page.getByLabel("Model adı").fill("Firma Pufu");
     await page.getByLabel("Bağlantı adı").fill("puf");
-    await page.getByRole("button", { name: "Kaydet" }).click();
+    await page.getByRole("button", { name: "Kaydet", exact: true }).click();
     await expect(page.getByRole("status")).toContainText("kaydedildi", { timeout: 30_000 });
     await expect(page.getByRole("listitem").filter({ hasText: "Firma Pufu" })).toContainText("firmaya özel");
 
@@ -113,10 +113,10 @@ test.describe("firma sayfaları", () => {
     const n = await page.getByRole("textbox", { name: /sahnenin adı/ }).count();
     await page.getByRole("textbox", { name: `${n}. sahnenin adı` }).fill("Zeytin berjer");
     await page.getByRole("textbox", { name: `${n}. sahnenin bağlantısı` }).fill("https://example.com/baska");
-    await page.getByRole("button", { name: "Kaydet" }).click();
+    await page.getByRole("button", { name: "Kaydet", exact: true }).click();
     await expect(page.getByText(`${n}. sahnenin bağlantısı okunamadı`)).toBeVisible();
     await page.getByRole("textbox", { name: `${n}. sahnenin bağlantısı` }).fill(`http://localhost/p/${scene}`);
-    await page.getByRole("button", { name: "Kaydet" }).click();
+    await page.getByRole("button", { name: "Kaydet", exact: true }).click();
     await expect(page).toHaveURL(/kaydedildi/);
 
     const visitor = await browser.newPage();
@@ -152,7 +152,7 @@ test.describe("firma sayfaları", () => {
     await page.getByLabel("Model adı").fill(`Pietra Berjer ${modelSlug.slice(-4)}`);
     await page.getByLabel("Bağlantı adı").fill(modelSlug);
     await page.locator("label").filter({ hasText: /^PIETRA$/ }).click();
-    await page.getByRole("button", { name: "Kaydet" }).click();
+    await page.getByRole("button", { name: "Kaydet", exact: true }).click();
     await expect(page.getByRole("status")).toContainText("kaydedildi", { timeout: 30_000 });
 
     // a firm page showing SIENA and PIETRA only
@@ -161,7 +161,7 @@ test.describe("firma sayfaları", () => {
     await page.getByLabel("Bağlantı adı").fill(slug);
     await page.getByRole("checkbox", { name: /^Berjer ORMEN vitrini$/ }).check();
     for (const s of ["SIENA", "PIETRA"]) await page.locator("label").filter({ hasText: new RegExp(`^${s}$`) }).click();
-    await page.getByRole("button", { name: "Kaydet" }).click();
+    await page.getByRole("button", { name: "Kaydet", exact: true }).click();
     await expect(page.getByRole("status")).toContainText("kaydedildi");
 
     await page.goto(`/f/${slug}`);

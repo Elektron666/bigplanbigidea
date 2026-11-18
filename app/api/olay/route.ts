@@ -1,6 +1,7 @@
 import { getRepository } from "@/lib/data";
 import { parseEvent } from "@/lib/events";
 import { allow, callerKey } from "@/lib/rate-limit";
+import { currentDevice } from "@/lib/devices/session";
 
 // Anonymous usage events from the configurator (sent with sendBeacon).
 // Nothing about the visitor is read from the request: no IP, no user agent.
@@ -26,6 +27,13 @@ export async function POST(request: Request) {
   const e = parseEvent(body);
   if (!e) return new Response(null, { status: 422 });
   try {
+    // a paired showroom screen: the screen and its shop come from its secret, never from the request
+    const screen = await currentDevice().catch(() => null);
+    if (screen) {
+      e.deviceId = screen.device.id;
+      e.firmSlug = screen.shop.slug;
+      e.source = "kiosk";
+    }
     await getRepository().recordEvent(e);
   } catch {
     // analytics must never break the site

@@ -6,6 +6,7 @@ import { idleState, KIOSK_WARNING } from "@/lib/kiosk";
 import { BrandMark } from "@/components/configurator/BrandMark";
 import { accentStyle } from "@/lib/firm";
 import { AttractContext } from "./attract";
+import { track } from "@/lib/track";
 
 // Showroom kiosk around the configurator:
 // - a welcome screen until someone touches it (first touch also goes full screen)
@@ -15,7 +16,7 @@ import { AttractContext } from "./attract";
 
 const ACTIVITY = ["pointerdown", "pointermove", "keydown", "wheel", "touchstart"] as const;
 
-export function KioskShell({ idleSeconds, firm, children }: { idleSeconds: number; firm: Firm | null; children: ReactNode }) {
+export function KioskShell({ idleSeconds, firm, children, showroom = false }: { idleSeconds: number; firm: Firm | null; children: ReactNode; /** a paired shop screen: the shop's own words, no ORMEN */ showroom?: boolean }) {
   const [welcome, setWelcome] = useState(true);
   const [remaining, setRemaining] = useState<number | null>(null);
   const last = useRef(0);
@@ -23,14 +24,30 @@ export function KioskShell({ idleSeconds, firm, children }: { idleSeconds: numbe
   // while the welcome screen is up there is nothing to reset
   const onWelcome = useRef(true);
 
-  const reset = useCallback(() => {
+  // when the showroom loop and the visitor's session began (for their length in the usage log)
+  const loopStart = useRef(0);
+  const sessionStart = useRef(0);
+  const firmSlug = firm?.slug ?? null;
+
+  const resetting = useRef(false);
+  const reset = useCallback(async () => {
+    // the idle tick runs every half second; one reset is enough
+    if (resetting.current) return;
+    resetting.current = true;
+    // the session's end is safely recorded before the page is wiped for the next visitor
+    if (!onWelcome.current) await track("oturum_bitti", { firmSlug, n: Math.round((Date.now() - sessionStart.current) / 1000) }).catch(() => undefined);
     try {
       sessionStorage.clear();
     } catch {
       /* storage blocked */
     }
     window.location.replace(startHref.current ?? window.location.href);
-  }, []);
+  }, [firmSlug]);
+
+  useEffect(() => {
+    loopStart.current = Date.now();
+    void track("vitrin_basladi", { firmSlug });
+  }, [firmSlug]);
 
   useEffect(() => {
     startHref.current = window.location.href;
@@ -47,7 +64,7 @@ export function KioskShell({ idleSeconds, firm, children }: { idleSeconds: numbe
         return;
       }
       const s = idleState(Date.now() - last.current, idleSeconds);
-      if (s.reset) reset();
+      if (s.reset) void reset();
       else setRemaining(s.warn ? s.remaining : null);
     }, 500);
     return () => {
@@ -61,6 +78,9 @@ export function KioskShell({ idleSeconds, firm, children }: { idleSeconds: numbe
     setWelcome(false);
     onWelcome.current = false;
     last.current = Date.now();
+    sessionStart.current = Date.now();
+    void track("vitrin_bitti", { firmSlug, n: Math.round((Date.now() - loopStart.current) / 1000) });
+    void track("oturum_basladi", { firmSlug });
     document.documentElement.requestFullscreen?.().catch(() => undefined);
   };
 
@@ -78,8 +98,14 @@ export function KioskShell({ idleSeconds, firm, children }: { idleSeconds: numbe
           <span className="rounded-2xl bg-kagit/90 px-5 py-3">
             <BrandMark firm={firm} />
           </span>
-          <span className="font-display text-[clamp(2rem,4vw,3.5rem)] leading-tight text-antrasit">Kumaşı koltuğun üstünde görün</span>
-          <span className="text-[clamp(1rem,1.6vw,1.375rem)] text-antrasit-70">Dokunun, ORMEN kumaşlarını tek tek deneyin.</span>
+          {showroom ? (
+            <span className="font-display text-[clamp(2rem,4vw,3.5rem)] leading-tight text-antrasit">Dokunun, kumaşı siz seçin</span>
+          ) : (
+            <>
+              <span className="font-display text-[clamp(2rem,4vw,3.5rem)] leading-tight text-antrasit">Kumaşı koltuğun üstünde görün</span>
+              <span className="text-[clamp(1rem,1.6vw,1.375rem)] text-antrasit-70">Dokunun, ORMEN kumaşlarını tek tek deneyin.</span>
+            </>
+          )}
           <span className="mt-2 rounded-full motion-safe:animate-[nefes_1.8s_ease-in-out_infinite] bg-accent px-8 py-4 text-[clamp(1rem,1.6vw,1.25rem)] text-accent-ink">Başlamak için dokunun</span>
         </button>
       )}
@@ -100,7 +126,7 @@ export function KioskShell({ idleSeconds, firm, children }: { idleSeconds: numbe
               <button type="button" onClick={() => setRemaining(null)} className="h-12 rounded-full bg-antrasit px-6 text-[16px] text-kagit">
                 Devam et
               </button>
-              <button type="button" onClick={reset} className="h-12 rounded-full border border-cizgi px-6 text-[16px]">
+              <button type="button" onClick={() => void reset()} className="h-12 rounded-full border border-cizgi px-6 text-[16px]">
                 Baştan başla
               </button>
             </div>

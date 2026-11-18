@@ -12,6 +12,10 @@ describe("usage events", () => {
       fabricCode: "LUMA-02",
       source: null,
       tag: null,
+      zone: null,
+      n: null,
+      n2: null,
+      clientId: null,
     });
     expect(parseEvent({ type: "hack", sessionId: "abcd1234" })).toBeNull();
     expect(parseEvent({ type: "paylasildi", sessionId: "x" })).toBeNull();

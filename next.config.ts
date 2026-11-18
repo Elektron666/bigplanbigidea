@@ -54,6 +54,14 @@ const nextConfig: NextConfig = {
         ],
       },
       {
+        // the showroom's offline helper: always asked afresh, so a fix reaches the screens at once
+        source: "/showroom-sw.js",
+        headers: [
+          { key: "Cache-Control", value: "no-cache, no-store, must-revalidate" },
+          { key: "Content-Type", value: "application/javascript; charset=utf-8" },
+        ],
+      },
+      {
         source: "/api/panel/:path*",
         headers: [{ key: "X-Frame-Options", value: "DENY" }],
       },

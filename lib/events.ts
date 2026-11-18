@@ -1,7 +1,29 @@
 // Anonymous usage events. No IP, no user agent, no personal data: a random
 // per-tab id (to count visits), a coarse device class and what was tried.
 
-export const EVENT_TYPES = ["sayfa_acildi", "kumas_denendi", "oda_degisti", "ar_acildi", "ar_acilamadi", "paylasildi", "numune_istendi", "plan_acildi"] as const;
+export const EVENT_TYPES = [
+  "sayfa_acildi",
+  "kumas_denendi",
+  "oda_degisti",
+  "ar_acildi",
+  "ar_acilamadi",
+  "paylasildi",
+  "numune_istendi",
+  "plan_acildi",
+  // Showroom package (task section 9): what the monthly usage report (job 11) is built on
+  "oturum_basladi",
+  "oturum_bitti",
+  "model_goruntulendi",
+  "kartela_okutuldu",
+  "foto_istendi",
+  "foto_basarili",
+  "foto_basarisiz",
+  "kose_kuruldu",
+  "teklif_olusturuldu",
+  "siparis_talebi",
+  "vitrin_basladi",
+  "vitrin_bitti",
+] as const;
 export type EventType = (typeof EVENT_TYPES)[number];
 export const DEVICES = ["telefon", "tablet", "masaustu"] as const;
 export type Device = (typeof DEVICES)[number];
@@ -23,6 +45,20 @@ export interface UsageEvent {
   fabricCode?: string | null;
   source?: Source | null;
   tag?: string | null;
+  /** Which part of the piece a fabric went on (kasa, kol, oturak, sırt, biye). */
+  zone?: string | null;
+  /** A number the event carries: seconds of a session, modules in a corner set… */
+  n?: number | null;
+  /** A second number: the corner set's length in cm, … */
+  n2?: number | null;
+  /**
+   * Made once on the device for this one record. A record sent twice (an
+   * offline queue that retries, a beacon that was in fact delivered) is
+   * stored once.
+   */
+  clientId?: string | null;
+  /** The paired showroom screen, set by the server from the screen's own secret; never taken from the request. */
+  deviceId?: string | null;
 }
 
 export interface StoredEvent extends UsageEvent {
@@ -48,7 +84,18 @@ export function parseEvent(raw: unknown): UsageEvent | null {
     fabricCode: opt(r.fabricCode, CODE),
     source: SOURCES.includes(r.source as Source) ? (r.source as Source) : null,
     tag: opt(r.tag, TAG),
+    zone: opt(r.zone, ZONE),
+    n: num(r.n),
+    n2: num(r.n2),
+    clientId: opt(r.clientId, CLIENT_ID),
   };
+}
+
+const ZONE = /^(govde|kol|oturak|sirt|biye)$/;
+const CLIENT_ID = /^[A-Za-z0-9_-]{8,64}$/;
+/** Only plain, sane numbers are kept (a session of up to a day, a set of up to 10 m…). */
+function num(v: unknown): number | null {
+  return typeof v === "number" && Number.isFinite(v) && v >= 0 && v <= 100_000 ? Math.round(v * 100) / 100 : null;
 }
 
 export interface Report {

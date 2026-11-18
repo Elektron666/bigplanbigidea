@@ -8,6 +8,7 @@ import type { Fabric, FurnitureModel, TextureSize } from "@/lib/types";
 import type { PreparedModel } from "@/lib/three/prepare-model";
 import { preferredTextureSize } from "@/lib/three/fabric-material";
 import { QUALITY, browserTier, nextDpr, type Tier } from "@/lib/three/quality";
+import { measuredProfile, renderSettings, startProfile, type Profile, type ProfileChoice } from "@/lib/three/profile";
 import { record, recordFrame, snapshot as measured } from "@/lib/olcum";
 import { encodeRoom, type RoomSpec } from "@/lib/room/spec";
 import { encodeLayout, footprint, footprintParts, modelDims, type Placement } from "@/lib/room/layout";
@@ -80,6 +81,11 @@ export interface StageProps {
   pieceToolbar?: boolean;
   /** Kiosk welcome screen: the camera turns slowly around the furniture. */
   spin?: boolean;
+  /**
+   * A paired showroom screen's quality profile (lib/three/profile.ts), as the
+   * panel set it. Absent on every other page, which keep their own tiers.
+   */
+  profileChoice?: ProfileChoice;
 }
 
 /**
@@ -98,6 +104,37 @@ function AdaptiveDpr({ onLower }: { onLower: (dpr: number) => void }) {
     if (next < state.viewport.dpr) onLower(next);
   });
   return null;
+}
+
+/** "oto" profile: watches the first frames that follow each other and decides once. */
+function ProfileMeter({ onDecide }: { onDecide: (p: Profile) => void }) {
+  const intervals = useRef<number[]>([]);
+  const done = useRef(false);
+  useFrame((_, delta) => {
+    if (done.current) return;
+    intervals.current.push(delta);
+    const p = measuredProfile(intervals.current);
+    if (!p) return;
+    done.current = true;
+    onDecide(p);
+  });
+  return null;
+}
+
+const PROFILE_KEY = "ormen_profil";
+function rememberedProfile(): string | null {
+  try {
+    return localStorage.getItem(PROFILE_KEY);
+  } catch {
+    return null;
+  }
+}
+function rememberProfile(p: Profile) {
+  try {
+    localStorage.setItem(PROFILE_KEY, p);
+  } catch {
+    /* storage blocked: it is measured again next time */
+  }
 }
 
 /** The scene renders on demand; while the camera turns by itself, every frame is wanted. */
@@ -127,7 +164,7 @@ function DepthRange() {
   return null;
 }
 
-export function StudioLights({ ambient, shadowMap = 2048 }: { ambient: number; shadowMap?: number }) {
+export function StudioLights({ ambient, shadowMap = 2048, shadows = true, envResolution = 256 }: { ambient: number; shadowMap?: number; shadows?: boolean; envResolution?: number }) {
   // Neutral white light only: scenes may change intensity and direction, never
   // colour temperature, so the fabric colour stays true.
   const key = useRef<THREE.DirectionalLight>(null);
@@ -137,7 +174,7 @@ export function StudioLights({ ambient, shadowMap = 2048 }: { ambient: number; s
   }, []);
   return (
     <>
-      <Environment resolution={256} frames={1} environmentIntensity={ambient}>
+      <Environment resolution={envResolution} frames={1} environmentIntensity={ambient}>
         <Lightformer form="rect" intensity={1.4} color="#ffffff" scale={[10, 10, 1]} position={[0, 6, 0]} rotation={[Math.PI / 2, 0, 0]} />
         <Lightformer form="rect" intensity={2} color="#ffffff" scale={[5, 4, 1]} position={[-5, 2.5, 4]} target={[0, 0.5, 0]} />
         <Lightformer form="rect" intensity={0.75} color="#ffffff" scale={[6, 4, 1]} position={[6, 2, 2]} target={[0, 0.5, 0]} />
@@ -149,7 +186,7 @@ export function StudioLights({ ambient, shadowMap = 2048 }: { ambient: number; s
         position={[-2.2, 4.2, 3]}
         intensity={1.5}
         color="#ffffff"
-        castShadow
+        castShadow={shadows}
         shadow-mapSize={[shadowMap, shadowMap]}
         shadow-bias={-0.0004}
         shadow-normalBias={0.025}
@@ -212,12 +249,30 @@ export function Stage({
   onApi,
   pieceToolbar = true,
   spin = false,
+  profileChoice,
 }: StageProps) {
-  const [textureSize] = useState<TextureSize>(preferredTextureSize);
   const [tier] = useState<Tier>(browserTier);
-  const quality = QUALITY[tier];
+  // showroom screens: "hafif" or "tam", chosen by the panel or measured once on this device
+  const [prof, setProf] = useState(() => (profileChoice ? startProfile(profileChoice, rememberedProfile()) : null));
+  const settings = prof ? renderSettings(prof.profile, tier) : null;
+  const [screenTextureSize] = useState<TextureSize>(preferredTextureSize);
+  const textureSize = settings?.textureSize ?? screenTextureSize;
+  const quality = settings ? { maxDpr: settings.maxDpr, shadowMap: settings.shadowMap } : QUALITY[tier];
   // lowered by AdaptiveDpr when frames are slow; passed to the canvas, which re-applies it on every render
   const [maxDpr, setMaxDpr] = useState(quality.maxDpr);
+  const decideProfile = useCallback(
+    (p: Profile) => {
+      setProf({ profile: p, measure: false });
+      rememberProfile(p);
+      setMaxDpr(renderSettings(p, tier).maxDpr);
+      record({ profile: p });
+    },
+    [tier],
+  );
+  useEffect(() => {
+    // for the settings sheet and the tests
+    if (prof) document.documentElement.dataset.profil = prof.profile;
+  }, [prof]);
   const [prepared, setPrepared] = useState<Record<string, PreparedModel>>({});
   const [visible, setVisible] = useState(false);
   const [dragging, setDragging] = useState(false);
@@ -334,8 +389,9 @@ export function Stage({
         // a group, not an image: the piece toolbar inside must stay reachable
         role="group"
       >
-        <StudioLights ambient={ambient} shadowMap={quality.shadowMap} />
+        <StudioLights ambient={ambient} shadowMap={quality.shadowMap} shadows={settings?.shadows ?? true} envResolution={settings?.envResolution ?? 256} />
         <AdaptiveDpr onLower={lowerDpr} />
+        {prof?.measure && <ProfileMeter onDecide={decideProfile} />}
         {items.map((p) => {
           const model = models.get(p.modelSlug);
           const fabric = fabrics.get(p.fabricCode);

@@ -54,7 +54,7 @@ test.describe("panel", () => {
     await expect(page.getByText(/Ortalama renk #|kenarları birbirini tutmuyor/)).toBeVisible({ timeout: 60_000 });
     // the height follows the photo's proportions (square photo → 12 cm)
     await expect(page.getByLabel("Boyu (cm)")).toHaveValue("12");
-    await page.getByRole("button", { name: "Kaydet" }).click();
+    await page.getByRole("button", { name: "Kaydet", exact: true }).click();
     await expect(page.getByRole("status")).toContainText(`${code} kaydedildi`, { timeout: 60_000 });
     await expect(page.getByRole("link", { name: new RegExp(code) })).toBeVisible();
 
@@ -97,8 +97,8 @@ test.describe("panel", () => {
     // ORMEN prepares it and writes the lot
     await item.getByLabel("Adım").selectOption("hazirlaniyor");
     await item.getByLabel(/^Lot/).fill("P-118");
-    await item.getByRole("button", { name: "Kaydet" }).click();
-    await expect(item.getByRole("button", { name: "Kaydet" })).toHaveCount(0);
+    await item.getByRole("button", { name: "Kaydet", exact: true }).click();
+    await expect(item.getByRole("button", { name: "Kaydet", exact: true })).toHaveCount(0);
     await page.reload();
     await expect(page.getByRole("listitem").filter({ hasText: name }).getByTestId("talep-adim")).toHaveText("Hazırlanıyor");
 
@@ -167,7 +167,7 @@ test.describe("panel", () => {
     await page.getByLabel("Model adı").fill("Deneme Puf");
     await page.getByLabel("Bağlantı adı").fill(slug);
     await page.getByLabel("Açılışta gösterilecek kumaş").selectOption("SIENA-03");
-    await page.getByRole("button", { name: "Kaydet" }).click();
+    await page.getByRole("button", { name: "Kaydet", exact: true }).click();
     await expect(page.getByRole("status")).toContainText("Deneme Puf kaydedildi", { timeout: 30_000 });
 
     await page.goto(`/?y=${slug}.SIENA-03.0.51.0`);
@@ -200,7 +200,7 @@ test.describe("panel", () => {
     await page.getByRole("radio", { name: "Sabit (tek parça)" }).click();
     await page.getByRole("radio", { name: "Tek parça minder" }).click();
     await page.getByLabel("Bağlantı adı").fill(slug);
-    await page.getByRole("button", { name: "Kaydet" }).click();
+    await page.getByRole("button", { name: "Kaydet", exact: true }).click();
     await expect(page.getByRole("status")).toContainText("kaydedildi", { timeout: 30_000 });
     await expect(page.getByRole("listitem").filter({ hasText: "Üçlü kanepe · 240 × 95 cm · kolsuz · sabit sırt · tek parça oturum · 88 cm yükseklik" }).first()).toBeVisible();
 

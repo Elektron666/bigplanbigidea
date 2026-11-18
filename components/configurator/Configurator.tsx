@@ -8,9 +8,11 @@ import { t } from "@/lib/i18n/tr";
 import { CopyCodeButton, FabricHeadline, FabricSpecs } from "./FabricInfo";
 import { QuickStrip } from "./QuickStrip";
 import { PresetStrip } from "./PresetStrip";
+import { useOnline } from "@/lib/offline/use-online";
+import type { ProfileChoice } from "@/lib/three/profile";
 import { KioskCodeEntry } from "@/components/kiosk/KioskCodeEntry";
 import { AttractContext } from "@/components/kiosk/attract";
-import { ATTRACT_STEP_SECONDS, attractFabrics, nextAttract } from "@/lib/kiosk";
+import { ATTRACT_STEP_SECONDS, attractChangesModel, attractFabrics, attractModels, nextAttract, nextAttractModel } from "@/lib/kiosk";
 import { MeasurePanel } from "./MeasurePanel";
 import { ZonePicker } from "./ZonePicker";
 import { DEFAULT_LEG, hasWoodLegs } from "@/lib/three/legs";
@@ -68,6 +70,8 @@ export interface ConfiguratorProps {
   firm?: Firm | null;
   /** Showroom kiosk: sharing becomes a QR the visitor scans to take the combination home. */
   kiosk?: boolean;
+  /** Paired showroom screen: its quality profile as set in the panel (lib/three/profile.ts). */
+  profileChoice?: ProfileChoice;
 }
 
 type Tab = "kumas" | "oda";
@@ -96,6 +100,7 @@ export function Configurator({
   initialPlan = false,
   firm,
   kiosk = false,
+  profileChoice,
 }: ConfiguratorProps) {
   const byCode = useMemo(() => new Map(fabrics.map((f) => [f.code, f])), [fabrics]);
   const bySlug = useMemo(() => new Map(models.map((m) => [m.slug, m])), [models]);
@@ -202,16 +207,30 @@ export function Configurator({
   const reducedMotion = useMedia("(prefers-reduced-motion: reduce)");
   const attractList = useMemo(() => attractFabrics(modelFabrics), [modelFabrics]);
   // the next fabric 6 s after this one is on screen, so a slow tablet never shows a half-loaded swap
+  // every third step a single sofa makes way for the shop's next model (task section 4)
+  const loopModels = useMemo(() => attractModels(models), [models]);
+  const loopStep = useRef(0);
   useEffect(() => {
     if (!attract || !attractList.length || loading) return;
     const t = window.setTimeout(() => {
+      loopStep.current += 1;
+      const step = loopStep.current;
       setItems((prev) => {
-        const next = nextAttract(attractList, prev[0]?.fabricCode ?? "");
+        const piece = prev[0];
+        if (prev.length === 1 && piece && attractChangesModel(step, loopModels.length)) {
+          const model = nextAttractModel(loopModels, piece.modelSlug);
+          const offered = model ? attractFabrics(fabricsForModel(fabrics, model)) : [];
+          if (model && offered.length) {
+            const fabric = offered.find((f) => f.code === piece.fabricCode) ?? offered[0];
+            return [{ ...piece, modelSlug: model.slug, fabricCode: fabric.code, zones: undefined }];
+          }
+        }
+        const next = nextAttract(attractList, piece?.fabricCode ?? "");
         return next ? prev.map((p) => ({ ...p, fabricCode: next.code, zones: undefined })) : prev;
       });
     }, ATTRACT_STEP_SECONDS * 1000);
     return () => window.clearTimeout(t);
-  }, [attract, attractList, loading, selected.code]);
+  }, [attract, attractList, loading, selected.code, loopModels, fabrics]);
   // phones: the piece toolbar (turn, duplicate) waits until a piece is tapped,
   // so the first screen is the sofa and its fabrics, not tools
   const phone = useMedia("(max-width: 767px)");
@@ -315,6 +334,7 @@ export function Configurator({
   const onStageApi = useCallback((api: StageApi) => {
     stageApi.current = api;
   }, []);
+  const online = useOnline();
   const [sampleOpen, setSampleOpen] = useState(false);
   const [share, setShare] = useState<{ image: Blob | null; snapshot: string; url: string } | null>(null);
   const [printing, setPrinting] = useState<PrintData | null>(null);
@@ -398,6 +418,7 @@ export function Configurator({
       <section className="studio-backdrop relative h-[60dvh] md:h-dvh" aria-label="3B sahne">
         <div className={`absolute inset-0 transition-opacity duration-150 ${fading ? "opacity-0" : "opacity-100"}`}>
           <Stage
+            profileChoice={profileChoice}
             spin={attract && !reducedMotion}
             models={bySlug}
             fabrics={byCode}
@@ -447,11 +468,15 @@ export function Configurator({
               <button
                 type="button"
                 onClick={() => setSampleOpen(true)}
-                className={`h-10 whitespace-nowrap rounded-full px-4 text-[13px] transition-[color,background-color,filter] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-antrasit ${
+                // a showroom screen without internet cannot send a request; it says why instead of failing
+                disabled={kiosk && !online}
+                title={kiosk && !online ? "İnternet bağlantısı gelince açılır" : undefined}
+                className={`h-10 whitespace-nowrap rounded-full px-4 text-[13px] transition-[color,background-color,filter] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-antrasit disabled:opacity-50 ${
                   firm ? "bg-accent text-accent-ink hover:brightness-110" : "bg-antrasit text-kagit hover:bg-ceviz"
                 }`}
               >
                 Numune iste
+                {kiosk && !online && <span className="sr-only"> (internet bağlantısı gelince açılır)</span>}
               </button>
             </div>
           )}
