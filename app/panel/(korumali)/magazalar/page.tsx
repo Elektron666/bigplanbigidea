@@ -5,6 +5,9 @@ import { getCentral } from "@/lib/central/store";
 import { PAGE_SIZE, SHOP_SORTS, SHOP_SORT_LABELS, SHOP_STATUSES, SHOP_STATUS_LABELS, parseShopQuery, shopAlerts, shopQueryHref } from "@/lib/central/shops";
 import { ShopStatusControl } from "@/components/panel/ShopStatusControl";
 import { Badge, PageHeader, buttonClass, inputClass } from "@/components/panel/ui";
+import { PickBox, PickPage, ShopBulkBar, ShopSelection } from "@/components/panel/ShopBulk";
+import { getRepository } from "@/lib/data";
+import { seriesOf } from "@/lib/fabric/allowed";
 
 export const metadata = { title: "Mağazalar" };
 
@@ -26,7 +29,8 @@ export default async function ShopsPage({ searchParams }: PageProps<"/panel/maga
   const q = parseShopQuery(await searchParams);
   // the maintenance fee is the yönetici's alone; ORMEN elemanı is not sent the date at all
   const fees = can(user.role, "abonelik");
-  const { total, rows } = await getCentral().listShops(q, { withFees: fees });
+  const bulk = can(user.role, "kurulum");
+  const [{ total, rows }, fabrics] = await Promise.all([getCentral().listShops(q, { withFees: fees }), bulk ? getRepository().listFabrics({ includeInactive: true }) : []]);
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const filtered = !!(q.search || q.status || q.city || q.tag);
   const now = today();
@@ -85,7 +89,13 @@ export default async function ShopsPage({ searchParams }: PageProps<"/panel/maga
         </div>
       </form>
 
-      {rows.length === 0 ? (
+      <ShopSelection>
+        {bulk && rows.length > 0 && (
+          <div className="mb-2 px-4">
+            <PickPage ids={rows.map((s) => s.id)} />
+          </div>
+        )}
+        {rows.length === 0 ? (
         <p className="rounded-2xl border border-dashed border-cizgi-koyu p-10 text-center text-[15px] text-antrasit-50">
           {filtered ? "Bu aramaya uyan mağaza yok." : "Henüz mağaza yok."}
         </p>
@@ -95,6 +105,7 @@ export default async function ShopsPage({ searchParams }: PageProps<"/panel/maga
             const alerts = shopAlerts(s, now);
             return (
               <li key={s.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
+                {bulk && <PickBox id={s.id} name={s.name} />}
                 <div className="min-w-0 flex-1 basis-64">
                   <Link href={`/panel/firmalar/${s.id}`} className="font-medium hover:underline">
                     {s.name}
@@ -124,6 +135,8 @@ export default async function ShopsPage({ searchParams }: PageProps<"/panel/maga
           })}
         </ul>
       )}
+        {bulk && total > 0 && <ShopBulkBar total={total} query={{ search: q.search, status: q.status, city: q.city, tag: q.tag }} series={seriesOf(fabrics)} />}
+      </ShopSelection>
 
       {pages > 1 && (
         <nav aria-label="Sayfalar" className="mt-5 flex items-center justify-between text-[14px]">

@@ -6,6 +6,7 @@ import { createHash, randomBytes } from "node:crypto";
 import type { ShopQuery, ShopRow, ShopStatus } from "./shops";
 import { pairingCodeFrom, type Device, type DeviceQuality, type SyncStatus } from "@/lib/devices/pairing";
 import type { ShopRecord, ShopTemplate, Subscription } from "./record";
+import type { DeviceBeat, UnpaidFee } from "./overview";
 
 export const AUDIT_ENTITIES = ["magaza", "urun", "atama", "kumas", "cihaz", "abonelik", "sablon", "uye", "destek"] as const;
 export type AuditEntity = (typeof AUDIT_ENTITIES)[number];
@@ -93,6 +94,13 @@ export interface CentralStore {
   getTemplate(id: string): Promise<ShopTemplate | null>;
   /** A template of the same name is replaced. */
   saveTemplate(t: Omit<ShopTemplate, "id">): Promise<ShopTemplate>;
+
+  /** Every screen's last check-in, for the overview (a few hundred small rows). */
+  deviceBeats(): Promise<DeviceBeat[]>;
+  /** Every unpaid fee. Yönetici only (the caller checks). */
+  unpaidFees(): Promise<UnpaidFee[]>;
+  /** Id, name and status of every shop. */
+  shopNames(): Promise<{ id: string; name: string; status: ShopStatus }[]>;
 
   writeAudit(e: AuditInput): Promise<void>;
   /** Newest first. */

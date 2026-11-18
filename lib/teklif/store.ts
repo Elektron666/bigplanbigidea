@@ -52,6 +52,8 @@ export interface QuoteStore {
   createOrder(quote: StoredQuote): Promise<{ created: boolean }>;
   listOrders(limit?: number): Promise<OrderRow[]>;
   setOrderStatus(id: string, status: OrderStatus): Promise<boolean>;
+  /** How many quotes and order requests since `from` (the overview's month). Counts only. */
+  countSince(from: Date): Promise<{ quotes: number; orders: number }>;
 }
 
 // ------------------------------------------------------------------ memory
@@ -97,6 +99,11 @@ export class MemoryQuotes implements QuoteStore {
     const o = this.orders.find((x) => x.id === id);
     if (o) o.status = status;
     return !!o;
+  }
+
+  async countSince(from: Date) {
+    const t = from.toISOString();
+    return { quotes: this.quotes.filter((q) => q.createdAt >= t).length, orders: this.orders.filter((o) => o.createdAt >= t).length };
   }
 }
 
@@ -176,6 +183,17 @@ class SupabaseQuotes implements QuoteStore {
   async setOrderStatus(id: string, status: OrderStatus) {
     const rows = check(await this.db.from("order_requests").update({ status, status_at: new Date().toISOString() }).eq("id", id).select("id")) as unknown[];
     return rows.length > 0;
+  }
+
+  async countSince(from: Date) {
+    // counts only (head: no rows travel), on the created_at indexes
+    const [q, o] = await Promise.all([
+      this.db.from("quotes").select("id", { count: "exact", head: true }).gte("created_at", from.toISOString()),
+      this.db.from("order_requests").select("id", { count: "exact", head: true }).gte("created_at", from.toISOString()),
+    ]);
+    if (q.error) throw new Error(q.error.message);
+    if (o.error) throw new Error(o.error.message);
+    return { quotes: q.count ?? 0, orders: o.count ?? 0 };
   }
 }
 

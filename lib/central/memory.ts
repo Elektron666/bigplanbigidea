@@ -108,6 +108,27 @@ export class MemoryCentral implements CentralStore {
     return { firmId: row.firmId, before };
   }
 
+  async deviceBeats() {
+    return [...this.devices.values()].map((d) => ({ firmId: d.firmId, lastSeenAt: d.lastSeenAt, syncStatus: d.syncStatus, createdAt: d.createdAt }));
+  }
+
+  async unpaidFees() {
+    return [...this.subs.values()].filter((x) => !x.paidOn).map((x) => ({ firmId: x.firmId, amount: x.amount, dueOn: x.dueOn }));
+  }
+
+  async shopNames() {
+    return (await this.all()).map((s) => ({ id: s.id, name: s.name, status: s.status }));
+  }
+
+  /** Tests only: a screen's last check-in as if it happened at `at`. */
+  _setSeen(deviceId: string, at: string | null, syncStatus?: SyncStatus) {
+    const d = this.byId(deviceId);
+    if (d) {
+      d.lastSeenAt = at;
+      if (syncStatus) d.syncStatus = syncStatus;
+    }
+  }
+
   async listTemplates() {
     return structuredClone([...this.templates].sort((a, b) => a.name.localeCompare(b.name, "tr")));
   }

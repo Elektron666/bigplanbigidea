@@ -16,6 +16,7 @@ import { getQuotes, ORDER_STATUSES, type OrderStatus } from "@/lib/teklif/store"
 import { SHOP_STATUSES, SHOP_STATUS_LABELS, type ShopStatus } from "@/lib/central/shops";
 import { validateShopRecord, validateSubscription, validateTemplate, type ShopRecord } from "@/lib/central/record";
 import { cleanSeries, seriesOf } from "@/lib/fabric/allowed";
+import { describeOp, MAX_BULK, parseBulkOp, parseBulkTarget, recordAfter, seriesAfter } from "@/lib/central/bulk";
 
 // Server actions of the central panel (Showroom package, job 0). Each one
 // checks the session and the role itself, then writes the change log.
@@ -401,6 +402,81 @@ export async function applyTemplateAction(firmId: string, templateId: string): P
   return { ok: true };
 }
 
+// ------------------------------------------------------------------ bulk work on shops (job 0)
+
+/**
+ * One step on many shops: a feature, a fabric series, the try-on quota, a tag,
+ * or "send the update". Each shop gets its own log entry under one batch, so
+ * each can be undone on its own; shops already in that state are left alone.
+ * Staged roll-out is this same step run on a filtered group first.
+ */
+export async function bulkShopAction(opRaw: unknown, targetRaw: unknown): Promise<{ ok: true; changed: number; same: number; shops: number } | { ok: false; error: string }> {
+  const user = await getPanelUser();
+  if (!user) return { ok: false, error: "Oturum süresi doldu. Yeniden giriş yapın." };
+  if (!can(user.role, "kurulum")) return { ok: false, error: DENIED };
+  const op = parseBulkOp(opRaw);
+  if (!op) return { ok: false, error: "İşlemi seçin." };
+  const target = parseBulkTarget(targetRaw);
+  if (!target) return { ok: false, error: "En az bir mağaza seçin." };
+  const central = getCentral();
+  const repo = getRepository();
+
+  let ids: string[];
+  if ("ids" in target) ids = target.ids;
+  else {
+    ids = [];
+    for (let page = 1; ids.length < MAX_BULK; page++) {
+      const res = await central.listShops({ ...target.query, sort: "ad", page }, { withFees: false });
+      ids.push(...res.rows.map((r) => r.id));
+      if (!res.rows.length || ids.length >= res.total) break;
+    }
+  }
+  if (!ids.length) return { ok: false, error: "Süzgece uyan mağaza yok." };
+  if (ids.length > MAX_BULK) return { ok: false, error: `Bir seferde en çok ${MAX_BULK} mağaza.` };
+
+  const known = op.kind === "seri" ? seriesOf(await repo.listFabrics({ includeInactive: true })) : [];
+  if (op.kind === "seri" && !known.includes(op.series)) return { ok: false, error: "Bu adda bir kumaş serisi yok." };
+  const batchId = crypto.randomUUID();
+  const words = describeOp(op);
+  let changed = 0;
+  let found = 0;
+  for (const id of ids) {
+    const firm = await repo.getFirmById(id);
+    if (!firm) continue;
+    found++;
+    const log = (action: string, before?: unknown, after?: unknown) =>
+      central.writeAudit({ actor: user.email, actorRole: user.role, firmId: firm.id, entity: "magaza", entityId: firm.id, action, summary: `${firm.name}: ${words}`, before, after, batchId });
+    if (op.kind === "ozellik") {
+      const before = cleanFeatures(firm.features);
+      if (featureOn(before, op.feature) === op.on) continue;
+      await repo.setFirmFeatures(firm.id, { ...before, [op.feature]: op.on });
+      await log(op.on ? "ozellik-acildi" : "ozellik-kapandi", before, { ...before, [op.feature]: op.on });
+    } else if (op.kind === "seri") {
+      const now = firm.fabricSeries ?? [];
+      const next = seriesAfter(now, op, known);
+      if (JSON.stringify(next) === JSON.stringify(now)) continue;
+      await repo.saveFirm({ ...firm, fabricSeries: next });
+      await log("seri-degisti", { fabricSeries: now }, { fabricSeries: next });
+    } else if (op.kind === "kota" || op.kind === "etiket") {
+      const rec = await central.getShopRecord(firm.id);
+      const next = rec && recordAfter(rec, op);
+      if (!rec || !next) continue;
+      await central.saveShopRecord(firm.id, next);
+      await log("kayit-degisti", rec, next);
+    } else {
+      const devices = await central.listDevices(firm.id);
+      if (!devices.length) continue;
+      await central.requestSync(devices.map((d) => d.id));
+      await log("guncelleme-gonderildi");
+    }
+    changed++;
+  }
+  revalidatePath("/panel/magazalar");
+  revalidatePath("/panel/gunluk");
+  revalidatePath("/f/[slug]", "page");
+  return { ok: true, changed, same: found - changed, shops: found };
+}
+
 // ------------------------------------------------------------------ undo from the change log (job 0)
 
 export async function undoAuditAction(id: string): Promise<Result> {
@@ -449,6 +525,11 @@ export async function undoAuditAction(id: string): Promise<Result> {
     case "odeme":
       await central.setPaid(step.subscriptionId, step.paidOn);
       break;
+    case "seri": {
+      const firm = await repo.getFirmById(step.firmId);
+      if (firm) await repo.saveFirm({ ...firm, fabricSeries: step.fabricSeries });
+      break;
+    }
   }
   await central.writeAudit({ actor: user.email, actorRole: user.role, firmId: entry.firmId, entity: entry.entity, entityId: entry.entityId, action: "geri-alindi", summary: `Geri alındı: ${entry.summary}`.slice(0, 300), before: entry.after, after: entry.before });
   revalidatePath("/panel/gunluk");

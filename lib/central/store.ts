@@ -253,6 +253,20 @@ class SupabaseCentral implements CentralStore {
     return { firmId: before.firm_id, before: subFromRow(before) };
   }
 
+  async deviceBeats() {
+    const rows = check(await this.db.from("devices").select("firm_id, last_seen_at, sync_status, created_at").limit(5000)) as { firm_id: string; last_seen_at: string | null; sync_status: string; created_at: string }[];
+    return rows.map((r) => ({ firmId: r.firm_id, lastSeenAt: r.last_seen_at, syncStatus: r.sync_status, createdAt: r.created_at }));
+  }
+
+  async unpaidFees() {
+    const rows = check(await this.db.from("subscriptions").select("firm_id, amount, due_on").is("paid_on", null).limit(5000)) as { firm_id: string; amount: number | string | null; due_on: string }[];
+    return rows.map((r) => ({ firmId: r.firm_id, amount: r.amount === null ? null : Number(r.amount), dueOn: r.due_on }));
+  }
+
+  async shopNames() {
+    return check(await this.db.from("firms").select("id, name, status").order("name").limit(5000)) as { id: string; name: string; status: ShopStatus }[];
+  }
+
   async listTemplates() {
     return (check(await this.db.from("firm_templates").select("*").order("name")) as TemplateRow[]).map(templateFromRow);
   }

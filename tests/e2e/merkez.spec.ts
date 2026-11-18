@@ -333,3 +333,85 @@ test.describe("merkez panel: mağaza kaydı, bakım bedeli, şablon", () => {
     await expect(page.getByRole("region", { name: "Mağaza kaydı" }).getByLabel("Vitrin süresi (sn)")).toHaveValue("");
   });
 });
+
+test.describe("merkez panel: toplu işlem, kademeli yayın, genel bakış", () => {
+  test.skip(({ isMobile }) => isMobile, "panel masaüstü için");
+
+  test("özellik önce pilot etiketli mağazada, sonra hepsinde açılır; her adım günlükte, tek tek geri alınır; genel bakış vadeyi gösterir", async ({ page }) => {
+    test.setTimeout(180_000);
+    await login(page);
+    const tag = Date.now().toString(36);
+    const ids: Record<string, string> = {};
+    for (const n of ["A", "B"]) {
+      await page.goto("/panel/firmalar/yeni");
+      await page.getByLabel("Firma adı").fill(`Kademe ${n} ${tag}`);
+      await page.getByRole("button", { name: "Kaydet", exact: true }).click();
+      await expect(page.getByText(`Kademe ${n} ${tag} kaydedildi.`)).toBeVisible();
+      ids[n] = new URL(page.url()).pathname.split("/").pop()!;
+    }
+    const tryOn = async (n: string) => {
+      await page.goto(`/panel/firmalar/${ids[n]}`);
+      return page.getByRole("switch", { name: "Fotoğraftan dene açık" }).getAttribute("aria-checked");
+    };
+
+    // the pilot group: a tag on shop A, given in bulk
+    await page.goto(`/panel/magazalar?ara=${encodeURIComponent(`Kademe A ${tag}`)}`);
+    await page.getByRole("checkbox", { name: `Kademe A ${tag} seç` }).check();
+    const bar = page.getByRole("complementary", { name: "Toplu işlem" });
+    await expect(bar.getByTestId("toplu-sayi")).toHaveText(/^1 mağaza seçili/);
+    await bar.getByLabel("İşlem").selectOption("etiket-ekle");
+    await bar.getByLabel("Etiket").fill(`pilot-${tag}`);
+    await bar.getByRole("button", { name: "Uygula" }).click();
+    await bar.getByRole("button", { name: "Evet, uygula" }).click();
+    await expect(page.getByRole("status")).toContainText("1 mağazada yapıldı");
+
+    // step 1: the feature in the pilot group only (every shop the filter finds)
+    await page.goto(`/panel/magazalar?etiket=pilot-${tag}`);
+    await page.getByRole("button", { name: "süzgeçteki 1 mağazanın hepsini seçin" }).click();
+    await bar.getByLabel("İşlem").selectOption("ozellik-ac");
+    await bar.getByLabel("Özellik").selectOption({ label: "Fotoğraftan dene" });
+    await bar.getByRole("button", { name: "Uygula" }).click();
+    await expect(bar).toContainText("1 mağazaya uygulansın mı?");
+    await bar.getByRole("button", { name: "Evet, uygula" }).click();
+    await expect(page.getByRole("status")).toContainText("1 mağazada yapıldı");
+    expect(await tryOn("A")).toBe("true");
+    expect(await tryOn("B")).toBe("false");
+
+    // step 2: no trouble, so everyone (here: both test shops); A is already on
+    await page.goto(`/panel/magazalar?ara=${encodeURIComponent(tag)}`);
+    await page.getByRole("button", { name: "süzgeçteki 2 mağazanın hepsini seçin" }).click();
+    await bar.getByLabel("İşlem").selectOption("ozellik-ac");
+    await bar.getByLabel("Özellik").selectOption({ label: "Fotoğraftan dene" });
+    await bar.getByRole("button", { name: "Uygula" }).click();
+    await bar.getByRole("button", { name: "Evet, uygula" }).click();
+    await expect(page.getByRole("status")).toContainText("1 mağazada yapıldı, 1 mağaza zaten öyleydi");
+    expect(await tryOn("B")).toBe("true");
+
+    // each shop's step is in the log as a bulk step, and is undone on its own
+    await page.goto(`/panel/gunluk?magaza=${ids.B}`);
+    const entry = page.getByTestId("gunluk-kaydi").filter({ hasText: new RegExp(`^Kademe B ${tag}: Fotoğraftan dene açıldı`) });
+    await expect(entry).toContainText("toplu işlem");
+    await entry.getByRole("button", { name: /^Geri al/ }).click();
+    await entry.getByRole("button", { name: "Evet, geri al" }).click();
+    await expect(entry.getByText("geri alındı")).toBeVisible();
+    expect(await tryOn("B")).toBe("false");
+    expect(await tryOn("A")).toBe("true");
+
+    // the overview: a late fee puts the shop on the attention list
+    await page.goto(`/panel/firmalar/${ids.A}`);
+    const fees = page.getByRole("region", { name: "Bakım bedeli" });
+    await fees.getByLabel("Son ödeme tarihi").fill("2026-11-01");
+    await fees.getByLabel("Tutar (TL)").fill("1500");
+    await fees.getByRole("button", { name: "Vade ekle" }).click();
+    await expect(fees.getByText("Vade eklendi.")).toBeVisible();
+    await page.goto("/panel");
+    const overview = page.getByTestId("genel-bakis");
+    await expect(overview).toContainText("Ekranlar");
+    await expect(overview).toContainText("Bu ay teklif");
+    await expect(overview).toContainText("Yapay zekâ gideri (bu ay)");
+    await expect(overview).toContainText("Sağlayıcı bağlı değil");
+    await expect(overview).toContainText("Bu ay vadesi gelen bakım");
+    const attention = page.getByRole("region", { name: "Dikkat isteyenler" });
+    await expect(attention.getByRole("listitem").filter({ hasText: `Kademe A ${tag}` })).toContainText("Bakım vadesi geçti");
+  });
+});

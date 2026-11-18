@@ -17,7 +17,8 @@ export type UndoStep =
   | { kind: "kalite"; deviceId: string; quality: "oto" | "hafif" | "tam" }
   | { kind: "kayit"; firmId: string; record: ShopRecord }
   | { kind: "sablon"; firmId: string; record: ShopRecord; features: Record<string, boolean>; fabricSeries: string[] }
-  | { kind: "odeme"; subscriptionId: string; paidOn: string | null };
+  | { kind: "odeme"; subscriptionId: string; paidOn: string | null }
+  | { kind: "seri"; firmId: string; fabricSeries: string[] };
 
 const obj = (v: unknown): Record<string, unknown> => (v && typeof v === "object" ? (v as Record<string, unknown>) : {});
 const ids = (v: unknown) => (Array.isArray(v) && v.every((x) => typeof x === "string") ? (v as string[]) : null);
@@ -66,6 +67,10 @@ export function undoStep(e: AuditEntry): UndoStep | null {
       const r = validateShopRecord(before.record);
       const series = ids(before.fabricSeries);
       return e.firmId && r.ok && series ? { kind: "sablon", firmId: e.firmId, record: r.value, features: cleanFeatures(before.features), fabricSeries: series } : null;
+    }
+    case "seri-degisti": {
+      const series = ids(before.fabricSeries);
+      return e.firmId && series ? { kind: "seri", firmId: e.firmId, fabricSeries: series } : null;
     }
     case "odendi":
     case "odenmedi": {

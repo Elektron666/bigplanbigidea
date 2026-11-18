@@ -102,6 +102,10 @@ Kamera izni verilmezse ya da ekranın kamerası yoksa **Kartela okut** düğmesi
 
 **Ekranı kaldırmak (yalnızca ORMEN yöneticisi):** Mağazanın sayfası → **Cihazlar** → ekran → **Kaldır** → **Evet, kaldır**. Ekran o an kilitlenir ve yeniden kod ister. Çalınan ya da el değiştiren ekran için kullanın.
 
+**Birçok mağazada aynı ayar (toplu işlem):** Panel → **Mağazalar** → mağazaları işaretleyin ya da süzüp "süzgeçteki hepsini seçin" → işlemi seçin (özellik, kumaş serisi, kota, etiket, güncelleme gönder) → **Uygula** → **Evet, uygula**. Her mağaza günlükte ayrı görünür, ayrı geri alınır.
+
+**Yeni bir özelliği önce birkaç mağazada denemek (kademeli yayın):** Deneme mağazalarına toplu işlemle bir etiket verin (örn. `pilot`) ya da durumlarını **Pilot** yapın. Listeyi o etiketle süzün → hepsini seçin → özelliği açın. Birkaç gün sorun çıkmazsa süzgeci temizleyin → hepsini seçin → aynı işlemi uygulayın.
+
 ## Sonra gelecek
 
 Bu adımlar ilgili iş yazıldığında buraya eklenecek:
