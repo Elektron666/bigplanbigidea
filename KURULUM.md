@@ -10,14 +10,15 @@ Yeni bir mağazaya ORMEN Atelier ekranını kurma adımları. Her adımın yanı
 - Mağazada Wi-Fi. Ekran ilk açılışta ve eşleşirken internete bağlanmalı; sonrasında internet kesilse de çalışır (aşağıda "İnternet kesilirse").
 - Panelde "kurulum" yetkisi olan bir hesap (ORMEN yöneticisi ya da ORMEN elemanı).
 
-## 1. Mağazayı açın (5 dakika)
+## 1. Mağazayı açın (10 dakika)
 
 1. Panel → **Firmalar** → **Yeni firma**: ad, logo (PNG), renk, WhatsApp numarası → **Kaydet**.
 2. Açılan sayfada **Şablon** → bir şablon seçin → **Şablonu uygula**. Özellikler, kumaş serileri, vitrin süresi, güncelleme biçimi, paket ve fotoğraf denemesi kotası tek adımda kurulur. Şablon yoksa, ilk mağazayı elle kurduktan sonra aynı bölümden **Şablon olarak kaydet** deyin.
 3. **Mağaza kaydı**: şehir, bölge, etiketler, yetkili, kurulum tarihi → **Kaydı kaydet**. Mağaza listesi bunlarla süzülür.
-4. Bakım bedeli (yalnızca ORMEN yöneticisi): **Bakım bedeli** → son ödeme tarihi (tutar biliniyorsa) → **Vade ekle**. Ödenince **Ödendi**.
-5. Panel → **Katalog**: mağazaya verilecek ürünleri soldan, mağazayı sağdan işaretleyin → **Mağazalara ekle**.
-6. Mağazanın sayfasında **Bu mağazada nasıl görünsün** bölümünde, isterseniz ürünlere mağazanın kendi adını ve kodunu verin; vitrinde dönmesini istediklerinizi **Öne çıkar** ile işaretleyin.
+4. **Mağaza paneli hesabı** (yalnızca ORMEN yöneticisi): **Mağaza paneli hesapları** → mağaza sahibinin e-postası → **Hesap ekle**. Ekranda bir kez görünen ilk şifreyi sahibine telefonla ya da WhatsApp ile iletin. Sahip `…/magaza` adresinden girer ve **Hesap** sayfasından kendi şifresini koyar.
+5. Bakım bedeli (yalnızca ORMEN yöneticisi): **Bakım bedeli** → son ödeme tarihi (tutar biliniyorsa) → **Vade ekle**. Ödenince **Ödendi**.
+6. Panel → **Katalog**: mağazaya verilecek ürünleri soldan, mağazayı sağdan işaretleyin → **Mağazalara ekle**.
+7. Mağazanın sayfasında **Bu mağazada nasıl görünsün** bölümünde, isterseniz ürünlere mağazanın kendi adını ve kodunu verin; vitrinde dönmesini istediklerinizi **Öne çıkar** ile işaretleyin.
 
 ## 2. Mağaza PIN'ini girin (1 dakika)
 
@@ -105,6 +106,8 @@ Kamera izni verilmezse ya da ekranın kamerası yoksa **Kartela okut** düğmesi
 **Birçok mağazada aynı ayar (toplu işlem):** Panel → **Mağazalar** → mağazaları işaretleyin ya da süzüp "süzgeçteki hepsini seçin" → işlemi seçin (özellik, kumaş serisi, kota, etiket, güncelleme gönder) → **Uygula** → **Evet, uygula**. Her mağaza günlükte ayrı görünür, ayrı geri alınır.
 
 **Yeni bir özelliği önce birkaç mağazada denemek (kademeli yayın):** Deneme mağazalarına toplu işlemle bir etiket verin (örn. `pilot`) ya da durumlarını **Pilot** yapın. Listeyi o etiketle süzün → hepsini seçin → özelliği açın. Birkaç gün sorun çıkmazsa süzgeci temizleyin → hepsini seçin → aynı işlemi uygulayın.
+
+**Mağazanın gördüğünü görmek (destek):** Mağazanın sayfası → **Mağaza gibi görüntüle**. Mağazanın paneli salt okunur açılır, müşteri adları gizlidir; 30 dakikada kapanır, açılış günlüğe yazılır. Bitince **Destek görünümünden çık**.
 
 ## Sonra gelecek
 

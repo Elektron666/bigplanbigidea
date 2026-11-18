@@ -91,3 +91,22 @@ describe("the record, fees and templates in the memory centre", () => {
     expect((await c.getTemplate(first.id))?.vitrinSn).toBe(45);
   });
 });
+
+describe("shop panel accounts in the memory centre", () => {
+  it("opens a new account with a first password once, refuses ORMEN's and a repeat, and takes access away", async () => {
+    const { MemoryCentral } = await import("@/lib/central/memory");
+    const c = new MemoryCentral();
+    const a = await c.addOwner("f1", "sahip@ornek.com");
+    expect(a).toMatchObject({ ok: true, owner: { email: "sahip@ornek.com" } });
+    expect(a.ok && a.password).toMatch(/^[A-Za-z0-9_-]{16}$/);
+    // the same person for a second shop: no new password
+    expect(await c.addOwner("f2", "sahip@ornek.com")).toMatchObject({ ok: true, password: null });
+    expect(await c.addOwner("f1", "sahip@ornek.com")).toEqual({ ok: false, error: "Bu hesap zaten bu mağazanın." });
+    expect(await c.addOwner("f1", "demo@ormen.local")).toMatchObject({ ok: false });
+    const [o] = await c.listOwners("f1");
+    expect(await c.removeOwner("f1", o.userId)).toMatchObject({ email: "sahip@ornek.com" });
+    expect(await c.listOwners("f1")).toEqual([]);
+    expect(await c.listOwners("f2")).toHaveLength(1);
+    expect(await c.removeOwner("f1", o.userId)).toBeNull();
+  });
+});

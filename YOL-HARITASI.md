@@ -2,6 +2,22 @@
 
 ORMEN Atelier'in bugünkü durumu, yayına çıkmadan önce yapılacaklar ve sonraki fazlar. Ayrıntılı gerekçeler `KARARLAR.md`, rekabet stratejisi `REKABET-PLANI.md` dosyasında.
 
+## Showroom Paketi (Kasım 2026, bu depo)
+
+Görev tanımı: "ORMEN Atelier — Showroom Paketi, tam kapsam". Plan `PLAN-SHOWROOM.md`, kararlar `KARARLAR.md`, kurulum `KURULUM.md`. Para harcanmıyor; ücretli servis çağrılmıyor.
+
+| İş | Durum |
+|---|---|
+| **0. Merkez panel, katalog, uzaktan güncelleme** | ✅ Roller ve veri katmanında yetki, mağaza listesi ve askıya alma, mağaza kaydı, bakım bedeli, şablon, merkez katalog ve toplu atama, mağaza bazında ad/kod/gizleme, özellik anahtarları, cihaz eşleştirme ve eşitleme, değişiklik günlüğü ve geri alma, genel bakış, mağazalarda toplu işlem, kademeli yayın, mağaza paneli, mağaza hesapları, "mağaza gibi görüntüle". |
+| **1. Showroom modu** | ✅ Eşleştirme, kilit ve PIN, vitrin döngüsü, kalite profili, çevrimdışı çalışma, olay kaydı. Gerçek cihazda denenmedi. |
+| **2. Sihirli kartela** | ✅ QR etiket, kamerayla okuma. |
+| **3. Metraj ve teklif** | ✅ 140 cm ene göre metraj, fire, PDF, telefona teklif, ORMEN'e sipariş talebi. |
+| **4. Köşe kurucu** | 🟡 Örnek setle çalışıyor. Panelden gerçek modül seti (GLB) yükleme yazılmadı. |
+| **5. Anında giydirme** | ⏳ Başlanmadı. Yalnızca altyapı yazılacak (sağlayıcısız, kapalı); ücretli sağlayıcı onay ister. |
+| **Dalga 2 (6–11), Dalga 3 (12–16)** | ⏳ Başlanmadı. |
+
+Yayına almadan önce: Vercel'in bu depoya çevrilmesi, yeni şemaların (`supabase/migrations/2026111*`) canlı Supabase'e onayla uygulanması, gerçek ekran ve tablette deneme (`KURULUM.md`, 8. adım). Yayındaki `ormen3xd` hâlâ güvenlik açıklı Next.js 16.3.8'de; 16.4.6'ya çekilmeli.
+
 ## Faz 1: tamamlandı
 
 | Bölüm | Ne var |

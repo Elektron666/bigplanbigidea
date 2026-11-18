@@ -43,6 +43,15 @@ export interface ShopState {
   settings: Record<string, unknown>;
 }
 
+export interface ShopOwner {
+  userId: string;
+  email: string;
+  since: string;
+}
+
+/** A first password for a new shop account: 16 characters, said over the phone or sent by WhatsApp. */
+export const newPassword = () => randomBytes(12).toString("base64url");
+
 /** Only the hash of a screen's secret is ever stored. */
 export function hashToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");
@@ -101,6 +110,16 @@ export interface CentralStore {
   unpaidFees(): Promise<UnpaidFee[]>;
   /** Id, name and status of every shop. */
   shopNames(): Promise<{ id: string; name: string; status: ShopStatus }[]>;
+
+  /** Who can sign in to the shop's own panel. */
+  listOwners(firmId: string): Promise<ShopOwner[]>;
+  /**
+   * Gives an account the shop's panel. A new account gets a first password,
+   * returned once, to be handed over by ORMEN (no e-mail service). An ORMEN
+   * account is refused: one person, one kind of account.
+   */
+  addOwner(firmId: string, email: string): Promise<{ ok: true; owner: ShopOwner; password: string | null } | { ok: false; error: string }>;
+  removeOwner(firmId: string, userId: string): Promise<ShopOwner | null>;
 
   writeAudit(e: AuditInput): Promise<void>;
   /** Newest first. */

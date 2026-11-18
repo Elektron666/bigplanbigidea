@@ -60,6 +60,46 @@ test.describe("erişilebilirlik: yeni ekranlar ve telefon", () => {
   });
 });
 
+// Showroom package: the central panel's new screens and the shop's own panel
+test.describe("erişilebilirlik: showroom paketi panelleri", () => {
+  test.skip(({ isMobile }) => isMobile, "panel masaüstü");
+
+  test("merkez paneli ve mağaza paneli", async ({ page, browser }) => {
+    test.setTimeout(180_000);
+    await login(page);
+    for (const path of ["/panel", "/panel/gunluk", "/panel/katalog", "/panel/siparisler", "/panel/firmalar/seed-firm-ornek"]) {
+      await page.goto(path);
+      expect(await violations(page), path).toEqual([]);
+    }
+    // the shop list with the bulk bar open
+    await page.goto("/panel/magazalar");
+    await page.getByRole("checkbox", { name: /seç$/ }).first().check();
+    await expect(page.getByRole("complementary", { name: "Toplu işlem" })).toBeVisible();
+    expect(await violations(page), "/panel/magazalar (toplu işlem)").toEqual([]);
+
+    const ctx = await browser.newContext();
+    const shop = await ctx.newPage();
+    await shop.goto("/magaza/giris");
+    expect(await violations(shop), "/magaza/giris").toEqual([]);
+    await shop.getByLabel("E-posta").fill("magaza@ormen.local");
+    await shop.getByLabel("Şifre").fill("ormen-magaza");
+    await shop.getByRole("button", { name: "Giriş yap" }).click();
+    await expect(shop.getByRole("heading", { name: "Teklifler" })).toBeVisible();
+    for (const path of ["/magaza", "/magaza/urunler", "/magaza/ekranlar", "/magaza/hesap"]) {
+      await shop.goto(path);
+      expect(await violations(shop), path).toEqual([]);
+    }
+    await ctx.close();
+
+    // the yönetici's support view, with its strip
+    await page.goto("/panel/firmalar/seed-firm-ornek");
+    await page.getByRole("button", { name: "Mağaza gibi görüntüle" }).click();
+    await expect(page.getByRole("note", { name: "Destek görünümü" })).toBeVisible();
+    expect(await violations(page), "destek görünümü").toEqual([]);
+    await page.getByRole("button", { name: "Destek görünümünden çık" }).click();
+  });
+});
+
 test.describe("erişilebilirlik", () => {
   test.skip(({ isMobile }) => isMobile, "masaüstünde bir kez yeter");
 

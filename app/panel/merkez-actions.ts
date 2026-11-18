@@ -1,6 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { openSupportView, SUPPORT_MINUTES } from "@/lib/auth/shop";
 import { getPanelUser } from "@/lib/auth/panel";
 import { can, DENIED } from "@/lib/auth/roles";
 import { getCentral } from "@/lib/central/store";
@@ -475,6 +477,68 @@ export async function bulkShopAction(opRaw: unknown, targetRaw: unknown): Promis
   revalidatePath("/panel/gunluk");
   revalidatePath("/f/[slug]", "page");
   return { ok: true, changed, same: found - changed, shops: found };
+}
+
+// ------------------------------------------------------------------ shop panel accounts (job 0)
+
+const EMAIL = /^[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,}$/;
+
+/** Gives an account the shop's own panel; a new account's first password comes back once. */
+export async function addOwnerAction(firmId: string, rawEmail: string): Promise<{ ok: true; email: string; password: string | null } | { ok: false; error: string }> {
+  const user = await getPanelUser();
+  if (!user) return { ok: false, error: "Oturum süresi doldu. Yeniden giriş yapın." };
+  if (!can(user.role, "uye")) return { ok: false, error: DENIED };
+  const email = String(rawEmail ?? "").trim().toLowerCase();
+  if (!EMAIL.test(email) || email.length > 200) return { ok: false, error: "Geçerli bir e-posta adresi yazın." };
+  const firm = await firmFor(firmId);
+  if (!firm) return { ok: false, error: "Mağaza bulunamadı." };
+  const central = getCentral();
+  const res = await central.addOwner(firm.id, email);
+  if (!res.ok) return res;
+  // never the password in the log
+  await central.writeAudit({ actor: user.email, actorRole: user.role, firmId: firm.id, entity: "uye", entityId: res.owner.userId, action: "uye-eklendi", summary: `${firm.name}: ${email} mağaza paneline eklendi${res.password ? " (yeni hesap)" : ""}` });
+  revalidatePath(`/panel/firmalar/${firm.id}`);
+  return { ok: true, email, password: res.password };
+}
+
+/** Takes the shop's panel away from an account (the account itself stays; nothing of the shop is deleted). */
+export async function removeOwnerAction(firmId: string, userId: string): Promise<Result> {
+  const user = await getPanelUser();
+  if (!user) return { ok: false, error: "Oturum süresi doldu. Yeniden giriş yapın." };
+  if (!can(user.role, "uye")) return { ok: false, error: DENIED };
+  const firm = await firmFor(firmId);
+  if (!firm) return { ok: false, error: "Mağaza bulunamadı." };
+  const central = getCentral();
+  const gone = await central.removeOwner(firm.id, String(userId).slice(0, 40));
+  if (!gone) return { ok: false, error: "Bu hesap bu mağazada değil." };
+  await central.writeAudit({ actor: user.email, actorRole: user.role, firmId: firm.id, entity: "uye", entityId: gone.userId, action: "uye-cikarildi", summary: `${firm.name}: ${gone.email} mağaza panelinden çıkarıldı` });
+  revalidatePath(`/panel/firmalar/${firm.id}`);
+  return { ok: true };
+}
+
+// ------------------------------------------------------------------ "mağaza gibi görüntüle" (job 0)
+
+/**
+ * The yönetici opens the shop's own panel as the shop, for support: read-only,
+ * without the shop's customers, for SUPPORT_MINUTES. Every opening is logged.
+ */
+export async function openSupportViewAction(firmId: string): Promise<Result> {
+  const user = await getPanelUser();
+  if (!user) return { ok: false, error: "Oturum süresi doldu. Yeniden giriş yapın." };
+  if (!can(user.role, "magaza-gibi")) return { ok: false, error: DENIED };
+  const firm = await firmFor(firmId);
+  if (!firm) return { ok: false, error: "Mağaza bulunamadı." };
+  await getCentral().writeAudit({
+    actor: user.email,
+    actorRole: user.role,
+    firmId: firm.id,
+    entity: "destek",
+    entityId: firm.id,
+    action: "magaza-gibi-acildi",
+    summary: `${firm.name}: mağaza paneli destek için mağaza gibi açıldı (${SUPPORT_MINUTES} dk)`,
+  });
+  await openSupportView(firm.id, user.email);
+  redirect("/magaza");
 }
 
 // ------------------------------------------------------------------ undo from the change log (job 0)

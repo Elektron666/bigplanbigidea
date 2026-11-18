@@ -7,7 +7,7 @@ import { PAIRING_TTL_MINUTES, type Device, type DeviceQuality, type SyncStatus }
 import { hashPin, verifyPin } from "@/lib/devices/pin";
 import { MemoryCentral } from "./memory";
 import type { ShopRecord, ShopTemplate, Subscription } from "./record";
-import { hashToken, newCode, newToken, type AuditEntity, type AuditInput, type CentralStore, type ShopState } from "./types";
+import { hashToken, newCode, newPassword, newToken, type ShopOwner, type AuditEntity, type AuditInput, type CentralStore, type ShopState } from "./types";
 
 export * from "./types";
 export { MemoryCentral };
@@ -265,6 +265,53 @@ class SupabaseCentral implements CentralStore {
 
   async shopNames() {
     return check(await this.db.from("firms").select("id, name, status").order("name").limit(5000)) as { id: string; name: string; status: ShopStatus }[];
+  }
+
+  async listOwners(firmId: string) {
+    const rows = check(await this.db.from("firm_members").select("user_id, created_at").eq("firm_id", firmId).order("created_at")) as { user_id: string; created_at: string }[];
+    const out: ShopOwner[] = [];
+    for (const r of rows) {
+      const { data } = await this.db.auth.admin.getUserById(r.user_id);
+      out.push({ userId: r.user_id, email: data.user?.email ?? "(silinmiş hesap)", since: r.created_at });
+    }
+    return out;
+  }
+
+  /** The account with this e-mail, if there is one (a few hundred accounts at most: one page). */
+  private async userByEmail(email: string) {
+    for (let page = 1; page <= 20; page++) {
+      const { data, error } = await this.db.auth.admin.listUsers({ page, perPage: 1000 });
+      if (error) throw new Error(error.message);
+      const hit = data.users.find((u) => u.email?.toLowerCase() === email);
+      if (hit || data.users.length < 1000) return hit ?? null;
+    }
+    return null;
+  }
+
+  async addOwner(firmId: string, email: string) {
+    let user = await this.userByEmail(email);
+    let password: string | null = null;
+    if (user) {
+      const staff = check(await this.db.from("profiles").select("id").eq("id", user.id).maybeSingle());
+      if (staff) return { ok: false as const, error: "Bu bir ORMEN hesabı; mağaza hesabı olarak eklenemez." };
+    } else {
+      password = newPassword();
+      const { data, error } = await this.db.auth.admin.createUser({ email, password, email_confirm: true });
+      if (error || !data.user) return { ok: false as const, error: "Hesap açılamadı; e-posta adresini denetleyin." };
+      user = data.user;
+    }
+    const res = await this.db.from("firm_members").insert({ user_id: user.id, firm_id: firmId }).select("created_at").single();
+    if (res.error?.code === "23505") return { ok: false as const, error: "Bu hesap zaten bu mağazanın." };
+    const row = check(res) as { created_at: string };
+    return { ok: true as const, owner: { userId: user.id, email, since: row.created_at }, password };
+  }
+
+  async removeOwner(firmId: string, userId: string) {
+    if (!/^[0-9a-f-]{36}$/i.test(userId)) return null;
+    const rows = check(await this.db.from("firm_members").delete().eq("firm_id", firmId).eq("user_id", userId).select("user_id, created_at")) as { user_id: string; created_at: string }[];
+    if (!rows.length) return null;
+    const { data } = await this.db.auth.admin.getUserById(userId);
+    return { userId, email: data.user?.email ?? "", since: rows[0].created_at };
   }
 
   async listTemplates() {

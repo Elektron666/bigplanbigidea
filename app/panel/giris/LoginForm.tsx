@@ -9,7 +9,7 @@ export function LoginForm({ demoHint }: { demoHint: string | null }) {
   return (
     <form action={action} className="flex flex-col gap-4">
       <Field label="E-posta">
-        <input name="email" type="email" autoComplete="username" required className={inputClass} />
+        <input name="email" type="email" autoComplete="username" required defaultValue={state?.email ?? ""} className={inputClass} />
       </Field>
       <Field label="Şifre">
         <input name="password" type="password" autoComplete="current-password" required className={inputClass} />

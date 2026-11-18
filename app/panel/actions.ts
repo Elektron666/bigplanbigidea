@@ -36,12 +36,14 @@ async function failed(scope: string): Promise<void> {
   recordFailure(scope, callerKey(await headers()));
 }
 
-export async function loginAction(_prev: { error?: string } | null, form: FormData): Promise<{ error?: string }> {
-  if (await tooManyTries("giris")) return { error: TOO_MANY };
-  const res = await signIn(String(form.get("email") ?? ""), String(form.get("password") ?? ""));
+export async function loginAction(_prev: { error?: string; email?: string } | null, form: FormData): Promise<{ error?: string; email?: string }> {
+  // the form is cleared after a try: the address comes back so only the password is typed again
+  const email = String(form.get("email") ?? "").slice(0, 200);
+  if (await tooManyTries("giris")) return { error: TOO_MANY, email };
+  const res = await signIn(email, String(form.get("password") ?? ""));
   if (!res.ok) {
     await failed("giris");
-    return { error: res.error };
+    return { error: res.error, email };
   }
   redirect(res.needsCode ? "/panel/giris/dogrulama" : "/panel");
 }

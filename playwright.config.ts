@@ -31,6 +31,13 @@ export default defineConfig({
         timeout: 300_000,
         reuseExistingServer: true,
         // demo panel user for the panel tests (production build has no default)
-        env: { PANEL_DEMO_EMAIL: "demo@ormen.local", PANEL_DEMO_PASSWORD: "ormen-demo", PANEL_SESSION_SECRET: "e2e-only-session-secret-0123456789abcdef" },
+        env: {
+          PANEL_DEMO_EMAIL: "demo@ormen.local",
+          PANEL_DEMO_PASSWORD: "ormen-demo",
+          PANEL_SESSION_SECRET: "e2e-only-session-secret-0123456789abcdef",
+          // the shop panel's demo owner (Örnek Mobilya)
+          SHOP_DEMO_EMAIL: "magaza@ormen.local",
+          SHOP_DEMO_PASSWORD: "ormen-magaza",
+        },
       },
 });

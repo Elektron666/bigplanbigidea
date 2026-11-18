@@ -101,6 +101,11 @@ export class MemoryQuotes implements QuoteStore {
     return !!o;
   }
 
+  /** The shop panel's list (memory only; with Supabase the panel reads with the owner's own session). */
+  forShop(firmId: string): (StoredQuote & { orderStatus: OrderStatus | null })[] {
+    return this.quotes.filter((q) => q.firmId === firmId).map((q) => ({ ...q, orderStatus: this.orders.find((o) => o.quoteId === q.id)?.status ?? null }));
+  }
+
   async countSince(from: Date) {
     const t = from.toISOString();
     return { quotes: this.quotes.filter((q) => q.createdAt >= t).length, orders: this.orders.filter((o) => o.createdAt >= t).length };

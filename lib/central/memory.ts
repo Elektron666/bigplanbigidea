@@ -3,7 +3,7 @@ import { PAIRING_TTL_MINUTES, type Device, type DeviceQuality, type SyncStatus }
 import { hashPin, verifyPin } from "@/lib/devices/pin";
 import { pageOfShops, type ShopQuery, type ShopRow, type ShopStatus } from "./shops";
 import { EMPTY_RECORD, nextDue, type ShopRecord, type ShopTemplate, type Subscription } from "./record";
-import { hashToken, newCode, newToken, type AuditEntry, type AuditInput, type CentralStore, type ShopState } from "./types";
+import { hashToken, newCode, newPassword, newToken, type ShopOwner, type AuditEntry, type AuditInput, type CentralStore, type ShopState } from "./types";
 
 // ------------------------------------------------------------------ memory
 
@@ -19,6 +19,9 @@ export class MemoryCentral implements CentralStore {
   private records = new Map<string, ShopRecord>();
   private subs = new Map<string, Subscription & { firmId: string }>();
   private templates: ShopTemplate[] = [];
+  private owners: (ShopOwner & { firmId: string })[] = [];
+  /** ORMEN's own accounts (the memory store has the demo one only). */
+  staffEmails = new Set<string>(["demo@ormen.local"]);
   private pairings = new Map<string, { firmId: string; name: string; branch: string | null; expiresAt: string }>();
   /** keyed by the hash of the screen's secret */
   private devices = new Map<string, Device>();
@@ -127,6 +130,26 @@ export class MemoryCentral implements CentralStore {
       d.lastSeenAt = at;
       if (syncStatus) d.syncStatus = syncStatus;
     }
+  }
+
+  async listOwners(firmId: string) {
+    return this.owners.filter((o) => o.firmId === firmId).map(({ userId, email, since }) => ({ userId, email, since }));
+  }
+
+  async addOwner(firmId: string, email: string) {
+    if (this.staffEmails.has(email)) return { ok: false as const, error: "Bu bir ORMEN hesabı; mağaza hesabı olarak eklenemez." };
+    const known = this.owners.find((o) => o.email === email);
+    if (this.owners.some((o) => o.email === email && o.firmId === firmId)) return { ok: false as const, error: "Bu hesap zaten bu mağazanın." };
+    const owner = { userId: known?.userId ?? crypto.randomUUID(), email, since: new Date().toISOString() };
+    this.owners.push({ ...owner, firmId });
+    return { ok: true as const, owner, password: known ? null : newPassword() };
+  }
+
+  async removeOwner(firmId: string, userId: string) {
+    const o = this.owners.find((x) => x.firmId === firmId && x.userId === userId);
+    if (!o) return null;
+    this.owners = this.owners.filter((x) => x !== o);
+    return { userId: o.userId, email: o.email, since: o.since };
   }
 
   async listTemplates() {

@@ -6,6 +6,8 @@ import { ShopFeatures } from "@/components/panel/ShopFeatures";
 import { ShopRecordForm } from "@/components/panel/ShopRecordForm";
 import { ShopFees } from "@/components/panel/ShopFees";
 import { ShopTemplates } from "@/components/panel/ShopTemplates";
+import { SupportViewButton } from "@/components/panel/SupportViewButton";
+import { ShopOwners } from "@/components/panel/ShopOwners";
 import { ShopDevices } from "@/components/panel/ShopDevices";
 import { deviceState, type Device } from "@/lib/devices/pairing";
 import { getCentral } from "@/lib/central/store";
@@ -46,6 +48,7 @@ export default async function EditFirmPage({ params, searchParams }: PageProps<"
     // never read for ORMEN elemanı, not only hidden
     withFees ? central.listSubscriptions(firm.id) : null,
   ]);
+  const owners = can(user.role, "uye") ? await central.listOwners(firm.id) : null;
   const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Istanbul" });
   const showcaseIds = products.map((p) => p.modelId);
   const showcase = all.filter((m) => m.firmId === null && m.isActive);
@@ -54,6 +57,7 @@ export default async function EditFirmPage({ params, searchParams }: PageProps<"
     <>
       <PageHeader title={firm.name} eyebrow="Firma">
         {!firm.isActive && <Badge tone="off">yayında değil</Badge>}
+        {can(user.role, "magaza-gibi") && <SupportViewButton firmId={firm.id} />}
       </PageHeader>
       {sp.kaydedildi && (
         <p role="status" className="mb-4 rounded-xl bg-[#E8EFE6] px-4 py-3 text-[14px] text-[#35523a]">
@@ -69,6 +73,7 @@ export default async function EditFirmPage({ params, searchParams }: PageProps<"
       {record && <ShopRecordForm firmId={firm.id} record={record} />}
       <ShopFeatures key={JSON.stringify(firm.features ?? {})} firmId={firm.id} features={firm.features} />
       {fees && <ShopFees firmId={firm.id} rows={fees} today={today} />}
+      {owners && <ShopOwners firmId={firm.id} owners={owners} shopPanelUrl={`${siteUrl().replace(/^https?:\/\//, "")}/magaza`} demo={!repo.persistent} />}
       <ShopDevices
         firmId={firm.id}
         devices={withState(devices, shop?.contentVersion ?? 1)}
