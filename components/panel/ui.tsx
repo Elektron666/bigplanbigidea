@@ -37,6 +37,6 @@ export function PageHeader({ title, children, eyebrow }: { title: string; eyebro
 }
 
 export function Badge({ children, tone = "neutral" }: { children: ReactNode; tone?: "neutral" | "warn" | "off" }) {
-  const t = tone === "warn" ? "bg-[#F4E9DD] text-ceviz" : tone === "off" ? "bg-cizgi/70 text-antrasit-50" : "bg-cizgi/50 text-antrasit-70";
+  const t = tone === "warn" ? "bg-[#F4E9DD] text-ceviz" : tone === "off" ? "bg-cizgi/40 text-antrasit-70" : "bg-cizgi/50 text-antrasit-70";
   return <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] ${t}`}>{children}</span>;
 }
