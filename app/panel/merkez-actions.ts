@@ -7,6 +7,7 @@ import { getCentral } from "@/lib/central/store";
 import { getRepository } from "@/lib/data";
 import { validateShopProduct } from "@/lib/catalogue/shop-products";
 import { validateDeviceName } from "@/lib/devices/pairing";
+import { cleanPin, weakPin } from "@/lib/devices/pin";
 import { checkBulkAssign } from "@/lib/catalogue/products";
 import { SHOP_STATUSES, SHOP_STATUS_LABELS, type ShopStatus } from "@/lib/central/shops";
 
@@ -169,4 +170,21 @@ export async function bulkAssignAction(mode: "ekle" | "cikar", productIds: strin
   revalidatePath("/panel/katalog");
   revalidatePath("/panel/magazalar");
   return { ok: true, changed };
+}
+
+/** Sets the shop PIN (leaving the locked screen). Only its hash is stored; the PIN is never written to the log. */
+export async function setShopPinAction(firmId: string, pin: string): Promise<Result> {
+  const user = await getPanelUser();
+  if (!user) return { ok: false, error: "Oturum süresi doldu. Yeniden giriş yapın." };
+  if (!can(user.role, "kurulum")) return { ok: false, error: DENIED };
+  const clean = cleanPin(pin);
+  if (!clean) return { ok: false, error: "PIN 4–6 rakam olmalı." };
+  if (weakPin(clean)) return { ok: false, error: "Bu PIN çok kolay tahmin edilir (1234, 0000 gibi). Başka bir PIN seçin." };
+  const firm = await getRepository().getFirmById(String(firmId).slice(0, 40));
+  if (!firm) return { ok: false, error: "Mağaza bulunamadı." };
+  const central = getCentral();
+  await central.setShopPin(firm.id, clean);
+  await central.writeAudit({ actor: user.email, actorRole: user.role, firmId: firm.id, entity: "magaza", entityId: firm.id, action: "pin-degisti", summary: `${firm.name}: mağaza PIN’i değiştirildi` });
+  revalidatePath(`/panel/firmalar/${firm.id}`);
+  return { ok: true };
 }

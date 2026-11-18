@@ -72,6 +72,12 @@ export interface CentralStore {
   /** Takes the screen's access away for good; it asks for a code again. */
   removeDevice(id: string): Promise<void>;
 
+  /** Stores the shop PIN (hashed). */
+  setShopPin(firmId: string, pin: string): Promise<void>;
+  hasShopPin(firmId: string): Promise<boolean>;
+  /** True or false for a PIN tried against the shop's; null when the shop has no PIN yet. */
+  checkShopPin(firmId: string, pin: string): Promise<boolean | null>;
+
   writeAudit(e: AuditInput): Promise<void>;
   /** Newest first. */
   listAudit(opts: { firmId?: string; limit?: number; offset?: number }): Promise<{ total: number; rows: AuditEntry[] }>;

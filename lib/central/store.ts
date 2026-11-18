@@ -4,6 +4,7 @@ import { supabaseEnabled } from "@/lib/supabase/config";
 import { serviceClient } from "@/lib/supabase/server";
 import { PAGE_SIZE, type ShopQuery, type ShopRow, type ShopStatus } from "./shops";
 import { PAIRING_TTL_MINUTES, type Device, type DeviceQuality, type SyncStatus } from "@/lib/devices/pairing";
+import { hashPin, verifyPin } from "@/lib/devices/pin";
 import { MemoryCentral } from "./memory";
 import { hashToken, newCode, newToken, type AuditEntity, type AuditInput, type CentralStore, type ShopState } from "./types";
 
@@ -171,6 +172,20 @@ class SupabaseCentral implements CentralStore {
 
   async removeDevice(id: string) {
     check(await this.db.from("devices").delete().eq("id", id));
+  }
+
+  async setShopPin(firmId: string, pin: string) {
+    check(await this.db.from("firm_admin").upsert({ firm_id: firmId, pin_hash: hashPin(pin) }, { onConflict: "firm_id" }));
+  }
+
+  async hasShopPin(firmId: string) {
+    const r = check(await this.db.from("firm_admin").select("pin_hash").eq("firm_id", firmId).maybeSingle()) as { pin_hash: string | null } | null;
+    return !!r?.pin_hash;
+  }
+
+  async checkShopPin(firmId: string, pin: string) {
+    const r = check(await this.db.from("firm_admin").select("pin_hash").eq("firm_id", firmId).maybeSingle()) as { pin_hash: string | null } | null;
+    return r?.pin_hash ? verifyPin(pin, r.pin_hash) : null;
   }
 
   async writeAudit(e: AuditInput) {

@@ -89,6 +89,86 @@ test.describe("showroom ekranı", () => {
     await context.close();
   });
 
+  test("kilit: dışarı çıkan bağlantı yok; logoya 5 dokunuş ve PIN ayar ekranını açar", async ({ page, browser }) => {
+    await login(page);
+    await page.goto("/panel/firmalar");
+    await page.getByRole("link", { name: "Örnek Mobilya" }).click();
+    // an easy PIN is refused, a proper one is stored
+    await page.getByLabel("Mağaza PIN’i").fill("1234");
+    await page.getByRole("button", { name: "PIN’i kaydet" }).click();
+    await expect(page.getByText(/çok kolay tahmin edilir/)).toBeVisible();
+    await page.getByLabel("Mağaza PIN’i").fill("4821");
+    await page.getByRole("button", { name: "PIN’i kaydet" }).click();
+    await expect(page.getByText("PIN kaydedildi.")).toBeVisible();
+    const code = await newCode(page, `Kilit ekranı ${Date.now().toString(36)}`);
+
+    const context = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+    const screen = await context.newPage();
+    await screen.goto("/showroom");
+    await typeCode(screen, code);
+    await screen.getByRole("button", { name: "Başlamak için dokunun" }).click();
+
+    // the installed app carries the shop's name, not ORMEN's or a browser's
+    await expect(screen).toHaveTitle("Örnek Mobilya");
+    const manifest = await (await context.request.get("/showroom/manifest.webmanifest")).json();
+    expect(manifest).toMatchObject({ name: "Örnek Mobilya", start_url: "/showroom", display: "fullscreen" });
+    expect((await context.request.get("/showroom/simge/192")).headers()["content-type"]).toContain("image/png");
+
+    // no link on the screen leads out: every anchor is clicked, the address never changes, no window opens
+    const popups: unknown[] = [];
+    context.on("page", (p) => popups.push(p));
+    const hrefs = await screen.evaluate(() => {
+      const out: string[] = [];
+      for (const a of Array.from(document.querySelectorAll<HTMLAnchorElement>("a[href]"))) {
+        out.push(a.getAttribute("href") ?? "");
+        a.click();
+      }
+      // a link a later dialog might add is stopped the same way
+      for (const href of ["/panel", "https://example.com/", "/"]) {
+        const a = document.createElement("a");
+        a.href = href;
+        a.target = "_blank";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      }
+      window.open("https://example.com/");
+      return out;
+    });
+    await screen.waitForTimeout(500);
+    expect(new URL(screen.url()).pathname, `links tried: ${hrefs.join(", ")}`).toBe("/showroom");
+    expect(popups).toHaveLength(0);
+
+    // four taps on the logo do nothing; the fifth asks for the PIN
+    const logo = screen.locator("[data-marka]").first();
+    for (let i = 0; i < 4; i++) await logo.dispatchEvent("pointerdown");
+    await expect(screen.getByRole("dialog", { name: "Mağaza PIN’i" })).toHaveCount(0);
+    await logo.dispatchEvent("pointerdown");
+    const pad = screen.getByRole("dialog", { name: "Mağaza PIN’i" });
+    await expect(pad).toBeVisible();
+
+    // a wrong PIN stays locked
+    for (const d of "1357") await pad.getByRole("button", { name: d, exact: true }).click();
+    await pad.getByRole("button", { name: "Tamam" }).click();
+    await expect(pad.getByText("PIN hatalı.")).toBeVisible();
+    await expect(screen.getByRole("dialog", { name: "Ekran ayarları" })).toHaveCount(0);
+
+    // the right PIN opens the settings sheet, with "check for updates"
+    for (const d of "4821") await pad.getByRole("button", { name: d, exact: true }).click();
+    await pad.getByRole("button", { name: "Tamam" }).click();
+    const sheet = screen.getByRole("dialog", { name: "Ekran ayarları" });
+    await expect(sheet).toBeVisible();
+    await sheet.getByRole("button", { name: "Güncellemeleri denetle" }).click();
+    await expect(sheet.getByText("Ekran güncel.")).toBeVisible();
+    await sheet.getByRole("button", { name: "Showroom’a dön" }).click();
+    await expect(sheet).toHaveCount(0);
+    await context.close();
+  });
+
+  test("PIN ucu eşleşmemiş ekrana kapalı", async ({ request }) => {
+    expect((await request.post("/api/showroom/pin", { data: { pin: "4821" } })).status()).toBe(401);
+  });
+
   test("eşleşmemiş ekran eşitleme uç noktasından hiçbir şey öğrenemez", async ({ request }) => {
     const r = await request.post("/api/showroom/esitle", { data: {} });
     expect(r.status()).toBe(401);

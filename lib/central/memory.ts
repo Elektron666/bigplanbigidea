@@ -1,5 +1,6 @@
 import type { Repository } from "@/lib/data/repository";
 import { PAIRING_TTL_MINUTES, type Device, type DeviceQuality, type SyncStatus } from "@/lib/devices/pairing";
+import { hashPin, verifyPin } from "@/lib/devices/pin";
 import { pageOfShops, type ShopQuery, type ShopRow, type ShopStatus } from "./shops";
 import { hashToken, newCode, newToken, type AuditEntry, type AuditInput, type CentralStore, type ShopState } from "./types";
 
@@ -11,6 +12,7 @@ export class MemoryCentral implements CentralStore {
 
   private extra = new Map<string, Partial<ShopRow>>();
   private audit: AuditEntry[] = [];
+  private pins = new Map<string, string>();
   private pairings = new Map<string, { firmId: string; name: string; branch: string | null; expiresAt: string }>();
   /** keyed by the hash of the screen's secret */
   private devices = new Map<string, Device>();
@@ -135,6 +137,19 @@ export class MemoryCentral implements CentralStore {
 
   async removeDevice(id: string) {
     for (const [hash, d] of this.devices) if (d.id === id) this.devices.delete(hash);
+  }
+
+  async setShopPin(firmId: string, pin: string) {
+    this.pins.set(firmId, hashPin(pin));
+  }
+
+  async hasShopPin(firmId: string) {
+    return this.pins.has(firmId);
+  }
+
+  async checkShopPin(firmId: string, pin: string) {
+    const stored = this.pins.get(firmId);
+    return stored ? verifyPin(pin, stored) : null;
   }
 
   async writeAudit(e: AuditInput) {

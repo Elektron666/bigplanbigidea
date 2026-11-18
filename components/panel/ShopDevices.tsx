@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { createPairingAction, removeDeviceAction, requestSyncAction } from "@/app/panel/merkez-actions";
+import { createPairingAction, removeDeviceAction, requestSyncAction, setShopPinAction } from "@/app/panel/merkez-actions";
 import { PAIRING_TTL_MINUTES, type Device } from "@/lib/devices/pairing";
 import { Badge, Field, buttonClass, inputClass } from "./ui";
 
@@ -10,7 +10,7 @@ const when = new Intl.DateTimeFormat("tr-TR", { day: "numeric", month: "short", 
 
 // The shop's showroom screens: add one with a short code, see where each
 // stands, ask it to sync, remove it.
-export function ShopDevices({ firmId, devices, showroomUrl, canRemove }: { firmId: string; devices: (Device & { state: { label: string; tone: "neutral" | "warn" | "off" } })[]; showroomUrl: string; canRemove: boolean }) {
+export function ShopDevices({ firmId, devices, showroomUrl, canRemove, hasPin }: { hasPin: boolean; firmId: string; devices: (Device & { state: { label: string; tone: "neutral" | "warn" | "off" } })[]; showroomUrl: string; canRemove: boolean }) {
   const router = useRouter();
   const [name, setName] = useState("");
   const [branch, setBranch] = useState("");
@@ -18,6 +18,7 @@ export function ShopDevices({ firmId, devices, showroomUrl, canRemove }: { firmI
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const [confirm, setConfirm] = useState<string | null>(null);
   const [pending, start] = useTransition();
+  const [pin, setPin] = useState("");
 
   const run = (fn: () => Promise<{ ok: true } | { ok: false; error: string }>, done: string) =>
     start(async () => {
@@ -115,6 +116,25 @@ export function ShopDevices({ firmId, devices, showroomUrl, canRemove }: { firmI
         </Field>
         <button type="button" onClick={add} disabled={pending} className={`${buttonClass.primary} sm:mb-[26px]`}>
           Cihaz ekle
+        </button>
+      </div>
+      <div className="mt-5 grid gap-3 border-t border-cizgi pt-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+        <Field label="Mağaza PIN’i" hint={hasPin ? "PIN girilmiş. Değiştirmek için yenisini yazın. Ekrandan çıkış: logoya 5 kez dokunup PIN yazılır." : "Henüz PIN yok: ekrandaki kilitten çıkılamaz. 4–6 rakam girin."}>
+          <input value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" autoComplete="off" type="password" className={inputClass} />
+        </Field>
+        <button
+          type="button"
+          disabled={pending || pin.length < 4}
+          onClick={() =>
+            run(async () => {
+              const res = await setShopPinAction(firmId, pin);
+              if (res.ok) setPin("");
+              return res;
+            }, "PIN kaydedildi.")
+          }
+          className={`${buttonClass.secondary} sm:mb-[26px]`}
+        >
+          PIN’i kaydet
         </button>
       </div>
       {message && (

@@ -14,6 +14,21 @@ Bu dosyada projede verilen kararlar, yapılan varsayımlar ve bilinen sınırlar
 - **Numune taleplerindeki ad ve telefon** ORMEN panelinde görünmeye devam eder (6 Ekim kararı değişmedi). Yeni kural yalnızca yeni verilere uygulanır: teklifteki müşteri adı ve "ilgilenen müşteriler".
 - Görev tanımının eski kararlarla çeliştiği yerler ve seçilen yol: `PLAN-SHOWROOM.md`, 3. bölüm.
 
+## İş 1, 7. dilim: kilit, mağaza PIN'i, ana ekrana kurulum (18 Kasım 2026)
+
+- **Kilit (`components/kiosk/ShowroomLock.tsx`, yalnızca `/showroom`):**
+  - Ekrandaki hiçbir bağlantı dışarı çıkmaz: başka siteler, panel ve ana sayfa bağlantıları çalışmaz, yeni pencere açılmaz (`window.open` kapalı).
+  - Müşterinin okuyabilmesi gereken tek sayfa olan aydınlatma metni (`/kvkk`) ekranın içinde, kapat düğmeli bir pencerede açılır. Pencere `sandbox` ile açıldığı için metnin içindeki bağlantılar da bir yere götürmez.
+  - Parmakla yakınlaştırma, Ctrl + tekerlek, aşağı çekip yenileme, uzun basma menüsü ve takılı bir klavyeden F5 / F11 / Ctrl+R / Ctrl+L gibi kısayollar kapalı.
+  - Çıkış: logoya 3 saniye içinde 5 dokunuş, ardından mağaza PIN'i. Açılan "Ekran ayarları" penceresinde "Güncellemeleri denetle", "Tam ekrandan çık" ve "Showroom'a dön" var. Dokunulmayan PIN ya da ayar penceresi 60 saniyede kendiliğinden kapanır.
+  - Android'in kendi kilidi (uygulama sabitleme, kiosk başlatıcı) kod işi değil; `KURULUM.md`'ye yazılacak.
+- **Mağaza PIN'i:** 4–6 rakam, panelde mağaza sayfasının Cihazlar bölümünden girilir. 1234, 0000 gibi kolay PIN'ler reddedilir. Yalnızca tuzlu scrypt özeti saklanır (`firm_admin.pin_hash`); PIN değişikliği günlüğe yazılır ama PIN'in kendisi yazılmaz. Ekran başına 5 hatalı denemeden sonra 5 dakika bekleme. Ekran yalnızca kendi mağazasının PIN'ini deneyebilir.
+- **PIN yoksa:** Ekrandan çıkılamaz ve ekranda "Bu mağaza için PIN girilmemiş" yazar; panel bölümü de bunu hatırlatır. Bilerek böyle: PIN'siz bir çıkış yolu kilidi anlamsız kılardı.
+- **Ana ekrana kurulum:** `/showroom/manifest.webmanifest` ekranın eşleştiği mağazaya göre üretilir: mağazanın adı, tam ekran, yatay, açılış adresi `/showroom`. Simge `/showroom/simge/192` ve `/512`: mağazanın PNG ya da JPEG logosu; logo yoksa, SVG ise ya da alınamazsa mağaza renginde baş harfi. Sekme başlığı yalnızca mağazanın adı; ORMEN adı geçmez.
+- **Bulunan ve düzeltilen hata:** Simge ilk yazıldığında logoyu sitenin ayarlı adresinden çekiyordu; o adres çalışmıyorsa ya da logo SVG ise simge hiç üretilmiyordu. Artık logo isteğin geldiği sunucudan, 3 saniye sınırla alınıyor; yalnızca PNG ve JPEG kullanılıyor, gerisi baş harfe düşüyor.
+- **Test:** Uçtan uca: kolay PIN reddedilir; kurulum dosyası mağaza adını taşır; ekrandaki bütün bağlantılara ve sonradan eklenen panel / dış site bağlantılarına tıklanır, adres `/showroom`'da kalır ve yeni pencere açılmaz; 4 dokunuş bir şey açmaz, 5. dokunuş PIN ister; yanlış PIN kilitte bırakır; doğru PIN ayarları açar ve "Ekran güncel" der. PIN ucu eşleşmemiş ekrana 401 döner.
+- **Sınır:** Tarayıcının kendi adres çubuğu ve sistem çubukları sayfadan gizlenemez; tam ekran ve uygulama sabitleme cihazdan açılır. Gerçek Android cihazda denenmedi.
+
 ## İş 0, 6. dilim: merkez katalog ve toplu atama (15 Kasım 2026)
 
 - **Katalog ekranı (`/panel/katalog`):** Her ürün bir kez listelenir; yanında kaç mağazada olduğu yazar. Arama (ad, üretici), sahiplik (ortak / mağazaya özel), kategori, mağaza ("bu mağazada ne var") ve "atanmamış" süzgeci; sayfada 50 ürün. Sayım veritabanında yapılır (`atelier_products`, `20261115000100_katalog.sql`).

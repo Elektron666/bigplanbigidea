@@ -32,7 +32,7 @@ export default async function EditFirmPage({ params, searchParams }: PageProps<"
     repo.listFabrics(),
   ]);
   const central = getCentral();
-  const [devices, shop] = await Promise.all([central.listDevices(firm.id), central.getShopState(firm.id)]);
+  const [devices, shop, hasPin] = await Promise.all([central.listDevices(firm.id), central.getShopState(firm.id), central.hasShopPin(firm.id)]);
   const showcaseIds = products.map((p) => p.modelId);
   const showcase = all.filter((m) => m.firmId === null && m.isActive);
   const own = all.filter((m) => m.firmId === firm.id);
@@ -56,6 +56,7 @@ export default async function EditFirmPage({ params, searchParams }: PageProps<"
         devices={withState(devices, shop?.contentVersion ?? 1)}
         showroomUrl={`${siteUrl().replace(/^https?:\/\//, "")}/showroom`}
         canRemove={can(user.role, "sil")}
+        hasPin={hasPin}
       />
       <ShopProducts
         firmId={firm.id}
