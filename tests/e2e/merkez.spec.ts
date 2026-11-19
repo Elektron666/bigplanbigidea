@@ -409,7 +409,7 @@ test.describe("merkez panel: toplu işlem, kademeli yayın, genel bakış", () =
     await expect(overview).toContainText("Ekranlar");
     await expect(overview).toContainText("Bu ay teklif");
     await expect(overview).toContainText("Yapay zekâ gideri (bu ay)");
-    await expect(overview).toContainText("Sağlayıcı bağlı değil");
+    await expect(overview).toContainText(/Sağlayıcı bağlı değil|Deneme sağlayıcısı: hiçbir hizmet çağrılmıyor/);
     await expect(overview).toContainText("Bu ay vadesi gelen bakım");
     const attention = page.getByRole("region", { name: "Dikkat isteyenler" });
     await expect(attention.getByRole("listitem").filter({ hasText: `Kademe A ${tag}` })).toContainText("Bakım vadesi geçti");

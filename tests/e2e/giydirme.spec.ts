@@ -144,4 +144,52 @@ test.describe("fotoğraftan dene", () => {
     await expect.poll(async () => (await screen.request.get(`/api/giydirme/dosya?kod=${code}&ad=foto`)).status(), { timeout: 15_000 }).toBe(404);
     await ctx.close();
   });
+
+  test("giydirme testi: 20 koltuk toplu çalışır; 16'sı gösterilebilir işaretlenince şart sağlanır; oran, süre ve maliyet üstte", async ({ page }) => {
+    test.setTimeout(240_000);
+    await login(page);
+    await page.goto("/panel/giydirme");
+    await expect(page.getByText("Sağlayıcı: Deneme sağlayıcı (gerçek değil)")).toBeVisible();
+    await page.getByRole("link", { name: "Giydirme testi" }).click();
+    const tag = Date.now().toString(36);
+    await page.getByLabel("Koşunun adı").fill(`Pilot öncesi ${tag}`);
+    await page.getByRole("checkbox", { name: /^MISSO-05 · / }).check();
+    await page.getByRole("button", { name: "Koşuyu oluştur" }).click();
+    await expect(page.getByRole("heading", { name: `Pilot öncesi ${tag}` })).toBeVisible();
+
+    // twenty sofa photos at once
+    const files = await Promise.all(Array.from({ length: 20 }, async (_, i) => ({ name: `koltuk-${i + 1}.jpg`, mimeType: "image/jpeg", buffer: await sofaPhoto() })));
+    await page.getByLabel("Fotoğraf ekle").setInputFiles(files);
+    await expect(page.getByText("Fotoğraf ekle (20 koltuk)")).toBeVisible({ timeout: 60_000 });
+    const started = Date.now();
+    await page.getByRole("button", { name: "Çalıştır (20 görsel)" }).click();
+    await expect(page.getByRole("button", { name: "Hepsi yapıldı" })).toBeVisible({ timeout: 120_000 });
+    console.log(`TEST 20 görsel: ${((Date.now() - started) / 1000).toFixed(1)} sn (sahte sağlayıcı, 4'er 4'er)`);
+    const summary = page.getByTestId("test-ozet");
+    await expect(summary).toContainText("20/20 görsel yapıldı");
+    await expect(summary).toContainText("en az 20 koltuk işaretlenince karar çıkar");
+
+    // ORMEN judges: 16 showable, 4 not; a note on one
+    const results = page.getByTestId("test-sonuc");
+    await expect(results).toHaveCount(20);
+    for (let i = 0; i < 20; i++) {
+      const r = results.nth(i);
+      await r.getByRole("button", { name: i < 16 ? "Gösterilebilir" : "Gösterilemez" }).click();
+      await expect(r.getByRole("button", { name: i < 16 ? "Gösterilebilir" : "Gösterilemez" })).toHaveAttribute("aria-pressed", "true");
+    }
+    await results.nth(19).getByLabel("MISSO-05 notu").fill("Desen ölçeği büyük kalmış");
+    await results.nth(19).getByLabel("MISSO-05 notu").blur();
+    await expect(summary).toContainText("%80");
+    await expect(summary).toContainText("16 / 20");
+    await expect(summary).toContainText("şart sağlandı (en az 16/20)");
+    await expect(summary).toContainText("Toplam maliyet");
+    await page.reload();
+    await expect(page.getByTestId("test-sonuc").nth(19).getByLabel("MISSO-05 notu")).toHaveValue("Desen ölçeği büyük kalmış");
+    // one less showable: the gate is not met
+    await page.getByTestId("test-sonuc").nth(0).getByRole("button", { name: "Gösterilemez" }).click();
+    await expect(page.getByTestId("test-ozet")).toContainText("şart sağlanmadı (en az 16/20)");
+    // the run in the list
+    await page.goto("/panel/giydirme/test");
+    await expect(page.getByRole("list", { name: "Koşular" })).toContainText(`Pilot öncesi ${tag}`);
+  });
 });

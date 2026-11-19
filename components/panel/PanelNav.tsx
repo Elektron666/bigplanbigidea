@@ -13,6 +13,7 @@ const LINKS = [
   ["/panel/talepler", "Talepler"],
   ["/panel/siparisler", "Siparişler"],
   ["/panel/rapor", "Rapor"],
+  ["/panel/giydirme", "Fotoğraftan dene"],
   ["/panel/geri-bildirim", "Fikirler"],
   ["/panel/gunluk", "Günlük"],
   ["/panel/durum", "Kurulum"],
@@ -23,7 +24,7 @@ export function PanelNav() {
   const path = usePathname();
   return (
     // on a phone the links scroll sideways instead of squeezing on top of each other
-    <nav aria-label="Panel" className="order-last -mx-1 flex w-full gap-1 overflow-x-auto px-1 [scrollbar-width:none] md:order-none md:w-auto">
+    <nav aria-label="Panel" className="order-last -mx-1 flex w-full gap-1 overflow-x-auto px-1 [scrollbar-width:none] md:order-none md:flex-1 md:flex-wrap md:overflow-visible">
       {LINKS.map(([href, label]) => {
         const active = path.startsWith(href);
         return (

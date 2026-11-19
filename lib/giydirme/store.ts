@@ -2,6 +2,7 @@ import "server-only";
 import { randomBytes } from "node:crypto";
 import { supabaseEnabled } from "@/lib/supabase/config";
 import { serviceClient } from "@/lib/supabase/server";
+import type { ItemStatus, TestItem, Verdict } from "./test-tezgahi";
 
 // The photo try-on's own records (job 5): sessions with their one-time code,
 // every provider call (quota and cost), the photos a shop kept. Memory or
@@ -70,6 +71,23 @@ export interface GiydirmeStore {
 
   addFirmPhoto(firmId: string, path: string): Promise<{ id: string }>;
   listFirmPhotos(firmId: string): Promise<{ id: string; path: string; createdAt: string }[]>;
+
+  // the panel's test bench
+  createRun(name: string, provider: string, fabricCodes: string[]): Promise<{ id: string }>;
+  addItems(runId: string, items: { photoPath: string; fabricCode: string }[]): Promise<void>;
+  listRuns(): Promise<TestRun[]>;
+  getRun(id: string): Promise<TestRun | null>;
+  updateItem(id: string, patch: { status: ItemStatus; resultPath?: string | null; ms?: number | null; costUsd?: number | null; error?: string | null }): Promise<void>;
+  setVerdict(id: string, verdict: Verdict | null, note: string | null): Promise<boolean>;
+}
+
+export interface TestRun {
+  id: string;
+  name: string;
+  createdAt: string;
+  provider: string;
+  fabricCodes: string[];
+  items: TestItem[];
 }
 
 function summarise(rows: (CallRow & { at: string })[]): UsageRow[] {
@@ -147,6 +165,39 @@ class MemoryGiydirme implements GiydirmeStore {
   async listFirmPhotos(firmId: string) {
     return this.photos.filter((p) => p.firmId === firmId).map(({ id, path, createdAt }) => ({ id, path, createdAt }));
   }
+
+  private runs: TestRun[] = [];
+  async createRun(name: string, provider: string, fabricCodes: string[]) {
+    const run: TestRun = { id: crypto.randomUUID(), name, createdAt: new Date().toISOString(), provider, fabricCodes: [...fabricCodes], items: [] };
+    this.runs.unshift(run);
+    return { id: run.id };
+  }
+  async addItems(runId: string, items: { photoPath: string; fabricCode: string }[]) {
+    const run = this.runs.find((r) => r.id === runId);
+    if (!run) return;
+    for (const i of items) run.items.push({ id: crypto.randomUUID(), photoPath: i.photoPath, fabricCode: i.fabricCode, resultPath: null, status: "bekliyor", ms: null, costUsd: null, error: null, verdict: null, note: null });
+  }
+  async listRuns() {
+    return structuredClone(this.runs);
+  }
+  async getRun(id: string) {
+    const r = this.runs.find((x) => x.id === id);
+    return r ? structuredClone(r) : null;
+  }
+  private item(id: string) {
+    for (const r of this.runs) for (const i of r.items) if (i.id === id) return i;
+    return null;
+  }
+  async updateItem(id: string, patch: { status: ItemStatus; resultPath?: string | null; ms?: number | null; costUsd?: number | null; error?: string | null }) {
+    const i = this.item(id);
+    if (i) Object.assign(i, patch);
+  }
+  async setVerdict(id: string, verdict: Verdict | null, note: string | null) {
+    const i = this.item(id);
+    if (!i) return false;
+    Object.assign(i, { verdict, note });
+    return true;
+  }
 }
 
 // ------------------------------------------------------------------ Supabase
@@ -216,6 +267,47 @@ class SupabaseGiydirme implements GiydirmeStore {
   }
   async addFirmPhoto(firmId: string, path: string) {
     return check(await this.db.from("firm_photos").insert({ firm_id: firmId, path }).select("id").single()) as { id: string };
+  }
+  async createRun(name: string, provider: string, fabricCodes: string[]) {
+    return check(await this.db.from("ai_test_runs").insert({ name, provider, fabric_codes: fabricCodes }).select("id").single()) as { id: string };
+  }
+  async addItems(runId: string, items: { photoPath: string; fabricCode: string }[]) {
+    if (items.length) check(await this.db.from("ai_test_items").insert(items.map((i) => ({ run_id: runId, photo_path: i.photoPath, fabric_code: i.fabricCode }))));
+  }
+  private async runsWhere(id?: string): Promise<TestRun[]> {
+    let q = this.db.from("ai_test_runs").select("*, ai_test_items(*)").order("created_at", { ascending: false }).limit(50);
+    if (id) q = q.eq("id", id);
+    type ItemRow = { id: string; photo_path: string; fabric_code: string; result_path: string | null; status: ItemStatus; ms: number | null; cost_usd: number | string | null; error: string | null; verdict: Verdict | null; note: string | null };
+    const rows = check(await q) as { id: string; name: string; created_at: string; provider: string; fabric_codes: string[]; ai_test_items: ItemRow[] }[];
+    return rows.map((r) => ({
+      id: r.id,
+      name: r.name,
+      createdAt: r.created_at,
+      provider: r.provider,
+      fabricCodes: r.fabric_codes,
+      items: r.ai_test_items
+        .map((i) => ({ id: i.id, photoPath: i.photo_path, fabricCode: i.fabric_code, resultPath: i.result_path, status: i.status, ms: i.ms, costUsd: i.cost_usd === null ? null : Number(i.cost_usd), error: i.error, verdict: i.verdict, note: i.note }))
+        .sort((a, b) => a.photoPath.localeCompare(b.photoPath) || a.fabricCode.localeCompare(b.fabricCode)),
+    }));
+  }
+  async listRuns() {
+    return this.runsWhere();
+  }
+  async getRun(id: string) {
+    if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
+    return (await this.runsWhere(id))[0] ?? null;
+  }
+  async updateItem(id: string, patch: { status: ItemStatus; resultPath?: string | null; ms?: number | null; costUsd?: number | null; error?: string | null }) {
+    check(
+      await this.db
+        .from("ai_test_items")
+        .update({ status: patch.status, ...(patch.resultPath !== undefined ? { result_path: patch.resultPath } : {}), ...(patch.ms !== undefined ? { ms: patch.ms } : {}), ...(patch.costUsd !== undefined ? { cost_usd: patch.costUsd } : {}), ...(patch.error !== undefined ? { error: patch.error?.slice(0, 300) ?? null } : {}) })
+        .eq("id", id),
+    );
+  }
+  async setVerdict(id: string, verdict: Verdict | null, note: string | null) {
+    const rows = check(await this.db.from("ai_test_items").update({ verdict, note }).eq("id", id).select("id")) as unknown[];
+    return rows.length > 0;
   }
   async listFirmPhotos(firmId: string) {
     const rows = check(await this.db.from("firm_photos").select("id, path, created_at").eq("firm_id", firmId).order("created_at", { ascending: false }).limit(50)) as { id: string; path: string; created_at: string }[];

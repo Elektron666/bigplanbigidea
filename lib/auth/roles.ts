@@ -32,6 +32,8 @@ export const PERMISSIONS = [
   "uye",
   /** undoing a change from the change log */
   "geri-al",
+  /** running what a paid service bills for (the photo try-on test bench) */
+  "maliyet",
 ] as const;
 export type Permission = (typeof PERMISSIONS)[number];
 

@@ -10,7 +10,7 @@ describe("panel roles", () => {
   it("gives ORMEN elemanı setup and content, but no price, subscription or delete", () => {
     expect(can("staff", "icerik")).toBe(true);
     expect(can("staff", "kurulum")).toBe(true);
-    for (const p of ["fiyat", "abonelik", "sil", "ortak-yap", "magaza-gibi", "uye"] as const) expect(can("staff", p), p).toBe(false);
+    for (const p of ["fiyat", "abonelik", "sil", "ortak-yap", "magaza-gibi", "uye", "maliyet"] as const) expect(can("staff", p), p).toBe(false);
   });
 
   it("gives a shop owner nothing of the centre's", () => {

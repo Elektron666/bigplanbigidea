@@ -10,8 +10,12 @@ import { overdueCount } from "@/lib/pilot-metrics";
 import { getCentral } from "@/lib/central/store";
 import { buildOverview } from "@/lib/central/overview";
 import { can } from "@/lib/auth/roles";
+import { getGiydirme } from "@/lib/giydirme/store";
+import { getProvider } from "@/lib/giydirme/saglayici";
 
 const money = new Intl.NumberFormat("tr-TR", { style: "currency", currency: "TRY", maximumFractionDigits: 0 });
+// providers bill in US dollars; the figure is shown as billed, not converted
+const usd = new Intl.NumberFormat("tr-TR", { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export default async function PanelHome() {
   // checked here, not only in the layout: a layout check does not stop the page from rendering
@@ -24,15 +28,20 @@ export default async function PanelHome() {
   const monthStart = new Date(`${todayKey.slice(0, 7)}-01T00:00:00+03:00`);
   const central = getCentral();
   const withFees = can(user.role, "abonelik");
-  const [month, counts, beats, fees, shops] = await Promise.all([
+  const [month, counts, beats, fees, shops, aiUsage, provider] = await Promise.all([
     repo.eventReport(monthStart, now).catch(() => null),
     getQuotes().countSince(monthStart).catch(() => null),
     central.deviceBeats(),
     // never read for ORMEN elemanı
     withFees ? central.unpaidFees() : null,
     central.shopNames(),
+    // photo try-on this month (job 5): every kind, with the test bench
+    getGiydirme().usage(monthStart.toISOString()).catch(() => []),
+    getProvider(),
   ]);
-  const overview = buildOverview({ devices: beats, fees, shops }, todayKey, now.getTime());
+  const aiCost = aiUsage.reduce((s, u) => s + u.costUsd, 0);
+  const quotaFull = aiUsage.filter((u) => u.firmId && u.refused > 0).map((u) => u.firmId!);
+  const overview = buildOverview({ devices: beats, fees, shops, quotaFull }, todayKey, now.getTime());
   const [fabrics, models, firms, samples, week, feedback, orders] = await Promise.all([
     repo.listFabrics({ includeInactive: true }),
     repo.listAllModels(),
@@ -99,7 +108,12 @@ export default async function PanelHome() {
             { title: "Bu ay oturum", value: month ? String(month.sessions) : "—", note: month ? "showroom ekranı ve mağaza sayfaları" : "rapor okunamadı", href: "/panel/rapor" },
             { title: "Bu ay teklif", value: counts ? String(counts.quotes) : "—", note: "yalnızca sayı; müşteri bilgisi mağazada kalır", href: null },
             { title: "Bu ay sipariş talebi", value: counts ? String(counts.orders) : "—", note: "ORMEN'e gelen kumaş talepleri", href: "/panel/siparisler" },
-            { title: "Yapay zekâ gideri (bu ay)", value: money.format(0), note: "Sağlayıcı bağlı değil; hiçbir ücretli çağrı yapılmıyor.", href: null },
+            {
+              title: "Yapay zekâ gideri (bu ay)",
+              value: usd.format(aiCost),
+              note: !provider ? "Sağlayıcı bağlı değil; hiçbir ücretli çağrı yapılmıyor." : provider.id === "sahte" ? "Deneme sağlayıcısı: hiçbir hizmet çağrılmıyor." : `${provider.name} · ${aiUsage.reduce((s, u) => s + u.ok, 0)} görsel`,
+              href: "/panel/giydirme",
+            },
             ...(overview.fees
               ? [
                   {

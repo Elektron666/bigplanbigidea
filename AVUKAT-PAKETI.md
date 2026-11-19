@@ -51,6 +51,14 @@ Her iki sağlayıcının da standart veri işleme sözleşmesi (DPA) var. Hangis
 - **Elle silme:** Panelde her talebin yanında "Sil" var; iki adımla soruyor ve silinen kayıt geri gelmiyor. Bir kişi verisinin silinmesini isterse bu kullanılır.
 - **Yedekler:** Bugün Supabase'in ücretsiz planı kullanılıyor ve otomatik yedek yok. Ücretli plana (Pro) geçilince günlük yedek 7 gün tutulur; silinen bir talep yedeklerde en fazla bu kadar kalır.
 
+## 4a. Fotoğraftan dene (Showroom Paketi, İş 5; henüz hiçbir mağazada açık değil)
+
+- **Ne toplanıyor:** Mağazadaki showroom ekranında müşterinin kendi koltuğunun fotoğrafı (ekranın kamerasıyla ya da müşterinin telefonundan). Ad, telefon sorulmaz. Fotoğrafta kişi olabilir; ekranda ve telefon sayfasında "fotoğrafta kişi bulunmamasına dikkat ediyorum" yazıyor.
+- **Onay:** Fotoğraf gönderilmeden önce işaretlenmesi zorunlu kutu. Telefondaki cümle: "Fotoğrafın yalnızca bu deneme için kullanılacağını, kumaş görseli hazırlamak için bir yapay zekâ hizmetine (yurt dışında olabilir) gönderileceğini ve mağazadaki oturum bitince silineceğini biliyorum. Fotoğrafta kişi bulunmamasına dikkat ediyorum." Ekranda satıcı için benzeri var.
+- **Yurt dışı aktarım:** Fotoğraf, görseli üretecek sağlayıcıya (henüz seçilmedi; adaylar ABD ve AB merkezli) gönderilir. Sağlayıcı seçilince onun veri işleme koşulları (fotoğrafı eğitimde kullanıyor mu, ne kadar saklıyor) avukata iletilecek.
+- **Saklama:** Fotoğraf ve üretilen görseller özel bir depoda (herkese kapalı) tutulur; fotoğrafın konum ve kamera bilgisi yüklenirken silinir. Ziyaret bitince (ekran vitrin döngüsüne dönünce) sunucudan silinir; ekran kapanırsa en geç iki saat sonra, günlük temizlikte silinir. Mağaza "ürün fotoğrafı olarak sakla" derse fotoğraf mağazanın kendi ürün fotoğrafı olarak kalır; bu seçenek yalnızca mağazanın kendi ürünü için, müşteri fotoğrafı için değil (ekranda böyle yazıyor).
+- **Avukattan:** onay cümlesinin son hâli; sağlayıcı seçilince yurt dışı aktarımın dayanağı; "ürün fotoğrafı olarak sakla" seçeneğinin yeterince açık olup olmadığı.
+
 ## 5. Avukattan beklenenler
 
 1. **Aydınlatma metninin son hâli** (`/kvkk` sayfası). Taslak sitede; köşeli parantezli iki yer boş:

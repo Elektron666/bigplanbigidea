@@ -33,6 +33,35 @@ async function fabricPicture(f: Fabric, origin: string): Promise<Uint8Array> {
   return new Uint8Array(await res.arrayBuffer());
 }
 
+/**
+ * One picture: the provider call within the time limit, the label burnt in.
+ * Writes nothing: the caller stores the picture and logs the call.
+ */
+export async function makeOne(o: {
+  provider: GiydirmeProvider;
+  photo: Uint8Array;
+  fabric: Fabric;
+  origin: string;
+  timeoutMs?: number;
+  loadSwatch?: (f: Fabric) => Promise<Uint8Array>;
+}): Promise<{ status: Exclude<CallStatus, "kota">; jpeg?: Uint8Array; ms: number; costUsd: number | null; error?: string; detail?: string }> {
+  const started = Date.now();
+  const ac = new AbortController();
+  const timer = setTimeout(() => ac.abort(), o.timeoutMs ?? TIMEOUT_MS);
+  try {
+    const swatch = await (o.loadSwatch ?? ((x: Fabric) => fabricPicture(x, o.origin)))(o.fabric);
+    const out = await o.provider.generate({ photo: o.photo, fabricImage: swatch, instruction: instruction(fabricBrief(o.fabric)), signal: ac.signal });
+    if (ac.signal.aborted) throw new DOMException("zaman aşımı", "AbortError");
+    const labelled = await burnLabel(out.image);
+    return { status: "basarili", jpeg: labelled.jpeg, ms: Date.now() - started, costUsd: out.costUsd ?? o.provider.costPerImageUsd };
+  } catch (e) {
+    const late = ac.signal.aborted || (e instanceof DOMException && e.name === "AbortError");
+    return { status: late ? "zaman-asimi" : "basarisiz", ms: Date.now() - started, costUsd: null, error: late ? LATE : FAIL, detail: e instanceof Error ? e.message : String(e) };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export async function makeTries(opts: {
   kind: CallRow["kind"];
   session: PhotoSession;
@@ -61,27 +90,11 @@ export async function makeTries(opts: {
   const files = privateFiles();
   const results = await Promise.all(
     opts.fabrics.map(async (f): Promise<TryResult> => {
-      const started = Date.now();
-      const ac = new AbortController();
-      const timer = setTimeout(() => ac.abort(), opts.timeoutMs ?? TIMEOUT_MS);
-      const log = (status: CallStatus, costUsd: number | null, error?: string) =>
-        store.logCall({ kind: opts.kind, firmId: session.firmId, deviceId: session.deviceId, provider: provider.id, fabricCode: f.code, ms: Date.now() - started, costUsd, status, error });
-      try {
-        const swatch = await (opts.loadSwatch ?? ((x: Fabric) => fabricPicture(x, opts.origin)))(f);
-        const out = await provider.generate({ photo: opts.photo, fabricImage: swatch, instruction: instruction(fabricBrief(f)), signal: ac.signal });
-        if (ac.signal.aborted) throw new DOMException("zaman aşımı", "AbortError");
-        const labelled = await burnLabel(out.image);
-        const file = `sonuc-${f.code}`;
-        await files.put(`oturum/${session.code}/${file}.jpg`, labelled.jpeg);
-        await log("basarili", out.costUsd ?? provider.costPerImageUsd);
-        return { fabricCode: f.code, status: "basarili", file, ms: Date.now() - started };
-      } catch (e) {
-        const late = ac.signal.aborted || (e instanceof DOMException && e.name === "AbortError");
-        await log(late ? "zaman-asimi" : "basarisiz", null, e instanceof Error ? e.message : String(e));
-        return { fabricCode: f.code, status: late ? "zaman-asimi" : "basarisiz", ms: Date.now() - started, error: late ? LATE : FAIL };
-      } finally {
-        clearTimeout(timer);
-      }
+      const one = await makeOne({ provider, photo: opts.photo, fabric: f, origin: opts.origin, timeoutMs: opts.timeoutMs, loadSwatch: opts.loadSwatch });
+      const file = `sonuc-${f.code}`;
+      if (one.jpeg) await files.put(`oturum/${session.code}/${file}.jpg`, one.jpeg);
+      await store.logCall({ kind: opts.kind, firmId: session.firmId, deviceId: session.deviceId, provider: provider.id, fabricCode: f.code, ms: one.ms, costUsd: one.costUsd, status: one.status, error: one.detail });
+      return one.status === "basarili" ? { fabricCode: f.code, status: one.status, file, ms: one.ms } : { fabricCode: f.code, status: one.status, ms: one.ms, error: one.error };
     }),
   );
   return { ok: true, results };

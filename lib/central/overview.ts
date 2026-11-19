@@ -42,7 +42,7 @@ export function monthEnd(today: string): string {
 }
 
 export function buildOverview(
-  input: { devices: DeviceBeat[]; fees: UnpaidFee[] | null; shops: { id: string; name: string; status: string }[] },
+  input: { devices: DeviceBeat[]; fees: UnpaidFee[] | null; shops: { id: string; name: string; status: string }[]; quotaFull?: string[] },
   today: string,
   now = Date.now(),
 ): Overview {
@@ -83,12 +83,15 @@ export function buildOverview(
     };
     for (const f of input.fees) if (f.dueOn < today) add(f.firmId, "vade");
   }
+  // photo try-ons refused this month because the quota was used (job 5)
+  for (const id of input.quotaFull ?? []) add(id, "kota");
 
   const words = (r: Map<string, number>): string[] => {
     const out: string[] = [];
     if (r.has("hata")) out.push(`${r.get("hata")} ekranda eşitleme hatası`);
     if (r.has("stale")) out.push(`${r.get("stale")} ekran ${STALE_DAYS} gündür kullanılmıyor`);
     if (r.has("vade")) out.push("Bakım vadesi geçti");
+    if (r.has("kota")) out.push("Fotoğraf denemesi kotası doldu");
     return out;
   };
   const attention = [...reasons]

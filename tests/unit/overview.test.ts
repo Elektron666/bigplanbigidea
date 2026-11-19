@@ -58,6 +58,11 @@ describe("overview", () => {
     expect(o.fees).toEqual({ dueThisMonth: 2, amount: 2500, withoutAmount: 1, overdue: 1 });
   });
 
+  it("lists a shop whose photo try-on quota ran out this month", () => {
+    const o = buildOverview({ devices: [], fees: null, shops, quotaFull: ["b", "bilinmeyen"] }, "2026-11-18", now);
+    expect(o.attention).toEqual([{ firmId: "b", name: "Bora Koltuk", reasons: ["Fotoğraf denemesi kotası doldu"] }]);
+  });
+
   it("knows the month's last day", () => {
     expect(monthEnd("2026-11-18")).toBe("2026-11-30");
     expect(monthEnd("2028-02-03")).toBe("2028-02-29");
