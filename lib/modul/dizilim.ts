@@ -44,6 +44,23 @@ export interface Module {
   metres?: ModuleMetres;
   /** Uploaded module (job 4, second part); the sample set is drawn from code. */
   glbUrl?: string;
+  /**
+   * Where the neighbours join, in the GLB's own coordinates (cm, seen from
+   * above: x across, z front to back, the model facing +z). Left joint and
+   * right joint: for a straight module its back-left and back-right corners,
+   * for a corner its front-left (wall side) and back-right corners. Missing:
+   * taken from the model's box.
+   */
+  joints?: Joints;
+}
+
+export interface Point {
+  x: number;
+  z: number;
+}
+export interface Joints {
+  sol: Point;
+  sag: Point;
 }
 
 export interface ModuleSet {
@@ -244,6 +261,45 @@ export function decodeArrangement(raw: string | null | undefined): { setSlug: st
   const m = /^([a-z0-9-]{2,60}):([a-z0-9-]{1,40}(?:\.[a-z0-9-]{1,40}){0,15})(~a)?$/.exec(raw ?? "");
   if (!m) return null;
   return { setSlug: m[1], arrangement: { ids: m[2].split("."), mirrored: !!m[3] } };
+}
+
+/** Each placed module's joints on the floor (cm, unmirrored; the back wall at z = 0), for the 3D. */
+export interface JointTarget {
+  index: number;
+  module: Module;
+  corner: boolean;
+  target: Joints;
+}
+
+/**
+ * Where each module's left and right joints go. Straight modules on the back
+ * run face forward, on the left return they face right (their left joint at
+ * the front), on the right return left; a corner joins its left neighbour at
+ * its front-left and its right neighbour at its back-right (the second corner
+ * of a U is the same, turned). Unmirrored: a mirrored set is drawn mirrored as a whole.
+ */
+export function jointTargets(set: ModuleSet, a: Arrangement): JointTarget[] {
+  const seq = placed(set, a);
+  const rects = layoutRects(set, { ...a, mirrored: false });
+  const corners = seq.flatMap((x, i) => (x.type === "kose" ? [i] : []));
+  const c0 = corners[0] ?? -1;
+  const c1 = corners.length === 2 ? corners[1] : -1;
+  return rects
+    .sort((p, q) => p.index - q.index)
+    .map((r) => {
+      const mod = seq[r.index].module;
+      let target: Joints;
+      if (r.type === "kose") {
+        target = r.index === c0 ? { sol: { x: r.x, z: r.d }, sag: { x: r.x + r.w, z: 0 } } : { sol: { x: r.x, z: 0 }, sag: { x: r.x + r.w, z: r.d } };
+      } else if (c0 >= 0 && r.index < c0) {
+        // left return: back to the left wall, the left joint at the front
+        target = { sol: { x: r.x, z: r.z + r.d }, sag: { x: r.x, z: r.z } };
+      } else if (c1 >= 0 && r.index > c1) {
+        // right return: back to the right wall, the left joint by the corner
+        target = { sol: { x: r.x + r.w, z: r.z }, sag: { x: r.x + r.w, z: r.z + r.d } };
+      } else target = { sol: { x: r.x, z: r.z }, sag: { x: r.x + r.w, z: r.z } };
+      return { index: r.index, module: mod, corner: r.type === "kose", target };
+    });
 }
 
 /** One module on the floor seen from above, cm; x grows to the right, z towards the front, the back wall at z = 0. */

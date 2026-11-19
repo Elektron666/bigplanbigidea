@@ -12,6 +12,8 @@
 import { PDFDocument, rgb, type PDFFont, type PDFImage, type PDFPage } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
 
+import type { SetDiagram } from "@/lib/types";
+
 export interface PdfImage {
   bytes: Uint8Array;
   type: "png" | "jpg";
@@ -41,6 +43,8 @@ export interface QuotePdfData {
   note?: string | null;
   price?: number | null;
   snapshot?: PdfImage | null;
+  /** A corner set's top view (job 4): drawn to scale with its lengths. */
+  diagram?: (SetDiagram & { title: string }) | null;
   rows: QuotePdfRow[];
   totals: QuotePdfTotal[];
   wasteMissing: boolean;
@@ -61,6 +65,8 @@ const SOFT = rgb(0.42, 0.41, 0.39);
 const LINE = rgb(0.85, 0.83, 0.8);
 
 const A4 = { w: 595.28, h: 841.89 };
+/** The top view's height at full type scale, points. */
+const DIAGRAM_H = 110;
 const M = 40;
 
 const nfM = new Intl.NumberFormat("tr-TR", { maximumFractionDigits: 2 });
@@ -163,6 +169,7 @@ export async function buildQuotePdf(d: QuotePdfData, fonts: PdfFonts): Promise<U
     if (d.wasteMissing) h += line(10);
     if (d.price) h += line(11);
     if (d.note) h += line(9) * Math.min(4, Math.ceil(d.note.length / 90)) + 4;
+    if (d.diagram) h += DIAGRAM_H * s + line(9.5) + 26;
     return h + 40; // footer
   };
   const usable = A4.h - 2 * M;
@@ -215,6 +222,29 @@ export async function buildQuotePdf(d: QuotePdfData, fonts: PdfFonts): Promise<U
     const w = Math.min(width, (shot.width / shot.height) * h);
     page.drawImage(shot, { x: M + (width - w) / 2, y: y - h, width: w, height: h });
     y -= h + 14;
+  }
+
+  // the corner set from above, to scale, with its lengths (as on the builder's screen)
+  if (d.diagram) {
+    const g = d.diagram;
+    y -= 6;
+    bold.draw(page, bold.fit(`${g.title} · üstten şema`, size(9.5), width), M, y, size(9.5), SOFT);
+    y -= lh(9.5) + 12;
+    const boxH = DIAGRAM_H * s;
+    const k = Math.min((width - 60) / g.widthCm, boxH / Math.max(g.depthCm, 1));
+    const x0 = M + (width - g.widthCm * k) / 2;
+    const top = y;
+    for (const r of g.rects) {
+      page.drawRectangle({ x: x0 + r.x * k, y: top - (r.z + r.d) * k, width: r.w * k, height: r.d * k, color: r.corner ? rgb(0.9, 0.86, 0.8) : rgb(0.94, 0.91, 0.87), borderColor: SOFT, borderWidth: 0.6 });
+      const label = reg.fit(r.label, size(7), Math.max(10, Math.min(r.w, r.d) * k - 4));
+      if (Math.min(r.w, r.d) * k > 22) reg.draw(page, label, x0 + (r.x + r.w / 2) * k - reg.width(label, size(7)) / 2, top - (r.z + r.d / 2) * k - size(7) / 3, size(7), SOFT);
+    }
+    const cm = (n: number) => `${Math.round(n)} cm`;
+    const back = cm(g.backCm);
+    reg.draw(page, back, x0 + (g.widthCm * k) / 2 - reg.width(back, size(8.5)) / 2, top + 3, size(8.5));
+    if (g.leftCm > 0) reg.draw(page, `Sol ${cm(g.leftCm)}`, x0 - reg.width(`Sol ${cm(g.leftCm)}`, size(8.5)) - 6, top - (g.leftCm * k) / 2, size(8.5));
+    if (g.rightCm > 0) reg.draw(page, `Sağ ${cm(g.rightCm)}`, x0 + g.widthCm * k + 6, top - (g.rightCm * k) / 2, size(8.5));
+    y = top - g.depthCm * k - 14;
   }
 
   // parts, fabrics, metres

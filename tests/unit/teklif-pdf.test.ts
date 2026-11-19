@@ -96,3 +96,21 @@ describe.skipIf(!POPPLER)("quote PDF", () => {
     expect(pages).toBe(1);
   });
 });
+
+describe.skipIf(!POPPLER)("the quote PDF with a corner set's top view (job 4)", () => {
+  it("draws the set to scale with its lengths, still on one page, even with a long quote", async () => {
+    const { builtModel } = await import("@/lib/modul/model");
+    const { ORNEK_GLB_SET } = await import("@/lib/modul/ornek-glb-set");
+    const r = builtModel(ORNEK_GLB_SET, { ids: ["kol-sol", "tekli", "kose", "tekli", "tekli", "kose", "tekli", "kol-sag"], mirrored: false });
+    if (!r.ok || !r.model.diagram) throw new Error("kurulmadı");
+    const many = Array.from({ length: 12 }, (_, i) => ({ piece: `Takım ${i + 1}`, part: "Kasa", fabricCode: "SIENA-04", metres: 4 }));
+    const { text, pages } = read(await buildQuotePdf({ ...base, rows: [...base.rows, ...many], diagram: { ...r.model.diagram, title: r.model.name } }, fonts));
+    expect(pages).toBe(1);
+    expect(text).toContain("Köşe takımı · Deneme GLB seti · üstten şema");
+    // U set: back 100 + 2 × 70 + 100 = 340; both returns 100 + 70 + 22 = 192
+    expect(text).toContain("340 cm");
+    expect(text).toContain("Sol 192 cm");
+    expect(text).toContain("Sağ 192 cm");
+    expect(text).toContain("Oturum 70");
+  });
+});

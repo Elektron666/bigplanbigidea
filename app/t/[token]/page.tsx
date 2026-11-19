@@ -38,6 +38,10 @@ export default async function QuotePage({ params }: PageProps<"/t/[token]">) {
     customerName: quote.customerName,
     note: quote.note,
     price: quote.price,
+    diagram: (() => {
+      const p = c.pieces.find((x) => x.diagram);
+      return p?.diagram ? { ...p.diagram, title: p.modelName } : null;
+    })(),
     rows: c.rows.map((r) => ({ piece: r.piece, part: r.part, fabricCode: r.fabricCode, metres: r.metres })),
     totals: c.totals.map((t) => ({ code: t.code, colorName: t.colorName, series: t.series, total: t.total, explanation: t.explanation, reasons: t.reasons })),
     wasteMissing: quote.wasteMissing,

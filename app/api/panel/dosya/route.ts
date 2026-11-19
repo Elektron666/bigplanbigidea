@@ -9,7 +9,7 @@ import { serviceClient } from "@/lib/supabase/server";
 //    files (GLB) go straight to Supabase Storage without passing through here.
 //  - POST ?path=…  (raw body) → demo mode: stored in memory.
 
-const SAFE_PATH = /^(kumaslar|modeller|logolar)\/[a-z0-9._/-]{3,160}$/;
+const SAFE_PATH = /^(kumaslar|modeller|moduller|logolar)\/[a-z0-9._/-]{3,160}$/;
 /** Allowed folder, allowed characters, and no "." / ".." segments or empty segments. */
 const safePath = (p: string) => SAFE_PATH.test(p) && p.split("/").every((seg) => seg !== "" && seg !== "." && seg !== "..");
 const TYPES = new Set(["image/webp", "image/jpeg", "image/png", "model/gltf-binary", "application/octet-stream"]);

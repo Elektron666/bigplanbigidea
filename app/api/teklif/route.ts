@@ -5,6 +5,7 @@ import { allow, callerKey } from "@/lib/rate-limit";
 import { buildQuote, parseQuoteRequest } from "@/lib/teklif/request";
 import { getQuotes } from "@/lib/teklif/store";
 import { withBuiltSet } from "@/lib/modul/model";
+import { pageSets } from "@/lib/modul/store";
 import { featureOn } from "@/lib/central/features";
 
 // A quote from the configurator (Showroom package, job 3), and with
@@ -41,7 +42,7 @@ export async function POST(request: Request) {
   if (!catalogue) return NextResponse.json({ error: "Sayfa bulunamadı." }, { status: 404 });
   const quotes = getQuotes();
   // a corner set built on the screen is built again here, from the module set's own sizes and metres
-  const withSet = { ...catalogue, models: withBuiltSet(catalogue.models, q.pieces.find((p) => p.kurulum)?.kurulum) };
+  const withSet = { ...catalogue, models: withBuiltSet(catalogue.models, q.pieces.find((p) => p.kurulum)?.kurulum, await pageSets(firm?.id)) };
   const built = buildQuote(q.pieces, withSet, await quotes.getWaste());
   if (!built.ok) return NextResponse.json({ error: built.error }, { status: 422 });
   if (q.order && built.totals.length === 0) return NextResponse.json({ error: "Sipariş için en az bir kumaşın metrajı hesaplanmış olmalı." }, { status: 422 });

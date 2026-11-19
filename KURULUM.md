@@ -2,7 +2,7 @@
 
 Yeni bir mağazaya ORMEN Atelier ekranını kurma adımları. Her adımın yanında yaklaşık süresi var. Hepsi tarayıcıdan ve ekranın kendisinden yapılır; kod bilgisi gerekmez.
 
-> **Durum (18 Kasım 2026):** Bu belge Showroom Paketi yazıldıkça büyüyor. Bugün çalışan adımlar aşağıda. Henüz yazılmamış olanlar en altta, "Sonra gelecek" başlığında listeli. Bir adımın ayrıntısı ve gerekçesi `KARARLAR.md`'de.
+> **Durum (19 Kasım 2026):** Bu belge Showroom Paketi yazıldıkça büyüyor. Bugün çalışan adımlar aşağıda. Henüz yazılmamış olanlar en altta, "Sonra gelecek" başlığında listeli. Bir adımın ayrıntısı ve gerekçesi `KARARLAR.md`'de.
 
 ## Gerekenler
 
@@ -107,11 +107,17 @@ Kamera izni verilmezse ya da ekranın kamerası yoksa **Kartela okut** düğmesi
 
 **Yeni bir özelliği önce birkaç mağazada denemek (kademeli yayın):** Deneme mağazalarına toplu işlemle bir etiket verin (örn. `pilot`) ya da durumlarını **Pilot** yapın. Listeyi o etiketle süzün → hepsini seçin → özelliği açın. Birkaç gün sorun çıkmazsa süzgeci temizleyin → hepsini seçin → aynı işlemi uygulayın.
 
+**Ekran yavaşsa (kalite profili):** Mağazanın sayfası → **Cihazlar** → ekranın **Kalite** seçimi: **Kendisi seçsin** (varsayılan), **Hafif** ya da **Tam**. Ekran birkaç dakika içinde yeniden açılıp bu profile geçer.
+
+**Köşe modül seti eklemek (ORMEN, her koltuk serisi için bir kez):** Panel → **Modül setleri** → **Yeni set**. Setin adı; her modül için tip, ekranda görünen adı, genişlik × derinlik × yükseklik (cm), bölge metrajları (bilinmiyorsa boş) ve **Dosya seç** ile GLB. Yüklenen dosya ölçülür; "girilen ölçüden farklı" derse ölçüyü kontrol edin ya da **Ölçüleri dosyadan al** deyin. Altta seti alacak mağazaları işaretleyin → **Seti kaydet**.
+- GLB hazırlığı (modelciye iletin): birim metre; modelin önü +z yönüne baksın; kumaş alacak malzemenin adı `kumas`; minder ve kırlentin ayrı kumaş alabilmesi için parça adları `govde`, `kol`, `oturum`, `sirt-minder` ile başlasın. Köşe modülü kare olsun.
+- Modüller yan yana gelince araya boşluk giriyor ya da üst üste biniyorsa: modülün **Bağlantı noktaları** kısmına GLB'deki arka-sol ve arka-sağ köşenin (köşe modülünde ön-sol ve arka-sağ) koordinatlarını cm olarak yazın.
+
 **Mağazanın gördüğünü görmek (destek):** Mağazanın sayfası → **Mağaza gibi görüntüle**. Mağazanın paneli salt okunur açılır, müşteri adları gizlidir; 30 dakikada kapanır, açılış günlüğe yazılır. Bitince **Destek görünümünden çık**.
 
 ## Sonra gelecek
 
 Bu adımlar ilgili iş yazıldığında buraya eklenecek:
 
-- Köşe modül setinin yüklenmesi (İş 4).
-- Kalite profili (hafif / tam) panelden seçme (İş 1'in son parçası).
+- Fotoğraftan dene (İş 5): bir sağlayıcı seçilip ORMEN onay verene kadar kapalı.
+- Dalga 2 ve 3'ün işleri (İş 6–16).

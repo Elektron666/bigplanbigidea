@@ -62,6 +62,9 @@ test.describe("köşe kurucu", () => {
     await screen.getByRole("tab", { name: "Köşe kur" }).click();
     taps++;
     const b = screen.getByTestId("kose-kurucu");
+    // the shop's own set comes first; this test is on the sample set
+    await b.getByRole("radio", { name: "Örnek modül seti" }).click();
+    taps++;
     // each module button carries its size in its name: "Sol kol ekle (25 × 95 cm)"
     for (const m of ["Sol kol", "Tekli oturum", "Köşe", "Tekli oturum", "Tekli oturum", "Tekli oturum", "Sağ kol"]) {
       await b.getByRole("button", { name: new RegExp(`^${m} ekle`) }).click();
@@ -127,6 +130,66 @@ test.describe("köşe kurucu", () => {
     expect(await sceneSize(again)).toEqual(size);
     await again.getByRole("tab", { name: "Köşe kur" }).click();
     await expect(again.getByTestId("kose-olculer")).toContainText("Kapladığı alan315 cm × 185 cm");
+    await ctx.close();
+  });
+
+  test("GLB modül setiyle L köşe: her modül bağlantı noktasına oturur, sahnedeki boy ölçülerle aynı, ayna ve teklif tutar", async ({ page, browser }) => {
+    test.setTimeout(240_000);
+    await login(page);
+    await page.goto("/panel/kumaslar");
+    await page.getByRole("link", { name: /MISSO-05/ }).first().click();
+    await page.getByLabel("En (cm)").fill("140");
+    await page.getByRole("combobox", { name: /^Desen/ }).selectOption("duz");
+    await page.getByRole("combobox", { name: /^Kesim yönü/ }).selectOption("cift");
+    await page.getByRole("button", { name: "Kaydet", exact: true }).click();
+    await expect(page).toHaveURL(/kaydedildi=MISSO-05/);
+
+    const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+    const screen = await ctx.newPage();
+    await screen.goto("/f/ornek-mobilya?kiosk&k=MISSO-05");
+    await screen.getByRole("button", { name: "Başlamak için dokunun" }).click();
+    await expect.poll(() => sceneFabrics(screen), { timeout: 60_000 }).toContain("MISSO-05");
+    await screen.getByRole("tab", { name: "Köşe kur" }).click();
+    const b = screen.getByTestId("kose-kurucu");
+    // the shop's uploaded set is the first one
+    await expect(b.getByRole("radio", { name: "Deneme GLB seti" })).toHaveAttribute("aria-checked", "true");
+    await expect(b.getByText("Örnek set")).toHaveCount(0);
+    for (const m of ["Sol kol", "Oturum 70", "Köşe", "Oturum 70", "Oturum 70", "Sağ kol"]) await b.getByRole("button", { name: new RegExp(`^${m} ekle`) }).click();
+
+    // back 100 + 2 × 70 + 22 = 262; left 100 + 70 + 22 = 192
+    const sizes = b.getByTestId("kose-olculer");
+    await expect(sizes).toContainText("Arka262 cm");
+    await expect(sizes).toContainText("Sol kol192 cm");
+    await expect(sizes).toContainText("Kapladığı alan262 cm × 192 cm");
+    // on the scene: the six GLB files, each on its joints, dressed in the fabric, at the set's size
+    await expect.poll(() => sceneFabrics(screen), { timeout: 60_000 }).toEqual(["MISSO-05"]);
+    await expect.poll(async () => (await sceneSize(screen)).x, { timeout: 60_000 }).toBeGreaterThan(250);
+    const size = await sceneSize(screen);
+    console.log(`GLB takım sahnede: ${size.x} × ${size.z} cm (ölçü 262 × 192)`);
+    // the sample files are modelled to their declared sizes: the scene and the sums agree to the centimetre
+    expect(Math.abs(size.x - 262)).toBeLessThanOrEqual(1);
+    expect(Math.abs(size.z - 192)).toBeLessThanOrEqual(1);
+
+    // mirrored: the same size, the return on the right
+    await b.getByRole("button", { name: "Sağ ↔ sol çevir" }).click();
+    await expect(sizes).toContainText("Sağ kol192 cm");
+    await expect.poll(async () => sceneSize(screen), { timeout: 30_000 }).toEqual(size);
+
+    // the quote: the modules' metres, part by part (kol 2 × 0,8 · kasa 1,6 + 3 × 1,1 …)
+    await screen.getByRole("button", { name: "Metraj ve teklif" }).click();
+    const quote = screen.getByTestId("teklif");
+    for (const [part, m] of [["Kasa", "4,9 m"], ["Kollar", "1,6 m"], ["Oturak", "3,5 m"], ["Sırt", "3,3 m"]]) {
+      await expect(quote.getByRole("row", { name: new RegExp(`Köşe takımı · Deneme GLB seti · ${part} MISSO-05 ${m}`) })).toBeVisible();
+    }
+    await quote.getByRole("button", { name: "Vazgeç" }).click();
+
+    // the link opens the same set, from the same files
+    expect(new URL(screen.url()).searchParams.get("mk")).toBe("deneme-glb:kol-sol.tekli.kose.tekli.tekli.kol-sag~a");
+    const again = await ctx.newPage();
+    await again.goto(screen.url());
+    await again.getByRole("button", { name: "Başlamak için dokunun" }).click();
+    await expect.poll(async () => (await sceneSize(again)).x, { timeout: 60_000 }).toBeGreaterThan(250);
+    expect(await sceneSize(again)).toEqual(size);
     await ctx.close();
   });
 });

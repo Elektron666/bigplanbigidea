@@ -19,6 +19,9 @@ import { SHOP_STATUSES, SHOP_STATUS_LABELS, type ShopStatus } from "@/lib/centra
 import { validateShopRecord, validateSubscription, validateTemplate, type ShopRecord } from "@/lib/central/record";
 import { cleanSeries, seriesOf } from "@/lib/fabric/allowed";
 import { describeOp, MAX_BULK, parseBulkOp, parseBulkTarget, recordAfter, seriesAfter } from "@/lib/central/bulk";
+import { validateModuleSet } from "@/lib/modul/set-input";
+import { getModuleSets } from "@/lib/modul/store";
+import { STORAGE_BUCKET, SUPABASE_URL } from "@/lib/supabase/config";
 
 // Server actions of the central panel (Showroom package, job 0). Each one
 // checks the session and the role itself, then writes the change log.
@@ -477,6 +480,40 @@ export async function bulkShopAction(opRaw: unknown, targetRaw: unknown): Promis
   revalidatePath("/panel/gunluk");
   revalidatePath("/f/[slug]", "page");
   return { ok: true, changed, same: found - changed, shops: found };
+}
+
+// ------------------------------------------------------------------ module sets (job 4, second part)
+
+/** Only files we serve ourselves (uploaded in the panel, or the seed files). */
+const ownFile = (u: string) => u.startsWith("/api/dosya/") || u.startsWith("/seed/") || (!!SUPABASE_URL && u.startsWith(`${SUPABASE_URL}/storage/v1/object/public/${STORAGE_BUCKET}/`));
+
+/** Creates (no id) or saves a module set: its modules, sizes, joints, metres and the shops it is given to. */
+export async function saveModuleSetAction(id: string | null, raw: unknown): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+  const user = await getPanelUser();
+  if (!user) return { ok: false, error: "Oturum süresi doldu. Yeniden giriş yapın." };
+  if (!can(user.role, "icerik")) return { ok: false, error: DENIED };
+  const v = validateModuleSet(raw, ownFile);
+  if (!v.ok) return v;
+  const repo = getRepository();
+  // only real shops
+  const known = new Set((await repo.listFirms()).map((f) => f.id));
+  const value = { ...v.value, firmIds: v.value.firmIds.filter((f) => known.has(f)) };
+  const store = getModuleSets();
+  const before = id ? await store.getSet(String(id).slice(0, 40)) : null;
+  if (id && !before) return { ok: false, error: "Set bulunamadı." };
+  const res = await store.saveSet(value, before?.id);
+  if (!res.ok) return res;
+  await getCentral().writeAudit({
+    actor: user.email,
+    actorRole: user.role,
+    entity: "urun",
+    entityId: res.id,
+    action: before ? "modul-seti-degisti" : "modul-seti-eklendi",
+    summary: `Modül seti “${value.name}” ${before ? "güncellendi" : "eklendi"} (${value.modules.length} modül, ${value.firmIds.length} mağaza)`,
+  });
+  revalidatePath("/panel/modul-setleri");
+  revalidatePath("/f/[slug]", "page");
+  return { ok: true, id: res.id };
 }
 
 // ------------------------------------------------------------------ shop panel accounts (job 0)

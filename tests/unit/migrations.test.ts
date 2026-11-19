@@ -46,7 +46,7 @@ describe("database schema", () => {
       "select relname, relrowsecurity from pg_class where relnamespace = 'public'::regnamespace and relkind = 'r' order by relname",
     );
     expect(r.rows.map((x) => x.relname)).toEqual([
-      "audit_log", "cut_reports", "device_pairings", "devices", "events", "fabric_textures", "fabrics", "feedback", "firm_admin", "firm_fabric_off", "firm_members", "firm_models", "firm_prices", "firm_templates", "firms", "meterage_settings", "model_fabrics", "models", "order_requests", "profiles", "quote_private", "quotes", "sample_requests", "scenes", "shares", "subscriptions",
+      "audit_log", "cut_reports", "device_pairings", "devices", "events", "fabric_textures", "fabrics", "feedback", "firm_admin", "firm_fabric_off", "firm_members", "firm_models", "firm_prices", "firm_templates", "firms", "meterage_settings", "model_fabrics", "models", "module_set_firms", "module_set_modules", "module_sets", "order_requests", "profiles", "quote_private", "quotes", "sample_requests", "scenes", "shares", "subscriptions",
     ]);
     expect(r.rows.every((x) => x.relrowsecurity)).toBe(true);
   });

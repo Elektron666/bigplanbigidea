@@ -4,7 +4,8 @@ import { useEffect, useMemo, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
 import * as THREE from "three";
-import type { Fabric, FurnitureModel, ModelSource, TextureSize } from "@/lib/types";
+import type { Fabric, FurnitureModel, ModelSource, ModulePart, TextureSize } from "@/lib/types";
+import { assembleModules } from "@/lib/modul/assemble";
 import { buildCodeModel } from "@/lib/three/procedural";
 import { prepareModel, type PreparedModel } from "@/lib/three/prepare-model";
 import { FabricDresser } from "@/lib/three/fabric-dresser";
@@ -43,7 +44,8 @@ function Dressed({ source, model, fabric, zoneFabrics, legFinish, turned = false
   });
 
   useEffect(() => {
-    if (model.source.kind === "glb") return;
+    // a file's legs keep their own finish
+    if (model.source.kind === "glb" || model.source.kind === "moduller") return;
     paintLegs(prepared.root, legFinish);
     invalidate();
   }, [prepared, model.source.kind, legFinish, invalidate]);
@@ -93,7 +95,7 @@ function Dressed({ source, model, fabric, zoneFabrics, legFinish, turned = false
   return <primitive object={prepared.root} />;
 }
 
-function CodeFurniture(props: FurnitureObjectProps & { src: Exclude<ModelSource, { kind: "glb" }> }) {
+function CodeFurniture(props: FurnitureObjectProps & { src: Exclude<ModelSource, { kind: "glb" | "moduller" }> }) {
   // rebuilt only when the description changes (params are compared by value)
   const key = JSON.stringify(props.src);
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -109,8 +111,19 @@ function GlbFurniture(props: FurnitureObjectProps & { url: string }) {
   return <Dressed {...props} source={source} />;
 }
 
+/** A corner set from uploaded module GLBs (job 4), dressed as one piece (lib/modul/assemble.ts). */
+function ModuleFurniture(props: FurnitureObjectProps & { parts: ModulePart[]; mirrored: boolean }) {
+  const urls = useMemo(() => [...new Set(props.parts.map((p) => p.url))], [props.parts]);
+  const files = useGLTF(urls, "/draco/");
+  const key = JSON.stringify(props.parts) + props.mirrored;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const source = useMemo(() => assembleModules(props.parts, props.mirrored, new Map(urls.map((u, i) => [u, files[i].scene]))), [files, key]);
+  return <Dressed {...props} source={source} />;
+}
+
 export function FurnitureObject(props: FurnitureObjectProps) {
   const src = props.model.source;
-  if (src.kind !== "glb") return <CodeFurniture {...props} src={src} />;
-  return <GlbFurniture {...props} url={src.url} />;
+  if (src.kind === "glb") return <GlbFurniture {...props} url={src.url} />;
+  if (src.kind === "moduller") return <ModuleFurniture {...props} parts={src.parts} mirrored={src.mirrored} />;
+  return <CodeFurniture {...props} src={src} />;
 }

@@ -8,7 +8,7 @@
 // The quote's number and its phone link are made on the screen, so a quote
 // made offline already has them, and the same quote sent twice is one quote.
 
-import type { Fabric, FurnitureModel } from "@/lib/types";
+import type { Fabric, FurnitureModel, SetDiagram } from "@/lib/types";
 import { cleanZones, zoneFabricsOf, type ZoneCodes } from "@/lib/three/zones";
 import { codeUpper } from "@/lib/i18n/tr";
 import { quoteMetres, type WasteSettings } from "./metraj";
@@ -109,7 +109,7 @@ export function parseQuoteRequest(raw: unknown): { ok: true; value: QuoteRequest
 
 /** Stored with the quote: enough to show it again and to print it, without the catalogue. */
 export interface QuoteContent {
-  pieces: (QuotePieceInput & { modelName: string })[];
+  pieces: (QuotePieceInput & { modelName: string; diagram?: SetDiagram })[];
   rows: { piece: string; part: string; fabricCode: string; metres: number | null; withWaste: number | null; wastePercent: number | null; reason?: string }[];
   totals: { code: string; colorName: string; series: string; metres: number | null; withWaste: number | null; total: number | null; explanation: string[]; reasons: string[] }[];
   waste: WasteSettings;
@@ -137,7 +137,10 @@ export function buildQuote(
   }
   const m = quoteMetres(inputs, waste);
   const content: QuoteContent = {
-    pieces: pieces.map((p) => ({ ...p, modelName: bySlug.get(p.modelSlug)!.name })),
+    pieces: pieces.map((p) => {
+      const m = bySlug.get(p.modelSlug)!;
+      return { ...p, modelName: m.name, ...(m.diagram ? { diagram: m.diagram } : {}) };
+    }),
     rows: m.rows.map((r) => ({ piece: r.piece, part: r.part, fabricCode: r.fabric.code, metres: r.metres, withWaste: r.withWaste, wastePercent: r.wastePercent, ...(r.reason ? { reason: r.reason } : {}) })),
     totals: m.totals.map((t) => ({ code: t.fabric.code, colorName: t.fabric.colorName, series: t.fabric.series, metres: t.metres, withWaste: t.withWaste, total: t.total, explanation: t.explanation, reasons: t.reasons })),
     waste,

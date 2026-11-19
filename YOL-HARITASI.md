@@ -12,7 +12,7 @@ Görev tanımı: "ORMEN Atelier — Showroom Paketi, tam kapsam". Plan `PLAN-SHO
 | **1. Showroom modu** | ✅ Eşleştirme, kilit ve PIN, vitrin döngüsü, kalite profili, çevrimdışı çalışma, olay kaydı. Gerçek cihazda denenmedi. |
 | **2. Sihirli kartela** | ✅ QR etiket, kamerayla okuma. |
 | **3. Metraj ve teklif** | ✅ 140 cm ene göre metraj, fire, PDF, telefona teklif, ORMEN'e sipariş talebi. |
-| **4. Köşe kurucu** | 🟡 Örnek setle çalışıyor. Panelden gerçek modül seti (GLB) yükleme yazılmadı. |
+| **4. Köşe kurucu** | ✅ Örnek set ve panelden yüklenen GLB modül setleri; bağlantı noktalarıyla dizilim, ayna, ölçü, duvar uyumu, plan, teklif ve PDF'te şema. Gerçek üretici GLB'siyle ve gerçek cihazda kare hızı denenmedi. |
 | **5. Anında giydirme** | ⏳ Başlanmadı. Yalnızca altyapı yazılacak (sağlayıcısız, kapalı); ücretli sağlayıcı onay ister. |
 | **Dalga 2 (6–11), Dalga 3 (12–16)** | ⏳ Başlanmadı. |
 

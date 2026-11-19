@@ -44,7 +44,7 @@ export type Dims = { w: number; d: number; parts?: FloorRect[] | null };
 /** Layout size of a model, with its floor shape when it has one. */
 export function modelDims(model: Pick<FurnitureModel, "dimensionsCm" | "source">): Dims {
   const { w, d } = model.dimensionsCm;
-  const parts = model.source.kind === "parametric" ? paramFloorRects(model.source.params) : null;
+  const parts = model.source.kind === "parametric" ? paramFloorRects(model.source.params) : model.source.kind === "moduller" ? (model.source.floor ?? null) : null;
   return parts ? { w, d, parts } : { w, d };
 }
 

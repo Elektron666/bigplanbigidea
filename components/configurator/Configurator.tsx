@@ -83,7 +83,8 @@ export interface ConfiguratorProps {
   /** A paired shop screen: the quote can be sent to ORMEN as a fabric order request. */
   showroom?: boolean;
   /** The module set the "Köşe kur" tab builds with (job 4); none = no tab. */
-  moduleSet?: ModuleSet;
+  /** The corner set builder's module sets (job 4): the shop's own first; none = no builder. */
+  moduleSets?: ModuleSet[];
   /** "Kartela okut" on the kiosk (job 2); a shop may switch it off. */
   kartela?: boolean;
 }
@@ -117,7 +118,7 @@ export function Configurator({
   profileChoice,
   waste,
   showroom = false,
-  moduleSet,
+  moduleSets,
   kartela = true,
 }: ConfiguratorProps) {
   // ---------------------------------------------------------------- corner set builder (job 4)
@@ -125,6 +126,15 @@ export function Configurator({
   const [built, setBuilt] = useState<FurnitureModel | null>(() => catalogueModels.find((m) => m.slug === KURULUM_SLUG) ?? null);
   const models = useMemo(() => (built ? [...catalogueModels.filter((m) => m.slug !== KURULUM_SLUG), built] : catalogueModels.filter((m) => m.slug !== KURULUM_SLUG)), [catalogueModels, built]);
   const [arrangement, setArrangement] = useState<Arrangement>(() => decodeArrangement(built?.kurulum)?.arrangement ?? { ids: [], mirrored: false });
+  // the set being built from: the one in the link, else the shop's first
+  const [setSlug, setSetSlug] = useState(() => decodeArrangement(built?.kurulum)?.setSlug ?? moduleSets?.[0]?.slug);
+  const moduleSet = moduleSets?.find((s) => s.slug === setSlug) ?? moduleSets?.[0];
+  const changeSet = (slug: string) => {
+    // another set has other modules: start again
+    setSetSlug(slug);
+    setArrangement({ ids: [], mirrored: false });
+    setBuildError(null);
+  };
   const [buildError, setBuildError] = useState<string | null>(null);
   const byCode = useMemo(() => new Map(fabrics.map((f) => [f.code, f])), [fabrics]);
   const bySlug = useMemo(() => new Map(models.map((m) => [m.slug, m])), [models]);
@@ -770,7 +780,7 @@ export function Configurator({
         </div>
         {moduleSet && (
           <div id="bolum-kose" role="tabpanel" aria-labelledby="sekme-kose" hidden={tab !== "kose"}>
-            {tab === "kose" && <CornerBuilder set={moduleSet} value={arrangement} onChange={changeArrangement} error={buildError} />}
+            {tab === "kose" && <CornerBuilder sets={moduleSets ?? []} set={moduleSet} onSet={changeSet} value={arrangement} onChange={changeArrangement} error={buildError} />}
           </div>
         )}
         <div id="bolum-oda" role="tabpanel" aria-labelledby="sekme-oda" hidden={tab !== "oda"}>

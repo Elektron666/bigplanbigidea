@@ -34,11 +34,28 @@ function insert(ids: string[], typeOf: (id: string) => ModuleType | undefined, i
   return last && RIGHT.includes(typeOf(last)!) ? [...ids.slice(0, -1), id, last] : [...ids, id];
 }
 
-export function CornerBuilder({ set, value, onChange, error }: { set: ModuleSet; value: Arrangement; onChange: (a: Arrangement) => void; error?: string | null }) {
+export function CornerBuilder({
+  sets = [],
+  set,
+  onSet,
+  value,
+  onChange,
+  error,
+}: {
+  /** Every set the page offers; a choice appears when there is more than one. */
+  sets?: ModuleSet[];
+  set: ModuleSet;
+  onSet?: (slug: string) => void;
+  value: Arrangement;
+  onChange: (a: Arrangement) => void;
+  error?: string | null;
+}) {
   const [walls, setWalls] = useState({ back: "", side: "" });
   const [refused, setRefused] = useState<string | null>(null);
   const typeOf = (id: string) => set.modules.find((m) => m.id === id)?.type;
-  const moduleOf = (type: ModuleType) => set.modules.find((m) => m.type === type);
+  const nameOf = (id: string) => set.modules.find((m) => m.id === id)?.name ?? MODULE_TYPE_LABELS[typeOf(id) ?? "tekli"];
+  // the strip: every module of the set (a real set may have seats of several widths), in the usual order
+  const strip = set.modules.filter((x) => STRIP.includes(x.type)).sort((a, b) => STRIP.indexOf(a.type) - STRIP.indexOf(b.type));
   const m = measures(set, value);
   const list = problems(set, value);
   const seq = placed(set, value);
@@ -51,9 +68,8 @@ export function CornerBuilder({ set, value, onChange, error }: { set: ModuleSet;
     setRefused(null);
     onChange(next);
   };
-  const add = (type: ModuleType) => {
-    const mod = moduleOf(type);
-    if (!mod) return;
+  const add = (mod: ModuleSet["modules"][number]) => {
+    const type = mod.type;
     const ids = value.ids;
     if (LEFT.includes(type) && ids[0] && LEFT.includes(typeOf(ids[0])!)) return setRefused("Sol uçta zaten bir kol ya da şezlong var.");
     if (RIGHT.includes(type) && ids.at(-1) && RIGHT.includes(typeOf(ids.at(-1)!)!)) return setRefused("Sağ uçta zaten bir kol ya da şezlong var.");
@@ -110,6 +126,23 @@ export function CornerBuilder({ set, value, onChange, error }: { set: ModuleSet;
         </h2>
         {set.sample && <span className="rounded-full bg-[#F4E9DD] px-3 py-1 text-[13px] text-ceviz">Örnek set</span>}
       </div>
+
+      {sets.length > 1 && onSet && (
+        <div role="radiogroup" aria-label="Modül seti" className="flex flex-wrap gap-2">
+          {sets.map((s) => (
+            <button
+              key={s.slug}
+              type="button"
+              role="radio"
+              aria-checked={s.slug === set.slug}
+              onClick={() => s.slug !== set.slug && onSet(s.slug)}
+              className={`min-h-12 rounded-full border px-5 text-[16px] ${s.slug === set.slug ? "border-antrasit bg-antrasit text-kagit" : "border-cizgi bg-white text-antrasit"}`}
+            >
+              {s.name}
+            </button>
+          ))}
+        </div>
+      )}
 
       {seq.length > 0 ? (
         <svg viewBox={`0 0 ${vw} ${vh}`} className="w-full rounded-xl border border-cizgi bg-white" role="img" aria-label={`Üstten şema: ${cm(m.widthCm)} × ${cm(m.depthCm)}`}>
@@ -197,7 +230,6 @@ export function CornerBuilder({ set, value, onChange, error }: { set: ModuleSet;
       {value.ids.length > 0 && (
         <ol ref={row} aria-label="Takımdaki modüller (sürükleyerek sırasını değiştirin)" className="flex flex-wrap gap-2 [touch-action:none]">
           {value.ids.map((id, i) => {
-            const type = typeOf(id)!;
             const moving = drag?.from === i;
             const gapBefore = drag && drag.to === i && drag.from > i;
             const gapAfter = drag && drag.to === i && drag.from < i;
@@ -211,8 +243,8 @@ export function CornerBuilder({ set, value, onChange, error }: { set: ModuleSet;
                 onPointerCancel={() => setDrag(null)}
                 className={`flex h-14 cursor-grab select-none items-center gap-1 rounded-xl border bg-white pl-4 pr-1 text-[16px] ${moving ? "border-antrasit opacity-60" : "border-cizgi"} ${gapBefore ? "ml-6" : ""} ${gapAfter ? "mr-6" : ""}`}
               >
-                <span>{MODULE_TYPE_LABELS[type]}</span>
-                <button type="button" onClick={() => remove(i)} aria-label={`${i + 1}. modülü (${MODULE_TYPE_LABELS[type]}) çıkar`} className="flex h-12 w-12 items-center justify-center rounded-full text-[22px] text-antrasit-70 hover:bg-cizgi/60">
+                <span>{nameOf(id)}</span>
+                <button type="button" onClick={() => remove(i)} aria-label={`${i + 1}. modülü (${nameOf(id)}) çıkar`} className="flex h-12 w-12 items-center justify-center rounded-full text-[22px] text-antrasit-70 hover:bg-cizgi/60">
                   ×
                 </button>
               </li>
@@ -231,11 +263,10 @@ export function CornerBuilder({ set, value, onChange, error }: { set: ModuleSet;
       </div>
 
       <div role="group" aria-label="Modül ekle" className="grid grid-cols-3 gap-2 border-t border-cizgi pt-4">
-        {STRIP.filter((t) => moduleOf(t)).map((t) => {
-          const mod = moduleOf(t)!;
+        {strip.map((mod) => {
           return (
-            <button key={t} type="button" onClick={() => add(t)} className="flex h-20 flex-col items-center justify-center rounded-xl border border-cizgi bg-white px-2 text-[16px] transition-colors active:bg-cizgi/60" aria-label={`${MODULE_TYPE_LABELS[t]} ekle (${mod.widthCm} × ${mod.depthCm} cm)`}>
-              <span>+ {MODULE_TYPE_LABELS[t]}</span>
+            <button key={mod.id} type="button" onClick={() => add(mod)} className="flex h-20 flex-col items-center justify-center rounded-xl border border-cizgi bg-white px-2 text-[16px] transition-colors active:bg-cizgi/60" aria-label={`${mod.name} ekle (${mod.widthCm} × ${mod.depthCm} cm)`}>
+              <span>+ {mod.name}</span>
               <span className="text-[13px] text-antrasit-50">
                 {mod.widthCm} × {mod.depthCm} cm
               </span>

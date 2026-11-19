@@ -169,6 +169,10 @@ export function QuoteDialog({
           note: note.trim() || null,
           price: price.trim() ? Number(price.replace(/\./g, "").replace(",", ".")) || null : null,
           snapshot: await snapshotJpeg(shot),
+          diagram: (() => {
+            const m = pieces.find((x) => x.input.model.diagram)?.input.model;
+            return m?.diagram ? { ...m.diagram, title: m.name } : null;
+          })(),
           rows: result.rows.map((r) => ({ piece: r.piece, part: r.part, fabricCode: r.fabric.code, metres: r.metres })),
           totals: result.totals.map((t) => ({ code: t.fabric.code, colorName: t.fabric.colorName, series: t.fabric.series, total: t.total, explanation: t.explanation, reasons: t.reasons })),
           wasteMissing: result.wasteMissing,

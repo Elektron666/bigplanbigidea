@@ -11,7 +11,8 @@ import { PairScreen } from "@/components/kiosk/PairScreen";
 import { OfflineAgent } from "@/components/kiosk/OfflineAgent";
 import { warmUrls } from "@/lib/offline/warm";
 import { getQuotes } from "@/lib/teklif/store";
-import { moduleSets, withBuiltSet } from "@/lib/modul/model";
+import { withBuiltSet } from "@/lib/modul/model";
+import { pageSets } from "@/lib/modul/store";
 import { featureOn, type Feature } from "@/lib/central/features";
 import { ShowroomLock } from "@/components/kiosk/ShowroomLock";
 import { SyncAgent } from "@/components/kiosk/SyncAgent";
@@ -62,14 +63,15 @@ export default async function ShowroomPage({ searchParams }: PageProps<"/showroo
   const sp = await searchParams;
   const on = (f: Feature) => featureOn(cat.firm!.features, f);
   const waste = on("teklif") ? await getQuotes().getWaste() : undefined;
-  const models = withBuiltSet(cat.models, sp.mk);
-  const moduleSet = on("kose") ? moduleSets()[0] : undefined;
-  const warm = { "1k": warmUrls(cat, "1k"), "2k": warmUrls(cat, "2k") };
+  const sets = await pageSets(cat.firm.id);
+  const models = withBuiltSet(cat.models, sp.mk, sets);
+  const moduleSets = on("kose") ? sets : undefined;
+  const warm = { "1k": warmUrls({ ...cat, moduleSets }, "1k"), "2k": warmUrls({ ...cat, moduleSets }, "2k") };
   return (
     <main data-showroom>
       <h1 className="sr-only">{cat.firm.name}: kumaşınızı koltuğun üstünde görün</h1>
       <KioskShell idleSeconds={showroomIdleSeconds(shop.settings)} firm={cat.firm} showroom>
-        <Configurator models={models} fabrics={cat.fabrics} firm={cat.firm} {...initialStateFrom(sp, models, cat.fabrics)} kiosk profileChoice={who.device.quality} waste={waste} showroom={on("siparis")} moduleSet={moduleSet} kartela={on("kartela")} />
+        <Configurator models={models} fabrics={cat.fabrics} firm={cat.firm} {...initialStateFrom(sp, models, cat.fabrics)} kiosk profileChoice={who.device.quality} waste={waste} showroom={on("siparis")} moduleSets={moduleSets} kartela={on("kartela")} />
         <SyncAgent contentVersion={shop.contentVersion} appVersion={version} />
       </KioskShell>
       <ShowroomLock contentVersion={shop.contentVersion} appVersion={version} />

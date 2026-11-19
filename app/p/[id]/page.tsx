@@ -4,6 +4,7 @@ import { loadCatalogue } from "@/lib/data";
 import { Configurator } from "@/components/configurator/Configurator";
 import { initialStateFrom } from "@/lib/page-state";
 import { withBuiltSet } from "@/lib/modul/model";
+import { pageSets } from "@/lib/modul/store";
 import { decodeShare } from "@/lib/share";
 import { summariseShare } from "@/lib/share-summary";
 
@@ -18,7 +19,7 @@ export async function generateMetadata({ params }: PageProps<"/p/[id]">): Promis
   const cat = await catalogueFor(id);
   const { firm, fabrics } = cat;
   // a corner set built from modules comes back from the link (job 4)
-  const models = withBuiltSet(cat.models, decodeShare(id)?.mk);
+  const models = withBuiltSet(cat.models, decodeShare(id)?.mk, await pageSets(firm?.id));
   const summary = summariseShare(id, models, fabrics);
   if (!summary) return { title: "Kombinasyon bulunamadı" };
   const codes = summary.fabrics.map((f) => f.code).join(" · ");
@@ -38,7 +39,7 @@ export default async function SharedPage({ params }: PageProps<"/p/[id]">) {
   const cat = await catalogueFor(id);
   const { firm, fabrics } = cat;
   // a corner set built from modules comes back from the link (job 4)
-  const models = withBuiltSet(cat.models, state.mk);
+  const models = withBuiltSet(cat.models, state.mk, await pageSets(firm?.id));
   if (models.length === 0) notFound();
   const initial = initialStateFrom(state, models, fabrics);
   if (!initial.initialLayout) notFound();

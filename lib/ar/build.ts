@@ -113,14 +113,20 @@ export async function exportGlb(root: THREE.Object3D): Promise<Blob> {
 /** Loads the raw model (built from code or a .glb) in the browser. */
 async function loadSource(model: FurnitureModel): Promise<THREE.Object3D> {
   const src = model.source;
-  if (src.kind !== "glb") {
+  if (src.kind === "procedural" || src.kind === "parametric") {
     const { buildCodeModel } = await import("@/lib/three/procedural");
     return buildCodeModel(src);
   }
   const [{ GLTFLoader }, { DRACOLoader }] = await Promise.all([import("three/examples/jsm/loaders/GLTFLoader.js"), import("three/examples/jsm/loaders/DRACOLoader.js")]);
   const draco = new DRACOLoader().setDecoderPath("/draco/");
+  const loader = new GLTFLoader().setDRACOLoader(draco);
   try {
-    return (await new GLTFLoader().setDRACOLoader(draco).loadAsync(src.url)).scene;
+    if (src.kind === "glb") return (await loader.loadAsync(src.url)).scene;
+    // a corner set: every module file, put together as on the screen
+    const urls = [...new Set(src.parts.map((p) => p.url))];
+    const scenes = await Promise.all(urls.map((u) => loader.loadAsync(u).then((g) => g.scene)));
+    const { assembleModules } = await import("@/lib/modul/assemble");
+    return assembleModules(src.parts, src.mirrored, new Map(urls.map((u, i) => [u, scenes[i]])));
   } finally {
     draco.dispose();
   }

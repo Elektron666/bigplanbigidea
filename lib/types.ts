@@ -99,7 +99,19 @@ export type ModelSource =
   | { kind: "procedural"; generator: "modular-sofa" | "armchair" }
   /** Described in the panel with a few choices, built from code (lib/parametric). */
   | { kind: "parametric"; params: ParametricParams }
-  | { kind: "glb"; url: string };
+  | { kind: "glb"; url: string }
+  /** A corner set built from uploaded module GLBs (lib/modul): each file put on its joints. */
+  | { kind: "moduller"; parts: ModulePart[]; mirrored: boolean; floor?: { x0: number; x1: number; z0: number; z1: number }[] };
+
+export interface ModulePart {
+  url: string;
+  /** A corner module (its joints are its front-left and back-right corners). */
+  corner: boolean;
+  /** The model's own joints (GLB cm); missing: from its box. */
+  joints?: { sol: { x: number; z: number }; sag: { x: number; z: number } };
+  /** Where they go on the floor (cm, the back wall at z = 0). */
+  target: { sol: { x: number; z: number }; sag: { x: number; z: number } };
+}
 
 export interface FurnitureModel {
   id: string;
@@ -139,4 +151,16 @@ export interface FurnitureModel {
   featured?: boolean;
   /** A corner set built from modules on the screen (lib/modul): its arrangement code. */
   kurulum?: string;
+  /** The set's top view, for the quote's PDF (job 4: "PDF'e şema da girer"). */
+  diagram?: SetDiagram;
+}
+
+/** A built corner set seen from above, cm (x across, z towards the front, the back wall at z = 0). */
+export interface SetDiagram {
+  widthCm: number;
+  depthCm: number;
+  backCm: number;
+  leftCm: number;
+  rightCm: number;
+  rects: { x: number; z: number; w: number; d: number; corner: boolean; label: string }[];
 }

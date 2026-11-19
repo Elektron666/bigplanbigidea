@@ -14,6 +14,43 @@ Bu dosyada projede verilen kararlar, yapılan varsayımlar ve bilinen sınırlar
 - **Numune taleplerindeki ad ve telefon** ORMEN panelinde görünmeye devam eder (6 Ekim kararı değişmedi). Yeni kural yalnızca yeni verilere uygulanır: teklifteki müşteri adı ve "ilgilenen müşteriler".
 - Görev tanımının eski kararlarla çeliştiği yerler ve seçilen yol: `PLAN-SHOWROOM.md`, 3. bölüm.
 
+## İş 4, 2. dilim: panelden modül seti, GLB modüllerle köşe takımı, PDF'te şema (19 Kasım 2026)
+
+**Panel → Modül setleri:** Bir set bir koltuk serisidir: adı, bağlantı adı, metrajların kumaş eni (varsayılan 140 cm), yayında / değil, verildiği mağazalar ve modülleri. Her modülün tipi (sol/sağ kol, tekli oturum, köşe, sol/sağ şezlong, puf), ekranda görünen adı, genişlik × derinlik × yükseklik (cm), bölge metrajları (Kasa, Kollar, Oturak, Sırt), GLB dosyası ve isteğe bağlı bağlantı noktaları var.
+- **Doğrulama:** ölçüler 0'dan büyük olmalı, köşe kare olmalı, bağlantı noktasının dört sayısı ya hep birlikte girilir ya hiç girilmez, yalnızca kendi yüklediğimiz dosyalar kabul edilir. **Bilinmeyen metraj boş kalır, uydurulmaz:** metrajı eksik modülü olan setle teklifte metre çıkmaz ve panel bunu "Eksikler" kutusunda söyler. Eksikler kaydı durdurmaz.
+- **Dosya ölçümü:** Yüklenen GLB tarayıcıda ölçülür: "Dosyadaki ölçü: 22 × 100 × 68 cm · girilen ölçüden farklı" ve **Ölçüleri dosyadan al** düğmesi. Sahne dosyanın kendi ölçüsünü gösterir; şema, duvar uyumu ve metraj girilen ölçüyle hesaplanır. Fark 1 cm'yi geçerse panel uyarır.
+- Set silinmez, yayından alınır (veritabanında silme yalnızca yöneticide). Modüller kısa adlarıyla (anahtar) saklanır; modül düzenlenince eski paylaşım bağlantıları çalışmaya devam eder.
+- **Bulunup düzeltilen hata:** Dosya yükleme ucu yalnızca `kumaslar`, `modeller`, `logolar` klasörlerine izin veriyordu; modül dosyaları "Geçersiz dosya yolu" ile reddediliyordu. Uçtan uca test yakaladı; `moduller` eklendi.
+
+**Bağlantı noktaları ve çizim:**
+- Her modülün sol ve sağ bağlantı noktası GLB'nin kendi koordinatlarında (üstten bakış, cm). Düz modülde arka-sol ve arka-sağ köşe; köşe modülünde ön-sol (duvar tarafı) ve arka-sağ. **Girilmezse dosyanın kutusundan** alınır (model önü +z'ye bakar).
+- Takım kurulurken her modülün iki noktası, dizilimdeki hedef noktalarına oturacak biçimde döndürülüp taşınır (`lib/modul/glb.ts`, saf ve testli). Böylece GLB'nin kendi başlangıç noktası nerede olursa olsun modüller yan yana oturur. Sol kol tarafı +90°, sağ kol tarafı ve U'nun ikinci köşesi −90° döner. Model hiç esnetilmez; dosya beyan edilen genişlikten farklıysa aradaki fark hesaplanır.
+- Aynalama bütün takımı bir bütün olarak aynalar (sıra ve ölçüler aynı kalır, eski kural).
+- Bütün modüllerinin GLB'si olan set dosyalardan çizilir; bir modülün bile dosyası yoksa takım, dosyalar tamamlanana kadar aynı ölçülerde koddan çizilen koltukla gösterilir.
+- Takım tek parça olarak giydirilir. **Minder ve kırlent ayrı kumaş:** GLB'deki parça adları `govde`, `kol`, `oturum`, `sirt-minder` ile başlarsa bölge seçimi (Kasa, Kollar, Oturak, Sırt, Biye) GLB takımda da çalışır; adlar uymazsa takım tek kumaş alır (eski GLB kuralı).
+- Aynı birleştirme kodu hem sahnede hem "Odamda gör" (AR) dosyasında kullanılır (`lib/modul/assemble.ts`).
+- **2D plan:** takımın gerçek zemin şekli (L ya da U; içi boş kalır) plana gider; tam dikdörtgen sayılmaz.
+- **Çevrimdışı:** showroom ekranı, mağazaya verilen setlerin modül dosyalarını da cihazda tutar.
+
+**Köşe kurucu ekranı:** Mağazaya verilen setler önce, örnek set en sonda. Birden çok set varsa üstte büyük set düğmeleri çıkar; set değişince dizilim sıfırlanır. Şeritte her modül ayrı düğmedir (gerçek sette farklı genişlikte oturumlar olabilir): "+ Oturum 90 / 90 × 98 cm".
+
+**PDF'te şema:** Teklif PDF'inde, teklif bir köşe takımı içeriyorsa tablonun üstünde ölçekli üstten şema çıkar: modül adları, arka uzunluk, sol ve sağ kol uzunlukları. Şema teklifle birlikte saklanır; müşterinin telefonundaki teklif sayfasının PDF'inde de aynı şema çıkar. Sayfa yine tek: uzun teklifte önce resim, sonra yazı küçülür.
+
+**Örnek GLB seti (`lib/modul/ornek-glb-set.ts`, `scripts/generate-module-glbs.ts`):** Geliştirme ve test için, koddaki koltukların minder parçalarından üretilmiş altı GLB (kol 22, oturum 70, köşe 100 × 100, şezlong 95 × 165; derinlik 100, yükseklik 80, kol 68 cm). Dosyalar bilerek kendi merkezlerine göre modellendi, bağlantı noktası hizalaması gerçekten sınansın diye. Yalnızca bellek modunda Örnek Mobilya'ya verili; Supabase'e konmaz. **Metrajları test için uydurulmuş sayılar, ORMEN'in değil.**
+- **Öz-eleştiriyle düzeltilen:** İlk üretimde sırt minderi beyan edilen yüksekliğin 4 cm üstüne çıkıyor, kollar yana 0,8 cm kabarıyordu. Sahnedeki ölçü etiketi 194 × 192 × 84 cm, köşe kurucu 192 × 192 diyordu. Dosyalar beyan edilen ölçüye göre yeniden üretildi; şimdi sahne ve toplamlar santimine kadar aynı. Gereksiz ince örgü de seyreltildi (toplam 4,8 MB → 2,5 MB; 8 modüllü L takım yaklaşık 120 bin üçgen).
+
+**Şema (`supabase/migrations/20261119000100_modul_setleri.sql`, geri alma dosyasıyla):** `module_sets`, `module_set_modules`, `module_set_firms`. Etkin set ve modülleri herkes okuyabilir (sayfalar oturumsuz okur, modeller gibi); yazma ORMEN ekibinde; set silme yalnızca yöneticide. Sete mağaza eklenince, çıkarılınca ya da set/modül değişince yalnızca o setin mağazalarının içerik sürümü artar (işlem başına bir kez). Canlı Supabase'e uygulanmadı.
+
+**Test:**
+- Birim: bağlantı noktası hizalaması (L, U, şezlonglu düz takımda her modül, başlangıç noktası kaydırılmış dosyayla bile şemadaki dikdörtgenini tam kaplar; dönüş açıları; esnetmeme); GLB'li set → dosyalardan, eksik dosya → koddan; aynalama; bağlantıdaki set yalnızca sayfanın setleri arasında aranır; plan şekli; panel doğrulaması ve eksikler; PDF'te şema (tek sayfa, ölçüler, modül adları).
+- Veritabanı (PGlite): yalnızca ORMEN ekibi yazar; bilinmeyen tip ve 0 ölçü reddedilir; içerik sürümü yalnızca setin mağazalarında artar; yayından alınan set dışarıdan görünmez; set silme yalnızca yöneticide; geri alma ve yeniden uygulama.
+- Uçtan uca: GLB setle L köşe: 262 × 192 cm; sahnedeki takım kumaşı giymiş ve **262 × 192 cm (±1)**; aynalama boyu değiştirmez; teklif bölge metrajları modül toplamları; bağlantıyla aynı takım aynı boyda açılır. Panelden set: dört GLB yüklenir, dosya ölçüsü uyarısı ve "dosyadan al", kare olmayan köşe reddi, mağazaya verme, günlük kaydı; mağazanın köşe kurucusunda set ilk sırada ve doğru ölçülerle; seti almayan mağazada görünmez. Örnek setle eski test (8 dokunuş, 3,15 × 2,40 m) set seçimi eklenerek geçiyor. Yeni panel sayfaları erişilebilirlik testinde.
+
+**Hâlâ açık:**
+- Hafif profilde 8 modüllü takımın gerçek cihazda kare hızı ölçülmedi (`?olcum` ekranı hazır; KURULUM 8. adım).
+- Puf modülü dizilime girmiyor (ayrı parça, "Mobilya ekle" ile).
+- Gerçek bir üretici GLB'siyle denenmedi; ilk gerçek set yüklenince parça adları ve bağlantı noktaları bir kez gözle kontrol edilmeli.
+
 ## İş 0: mağaza paneli, mağaza hesapları ve "mağaza gibi görüntüle" (18 Kasım 2026)
 
 - **Mağaza paneli** `/magaza`: Teklifler (numara, tarih, parçalar, metraj, fiyat, müşteri adı ve notu, ORMEN siparişinin durumu, teklif bağlantısı), Ürünler (mağazadaki adı, ürün kodu, açıklama, satış fiyatı, öne çıkar, gizle; model, ölçü ve metraj ORMEN'den gelir, değişmez), Ekranlar (yalnızca görür; ekran eklemek ve kaldırmak ORMEN'in), Hesap (şifre değiştirme). Satıcı hesabı yok (eski karar): satıcı eşleşmiş ekran + mağaza PIN'iyle çalışır.

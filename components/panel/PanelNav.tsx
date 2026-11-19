@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 const LINKS = [
   ["/panel/kumaslar", "Kumaşlar"],
   ["/panel/modeller", "Modeller"],
+  ["/panel/modul-setleri", "Modül setleri"],
   ["/panel/magazalar", "Mağazalar"],
   ["/panel/katalog", "Katalog"],
   ["/panel/firmalar", "Firmalar"],
