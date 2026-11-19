@@ -15,6 +15,7 @@ import { decodeArrangement, type Arrangement, type ModuleSet } from "@/lib/modul
 import { builtModel, KURULUM_SLUG } from "@/lib/modul/model";
 import { CornerBuilder } from "./CornerBuilder";
 import { KartelaScanner } from "@/components/kiosk/KartelaScanner";
+import { PhotoTryOn } from "@/components/kiosk/PhotoTryOn";
 import { KioskCodeEntry } from "@/components/kiosk/KioskCodeEntry";
 import { AttractContext } from "@/components/kiosk/attract";
 import { ATTRACT_STEP_SECONDS, attractChangesModel, attractFabrics, attractModels, nextAttract, nextAttractModel } from "@/lib/kiosk";
@@ -85,6 +86,8 @@ export interface ConfiguratorProps {
   /** The module set the "Köşe kur" tab builds with (job 4); none = no tab. */
   /** The corner set builder's module sets (job 4): the shop's own first; none = no builder. */
   moduleSets?: ModuleSet[];
+  /** "Fotoğraftan dene" (job 5): a paired showroom screen whose shop has it on, while a provider is set. */
+  tryOn?: boolean;
   /** "Kartela okut" on the kiosk (job 2); a shop may switch it off. */
   kartela?: boolean;
 }
@@ -120,6 +123,7 @@ export function Configurator({
   showroom = false,
   moduleSets,
   kartela = true,
+  tryOn = false,
 }: ConfiguratorProps) {
   // ---------------------------------------------------------------- corner set builder (job 4)
   // the set being built is one more model, at the fixed address "kose-kurucu"
@@ -385,6 +389,7 @@ export function Configurator({
   const online = useOnline();
   const [sampleOpen, setSampleOpen] = useState(false);
   const [quoteOpen, setQuoteOpen] = useState(false);
+  const [tryOnOpen, setTryOnOpen] = useState(false);
   const [share, setShare] = useState<{ image: Blob | null; snapshot: string; url: string } | null>(null);
   const [printing, setPrinting] = useState<PrintData | null>(null);
 
@@ -514,6 +519,15 @@ export function Configurator({
                 <IconShare width={17} height={17} className="sm:hidden" />
                 <span className="max-sm:sr-only">{kiosk ? "Telefona al" : "Paylaş"}</span>
               </button>
+              {tryOn && (
+                <button
+                  type="button"
+                  onClick={() => setTryOnOpen(true)}
+                  className="flex h-10 items-center whitespace-nowrap rounded-full border border-cizgi bg-kagit/90 px-3 text-[13px] text-antrasit backdrop-blur-[2px] transition-colors hover:border-cizgi-koyu focus-visible:outline-2 focus-visible:outline-antrasit sm:px-4"
+                >
+                  Fotoğraftan dene
+                </button>
+              )}
               {waste && (
                 <button
                   type="button"
@@ -805,6 +819,28 @@ export function Configurator({
           )}
         </p>
       </FabricSheet>
+      {tryOnOpen && (
+        <PhotoTryOn
+          fabrics={modelFabrics}
+          initialCode={active.code}
+          firmSlug={firm?.slug ?? null}
+          onClose={() => setTryOnOpen(false)}
+          // the same fabric on the piece on the screen (the shop's model the customer is looking at)
+          onOpen3d={(f) => {
+            select(f);
+            setTryOnOpen(false);
+          }}
+          onQuote={
+            waste
+              ? (f) => {
+                  select(f);
+                  setTryOnOpen(false);
+                  setQuoteOpen(true);
+                }
+              : null
+          }
+        />
+      )}
       {quoteOpen && waste && (
         <QuoteDialog
           open

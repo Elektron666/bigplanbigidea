@@ -13,6 +13,7 @@ import { warmUrls } from "@/lib/offline/warm";
 import { getQuotes } from "@/lib/teklif/store";
 import { withBuiltSet } from "@/lib/modul/model";
 import { pageSets } from "@/lib/modul/store";
+import { getProvider } from "@/lib/giydirme/saglayici";
 import { featureOn, type Feature } from "@/lib/central/features";
 import { ShowroomLock } from "@/components/kiosk/ShowroomLock";
 import { SyncAgent } from "@/components/kiosk/SyncAgent";
@@ -66,12 +67,14 @@ export default async function ShowroomPage({ searchParams }: PageProps<"/showroo
   const sets = await pageSets(cat.firm.id);
   const models = withBuiltSet(cat.models, sp.mk, sets);
   const moduleSets = on("kose") ? sets : undefined;
+  // a half feature is not shown: the button needs the shop's switch and a provider
+  const tryOn = on("giydirme") && !!(await getProvider());
   const warm = { "1k": warmUrls({ ...cat, moduleSets }, "1k"), "2k": warmUrls({ ...cat, moduleSets }, "2k") };
   return (
     <main data-showroom>
       <h1 className="sr-only">{cat.firm.name}: kumaşınızı koltuğun üstünde görün</h1>
       <KioskShell idleSeconds={showroomIdleSeconds(shop.settings)} firm={cat.firm} showroom>
-        <Configurator models={models} fabrics={cat.fabrics} firm={cat.firm} {...initialStateFrom(sp, models, cat.fabrics)} kiosk profileChoice={who.device.quality} waste={waste} showroom={on("siparis")} moduleSets={moduleSets} kartela={on("kartela")} />
+        <Configurator models={models} fabrics={cat.fabrics} firm={cat.firm} {...initialStateFrom(sp, models, cat.fabrics)} kiosk profileChoice={who.device.quality} waste={waste} showroom={on("siparis")} moduleSets={moduleSets} kartela={on("kartela")} tryOn={tryOn} />
         <SyncAgent contentVersion={shop.contentVersion} appVersion={version} />
       </KioskShell>
       <ShowroomLock contentVersion={shop.contentVersion} appVersion={version} />

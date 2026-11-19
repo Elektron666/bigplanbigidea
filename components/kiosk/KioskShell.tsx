@@ -6,6 +6,7 @@ import { idleState, KIOSK_WARNING } from "@/lib/kiosk";
 import { BrandMark } from "@/components/configurator/BrandMark";
 import { accentStyle } from "@/lib/firm";
 import { AttractContext } from "./attract";
+import { endOpenSession } from "@/lib/giydirme/istemci";
 import { track } from "@/lib/track";
 
 // Showroom kiosk around the configurator:
@@ -36,6 +37,8 @@ export function KioskShell({ idleSeconds, firm, children, showroom = false }: { 
     resetting.current = true;
     // the session's end is safely recorded before the page is wiped for the next visitor
     if (!onWelcome.current) await track("oturum_bitti", { firmSlug, n: Math.round((Date.now() - sessionStart.current) / 1000) }).catch(() => undefined);
+    // the visitor's photo try-on ends with the visit: its photo is deleted from the server (job 5)
+    await endOpenSession();
     try {
       sessionStorage.clear();
     } catch {

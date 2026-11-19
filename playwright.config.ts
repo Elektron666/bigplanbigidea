@@ -38,6 +38,10 @@ export default defineConfig({
           // the shop panel's demo owner (Örnek Mobilya)
           SHOP_DEMO_EMAIL: "magaza@ormen.local",
           SHOP_DEMO_PASSWORD: "ormen-magaza",
+          // photo try-on with the local stand-in provider (no real service is called); LUMA-03 fails on purpose
+          GIYDIRME_SAGLAYICI: "sahte",
+          GIYDIRME_SAHTE_MS: "800",
+          GIYDIRME_SAHTE_HATA: "LUMA-03",
         },
       },
 });
