@@ -97,6 +97,13 @@ test.describe("erişilebilirlik: showroom paketi panelleri", () => {
     await expect(page.getByRole("note", { name: "Destek görünümü" })).toBeVisible();
     expect(await violations(page), "destek görünümü").toEqual([]);
     await page.getByRole("button", { name: "Destek görünümünden çık" }).click();
+
+    // the assistant, with the advisor's questions open
+    await page.goto("/f/ornek-mobilya");
+    await page.getByRole("button", { name: "Asistan" }).click();
+    await page.getByRole("dialog", { name: "Asistan" }).getByRole("button", { name: "Bana koltuk öner" }).click();
+    await expect(page.getByRole("region", { name: "Koltuk danışmanı" })).toBeVisible();
+    expect(await violations(page), "asistan").toEqual([]);
   });
 });
 

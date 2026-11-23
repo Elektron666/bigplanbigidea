@@ -41,10 +41,10 @@ export default async function FirmPage({ params, searchParams }: PageProps<"/f/[
       <h1 className="sr-only">{cat.firm.name}: kumaşınızı koltuğun üstünde görün</h1>
       {kiosk ? (
         <KioskShell idleSeconds={kiosk.idleSeconds} firm={cat.firm}>
-          <Configurator models={models} fabrics={cat.fabrics} firm={cat.firm} {...initialStateFrom(sp, models, cat.fabrics)} kiosk={!!kiosk} waste={waste} moduleSets={moduleSets} kartela={on("kartela")} />
+          <Configurator models={models} fabrics={cat.fabrics} firm={cat.firm} {...initialStateFrom(sp, models, cat.fabrics)} kiosk={!!kiosk} waste={waste} moduleSets={moduleSets} kartela={on("kartela")} assistant={on("asistan")} />
         </KioskShell>
       ) : (
-        <Configurator models={models} fabrics={cat.fabrics} firm={cat.firm} {...initialStateFrom(sp, models, cat.fabrics)} kiosk={!!kiosk} waste={waste} moduleSets={moduleSets} kartela={on("kartela")} />
+        <Configurator models={models} fabrics={cat.fabrics} firm={cat.firm} {...initialStateFrom(sp, models, cat.fabrics)} kiosk={!!kiosk} waste={waste} moduleSets={moduleSets} kartela={on("kartela")} assistant={on("asistan")} />
       )}
     </main>
   );

@@ -42,6 +42,8 @@ export interface Repository {
   saveFirm(input: FirmInput): Promise<Firm>;
   /** Switches a shop's features on or off (lib/central/features.ts); the rest of the firm is left alone. */
   setFirmFeatures(firmId: string, features: Record<string, boolean>): Promise<void>;
+  /** The advisor's tags of a model (lib/asistan/etiketler.ts); false for an unknown model. */
+  setModelTags(modelId: string, styleTags: string[], useTags: string[]): Promise<boolean>;
   /** ORMEN showcase models the firm chose to show (ids, in order). */
   getFirmShowcaseIds(firmId: string): Promise<string[]>;
   /**

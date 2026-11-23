@@ -74,7 +74,7 @@ export default async function ShowroomPage({ searchParams }: PageProps<"/showroo
     <main data-showroom>
       <h1 className="sr-only">{cat.firm.name}: kumaşınızı koltuğun üstünde görün</h1>
       <KioskShell idleSeconds={showroomIdleSeconds(shop.settings)} firm={cat.firm} showroom>
-        <Configurator models={models} fabrics={cat.fabrics} firm={cat.firm} {...initialStateFrom(sp, models, cat.fabrics)} kiosk profileChoice={who.device.quality} waste={waste} showroom={on("siparis")} moduleSets={moduleSets} kartela={on("kartela")} tryOn={tryOn} />
+        <Configurator models={models} fabrics={cat.fabrics} firm={cat.firm} {...initialStateFrom(sp, models, cat.fabrics)} kiosk profileChoice={who.device.quality} waste={waste} showroom={on("siparis")} moduleSets={moduleSets} kartela={on("kartela")} tryOn={tryOn} assistant={on("asistan")} />
         <SyncAgent contentVersion={shop.contentVersion} appVersion={version} />
       </KioskShell>
       <ShowroomLock contentVersion={shop.contentVersion} appVersion={version} />

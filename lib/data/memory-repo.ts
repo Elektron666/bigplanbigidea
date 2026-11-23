@@ -114,6 +114,14 @@ export class MemoryRepository implements Repository {
     return firm;
   }
 
+  async setModelTags(modelId: string, styleTags: string[], useTags: string[]) {
+    const m = this.models.find((x) => x.id === modelId);
+    if (!m) return false;
+    m.styleTags = [...styleTags];
+    m.useTags = [...useTags];
+    return true;
+  }
+
   async setFirmFeatures(firmId: string, features: Record<string, boolean>) {
     const f = this.firms.find((x) => x.id === firmId);
     if (f) f.features = { ...features };

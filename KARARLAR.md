@@ -14,6 +14,34 @@ Bu dosyada projede verilen kararlar, yapılan varsayımlar ve bilinen sınırlar
 - **Numune taleplerindeki ad ve telefon** ORMEN panelinde görünmeye devam eder (6 Ekim kararı değişmedi). Yeni kural yalnızca yeni verilere uygulanır: teklifteki müşteri adı ve "ilgilenen müşteriler".
 - Görev tanımının eski kararlarla çeliştiği yerler ve seçilen yol: `PLAN-SHOWROOM.md`, 3. bölüm.
 
+## Asistan ve koltuk danışmanı (İş 10 + Fatih Bey'in "kendi yapay zekamız"ı), ücretsiz sürüm (23 Kasım 2026)
+
+**İstenen (Fatih Bey):** müşterinin ya da satıcının "soru sorabileceği, fikir alacağı, metraj hesaplatacağı" kendi asistanımız. Görev tanımındaki İş 10 (Koltuk danışmanı) bunun içine alındı. Özel giydirme (Fotoğraftan dene) ayrı bölümde kalıyor; asıl sistem Atelier'deki gibi 3D.
+
+**Nasıl çalışıyor:** Mağaza sayfasında ve showroom ekranında **Asistan** düğmesi (mağaza bazında açılıp kapanır; ücretsiz olduğu için varsayılan açık). Tam ekran pencere: yazarak, hazır sorulara dokunarak ya da cihaz destekliyorsa **sesle** soru. Ses tarayıcının kendisinde yazıya çevrilir, saklanmaz; desteklemeyen cihazda düğme görünmez.
+- **Serbest sorular** (`lib/asistan/soru.ts`, saf ve testli): metraj ("bu koltuğa kaç metre", "Köşe Takımı için MISSO-05 kaç metre"), kumaş özellikleri (dayanıklı mı, kedi/çocuk, bileşim, en, yanmazlık, ağırlık, desen tekrarı, temizlik), iki kumaşın farkı, renge göre kumaşlar, öneri isteği. Kumaş kodu nasıl yazılırsa yazılsın bulunur ("misso 5", "MISSO05"); "bu kumaş / bu koltuk" ekrandaki parçadır.
+- **Hiçbir şey uydurulmaz:** cevaplar yalnızca panelde girilmiş bilgiden kurulur. Girilmemiş bilgi sorulursa "…panelde girilmemiş. Kesin bilgi için mağaza görevlisine sorun ya da numune isteyin." Temizlik ve bakım için panelde alan yok; bu soruya her zaman bu cevap verilir. Kedi/çocuk sorusunda girilmiş Martindale değeri söylenir ve "kesin karar numuneyle verilir" eklenir; "uygun" denmez.
+- **Metraj** teklifteki işlevin aynısıyla hesaplanır; mağaza sayfasında fire ORMEN'in fire ayarlarıyla, ayar yoksa "Fire dahil değildir." Metraj girilmemiş modelde "Kesin metrajı usta hesaplar."
+- **Anlamadığı soru:** "Bunu anlayamadım. Şunları sorabilirsiniz: …" ve örnek sorular.
+
+**Koltuk danışmanı** (`lib/asistan/danisman.ts`, saf ve testli): büyük düğmelerle 5 soru: duvarın uzunluğu (2 m'den kısa / 2–3 / 3–4 / 4 m'den uzun), evde çocuk ya da evcil hayvan, kullanım sıklığı, tarz (yalnızca mağazanın modellerinde bulunan tarzlar sorulur; hiç yoksa soru atlanır), renk yönü. Sonuç: mağazanın kendi modellerinden en çok 3 öneri, her birine uygun kumaş ve tek cümlelik gerekçe; **3D'de aç** seçili parçayı o modele ve kumaşa çevirir.
+- **Kurallar açık ve yazılı:** duvar sınırı kesin (modelin eni duvardan uzunsa önerilmez); tarz etiketi uyarsa +4, çocuk/yoğun kullanımda "günlük yoğun" etiketi +3, küçük duvarda "küçük alan" +2, öne çıkarılmış +0,5, duvarı iyi dolduran uzunluk en çok +1. Kumaş: renk yönü uyarsa +3; çocuk/yoğun kullanımda yalnızca **girilmiş** Martindale değeri puan verir (yüksek olan önde). **Eşik sayısı uydurulmadı:** "şu kadar Martindale yeterli" denmez; değer söylenir, sıralamada kullanılır.
+- **Gerekçe yalnızca girilmiş bilgiden:** "220 cm ile duvara sığıyor, modern çizgide, günlük yoğun kullanım için işaretli; MISSO-05 gri bir jakar, aşınma dayanımı 40.000 Martindale." Etiketi olmayan modele "modern" denmez; Martindale'i girilmemiş kumaşa "dayanıklı" denmez.
+- **Öz-eleştiriyle düzeltilen:** ilk sürümde üç önerinin üçü de aynı kumaşla geliyordu; şimdi her öneri, uygun kumaşları içinde henüz kullanılmamış en iyisini alır.
+- **Hiç boş ekran yok:** sığan model yoksa "Bu duvara sığan model yok. En dar model …: … cm."; birim testi her cevap birleşimini dener (288 birleşim).
+- **Bütçe sorusu henüz yok:** görev tanımına göre yalnızca mağaza fiyat girdiyse sorulur; fiyatlar mağaza panelinde girilmeye başlandı ama vitrine taşınmadı. Taşındığında eklenecek.
+- Danışman 5 dokunuşta biter; uçtan uca testte sonuç 0,3 sn (sınır 60 sn).
+
+**Danışman etiketleri (panel):** Modeller → model → **Danışman etiketleri**: Tarz (Modern, Klasik, İskandinav, Endüstriyel, Rustik, Sade) ve Kullanım (Günlük yoğun kullanım, Küçük alana uygun, Kalabalık aile, Misafir odası). Koddan gelen örnek modellerde de yalnızca bu bölüm açık. Değişiklik günlüğe yazılır. Şema: `models.use_tags` (tarz için 15 Kasım'da eklenen `style_tags` kullanılıyor); `20261123000000_asistan.sql`, geri alma dosyasıyla; canlı Supabase'e uygulanmadı.
+
+**Olay kaydı:** "asistana soru soruldu" (ilgili kumaş kodu varsa) ve "danışman tamamlandı" (süresiyle). **Sorunun metni hiç kaydedilmez.**
+
+**Dil modeli (sonra, onayla):** Bu sürüm bir dil modeli kullanmıyor, para harcamıyor ve internetsiz çalışıyor. Her serbest cümleyi anlamaz. Bir dil modeli bağlanırsa aynı hesap ve bilgi işlevlerini araç olarak çağıracak şekilde önüne konur; bilgiler yine panelin olur. Maliyeti soru başına küçük ama sıfır değil; fiyatı onaydan önce resmî sayfadan yazılacak.
+
+**Bulunup düzeltilen hatalar:** (1) "Bu kumaşın eni ne" sorusu aşınma sorusu sanılıyordu: "kumaşın" sadeleşince "kumasin" oluyor, içinde "asin" geçiyor. Aşınma kalıbı kelime başına bağlandı; birim testi yakaladı. (2) Sohbeti alta kaydıran efekt `scrollIntoView` sonucunu döndürüyordu; yeni Chromium bundan bir Promise döndürüyor, React bunu temizleme işlevi sanıp sayfayı çökertiyordu ("destroy is not a function"). Uçtan uca test yakaladı; geliştirme sunucusunda yığın okunarak bulundu.
+
+**Test:** Birim: kod ve model adı bulma, metraj (elle hesabıyla), girilmiş/girilmemiş özellikler, temizlik sorusu, karşılaştırma, renk, öneri isteği, anlaşılmayan soru; danışman: duvar sınırı, etiketli gerekçe, girilmemişi söylememe, sığan yoksa mesaj, 288 birleşimde boş ekran yok, yalnızca var olan tarzlar, öneriler farklı kumaşlarla. Uçtan uca: panelden Martindale ve etiketler girilir; asistan girilen değeri söyler, girilmeyeni "girilmemiş" der, metraj ve fark sorularını cevaplar, anlamadığını söyler; danışman 5 dokunuşla etiketli modeli gerekçesiyle önerir, 3D'de açınca sahnede o kumaş. Asistan penceresi erişilebilirlik testinde.
+
 ## İş 5: Fotoğraftan dene (anında giydirme), sağlayıcısız (19 Kasım 2026)
 
 **Para harcanmıyor (15 Kasım kararı):** Akışın tamamı yazıldı; arkasında yalnızca **deneme sağlayıcısı** (`GIYDIRME_SAGLAYICI=sahte`) var. Hiçbir hizmeti çağırmaz, para harcamaz; fotoğrafı kumaşla boyar ve sonucun gerçek olmadığı panelde açıkça yazar. Gerçek sağlayıcı tek bir dosyayla eklenir (`lib/giydirme/saglayici.ts` arayüzü). Seçim ve onay Fatih Bey'de (PLAN-SHOWROOM.md'deki karşılaştırma). **Sağlayıcı bağlı değilken ekranlarda düğme hiç görünmez** (yarım özellik gösterilmez); uçlar da 503 döner.

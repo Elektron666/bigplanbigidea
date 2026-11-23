@@ -138,6 +138,9 @@ export interface FurnitureModel {
   /** Who makes it (central catalogue). */
   manufacturer?: string;
   category?: ProductCategory;
+  /** Advisor tags (job 10, lib/asistan/etiketler.ts): style and use, as set in the panel. */
+  styleTags?: string[];
+  useTags?: string[];
   isActive: boolean;
   sortOrder: number;
   // --- how one shop shows a shared product (lib/catalogue/shop-products.ts); absent everywhere else

@@ -78,6 +78,8 @@ interface ModelRow {
   cover_path: string | null;
   manufacturer?: string | null;
   category?: ProductCategory | null;
+  style_tags?: string[] | null;
+  use_tags?: string[] | null;
   is_active: boolean;
   sort_order: number;
 }
@@ -164,6 +166,8 @@ function modelFromRow(r: ModelRow): FurnitureModel {
     coverUrl: publicFileUrl(r.cover_path),
     manufacturer: und(r.manufacturer ?? null),
     category: und(r.category ?? null),
+    ...(r.style_tags?.length ? { styleTags: r.style_tags } : {}),
+    ...(r.use_tags?.length ? { useTags: r.use_tags } : {}),
     isActive: r.is_active,
     sortOrder: r.sort_order,
   };
@@ -383,6 +387,12 @@ export class SupabaseRepository implements Repository {
       : await this.db.from("firms").insert(row).select("*").single();
     if (res.error?.code === "23505") throw new DuplicateSlugError(input.slug);
     return firmFromRow(check(res) as FirmRow);
+  }
+
+  async setModelTags(modelId: string, styleTags: string[], useTags: string[]) {
+    const res = await this.db.from("models").update({ style_tags: styleTags, use_tags: useTags }).eq("id", modelId).select("id");
+    if (res.error && /use_tags/.test(res.error.message)) throw new Error("Kullanım etiketleri için Supabase'te 20261123000000_asistan.sql dosyasını çalıştırın.");
+    return (check(res) as unknown[]).length > 0;
   }
 
   async setFirmFeatures(firmId: string, features: Record<string, boolean>) {

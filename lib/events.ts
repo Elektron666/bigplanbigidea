@@ -23,6 +23,9 @@ export const EVENT_TYPES = [
   "siparis_talebi",
   "vitrin_basladi",
   "vitrin_bitti",
+  // the assistant (job 10): that a question was asked (never its words), an advisor round finished
+  "asistan_soru",
+  "danisman_tamamlandi",
 ] as const;
 export type EventType = (typeof EVENT_TYPES)[number];
 export const DEVICES = ["telefon", "tablet", "masaustu"] as const;

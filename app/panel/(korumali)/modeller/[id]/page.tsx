@@ -4,6 +4,7 @@ import { getRepository } from "@/lib/data";
 import { ModelEditor } from "@/components/panel/ModelEditor";
 import { ParametricEditor } from "@/components/panel/ParametricEditor";
 import { PageHeader } from "@/components/panel/ui";
+import { ModelTags } from "@/components/panel/ModelTags";
 
 export default async function EditModelPage({ params }: PageProps<"/panel/modeller/[id]">) {
   // checked here, not only in the layout: a layout check does not stop the page from rendering
@@ -12,12 +13,13 @@ export default async function EditModelPage({ params }: PageProps<"/panel/modell
   const repo = getRepository();
   const [models, fabrics] = await Promise.all([repo.listAllModels(), repo.listFabrics()]);
   const model = models.find((m) => m.id === decodeURIComponent(id));
-  // the two built-in samples are code, not editable
-  if (!model || model.source.kind === "procedural") notFound();
+  if (!model) notFound();
   return (
     <>
       <PageHeader title={model.name} eyebrow="Modeli düzenle" />
-      {model.source.kind === "parametric" ? (
+      <ModelTags key={`etiket-${model.id}`} modelId={model.id} styleTags={model.styleTags ?? []} useTags={model.useTags ?? []} />
+      {/* the two built-in samples are code: only their advisor tags can be set */}
+      {model.source.kind === "procedural" ? null : model.source.kind === "parametric" ? (
         <ParametricEditor key={model.id} model={model} fabrics={fabrics} />
       ) : (
         <ModelEditor key={model.id} model={model} fabrics={fabrics} />

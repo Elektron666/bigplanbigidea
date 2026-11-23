@@ -16,6 +16,7 @@ import { builtModel, KURULUM_SLUG } from "@/lib/modul/model";
 import { CornerBuilder } from "./CornerBuilder";
 import { KartelaScanner } from "@/components/kiosk/KartelaScanner";
 import { PhotoTryOn } from "@/components/kiosk/PhotoTryOn";
+import { Asistan } from "@/components/kiosk/Asistan";
 import { KioskCodeEntry } from "@/components/kiosk/KioskCodeEntry";
 import { AttractContext } from "@/components/kiosk/attract";
 import { ATTRACT_STEP_SECONDS, attractChangesModel, attractFabrics, attractModels, nextAttract, nextAttractModel } from "@/lib/kiosk";
@@ -88,6 +89,8 @@ export interface ConfiguratorProps {
   moduleSets?: ModuleSet[];
   /** "Fotoğraftan dene" (job 5): a paired showroom screen whose shop has it on, while a provider is set. */
   tryOn?: boolean;
+  /** The assistant and sofa advisor (job 10): on unless the shop switched it off. */
+  assistant?: boolean;
   /** "Kartela okut" on the kiosk (job 2); a shop may switch it off. */
   kartela?: boolean;
 }
@@ -124,6 +127,7 @@ export function Configurator({
   moduleSets,
   kartela = true,
   tryOn = false,
+  assistant = false,
 }: ConfiguratorProps) {
   // ---------------------------------------------------------------- corner set builder (job 4)
   // the set being built is one more model, at the fixed address "kose-kurucu"
@@ -313,17 +317,22 @@ export function Configurator({
     setSelectedId(piece.id);
   };
   /** Another model in a piece's place: position, fabric, zones, legs and pattern direction stay where they still apply. */
-  const swapModel = (id: string, slug: string) => {
+  // `fabricCode`: the assistant's suggestion puts a model and its fabric on the piece in one step
+  const swapModel = (id: string, slug: string, fabricCode?: string) => {
     const model = bySlug.get(slug);
     const src = items.find((p) => p.id === id);
-    if (!model || !src || src.modelSlug === slug) return;
+    if (!model || !src) return;
     const allowed = fabricsForModel(fabrics, model);
     const keep = (code: string) => allowed.some((f) => f.code === code);
-    const zones = src.zones && Object.fromEntries(Object.entries(src.zones).filter(([, c]) => keep(c)));
+    if (src.modelSlug === slug) {
+      if (fabricCode && keep(fabricCode)) commit(items.map((p) => (p.id === id ? { ...p, fabricCode, zones: undefined } : p)));
+      return;
+    }
+    const zones = !fabricCode && src.zones && Object.fromEntries(Object.entries(src.zones).filter(([, c]) => keep(c)));
     let next: Placement = {
       ...src,
       modelSlug: slug,
-      fabricCode: keep(src.fabricCode) ? src.fabricCode : startFabric(allowed, src.fabricCode, model).code,
+      fabricCode: fabricCode && keep(fabricCode) ? fabricCode : keep(src.fabricCode) ? src.fabricCode : startFabric(allowed, src.fabricCode, model).code,
       zones: zones && Object.keys(zones).length ? zones : undefined,
       ayak: hasWoodLegs(model) ? src.ayak : undefined,
     };
@@ -390,6 +399,7 @@ export function Configurator({
   const [sampleOpen, setSampleOpen] = useState(false);
   const [quoteOpen, setQuoteOpen] = useState(false);
   const [tryOnOpen, setTryOnOpen] = useState(false);
+  const [assistantOpen, setAssistantOpen] = useState(false);
   const [share, setShare] = useState<{ image: Blob | null; snapshot: string; url: string } | null>(null);
   const [printing, setPrinting] = useState<PrintData | null>(null);
 
@@ -519,6 +529,15 @@ export function Configurator({
                 <IconShare width={17} height={17} className="sm:hidden" />
                 <span className="max-sm:sr-only">{kiosk ? "Telefona al" : "Paylaş"}</span>
               </button>
+              {assistant && (
+                <button
+                  type="button"
+                  onClick={() => setAssistantOpen(true)}
+                  className="flex h-10 items-center whitespace-nowrap rounded-full border border-cizgi bg-kagit/90 px-3 text-[13px] text-antrasit backdrop-blur-[2px] transition-colors hover:border-cizgi-koyu focus-visible:outline-2 focus-visible:outline-antrasit sm:px-4"
+                >
+                  Asistan
+                </button>
+              )}
               {tryOn && (
                 <button
                   type="button"
@@ -819,6 +838,23 @@ export function Configurator({
           )}
         </p>
       </FabricSheet>
+      {assistantOpen && (
+        <Asistan
+          models={models.filter((m) => m.slug !== KURULUM_SLUG)}
+          fabrics={fabrics}
+          fabricsFor={(m) => fabricsForModel(fabrics, m)}
+          currentModel={selectedModel}
+          currentFabric={active}
+          waste={waste ?? null}
+          firmSlug={firm?.slug ?? null}
+          onClose={() => setAssistantOpen(false)}
+          onOpen={(m, f) => {
+            if (m) swapModel(selectedItem.id, m.slug, f?.code);
+            else if (f) select(f);
+            setAssistantOpen(false);
+          }}
+        />
+      )}
       {tryOnOpen && (
         <PhotoTryOn
           fabrics={modelFabrics}

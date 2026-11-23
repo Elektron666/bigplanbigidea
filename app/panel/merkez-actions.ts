@@ -20,6 +20,7 @@ import { validateShopRecord, validateSubscription, validateTemplate, type ShopRe
 import { cleanSeries, seriesOf } from "@/lib/fabric/allowed";
 import { describeOp, MAX_BULK, parseBulkOp, parseBulkTarget, recordAfter, seriesAfter } from "@/lib/central/bulk";
 import { validateModuleSet } from "@/lib/modul/set-input";
+import { cleanTags, STYLE_LABELS, STYLE_TAGS, USE_LABELS, USE_TAGS } from "@/lib/asistan/etiketler";
 import { getModuleSets } from "@/lib/modul/store";
 import { STORAGE_BUCKET, SUPABASE_URL } from "@/lib/supabase/config";
 
@@ -480,6 +481,34 @@ export async function bulkShopAction(opRaw: unknown, targetRaw: unknown): Promis
   revalidatePath("/panel/gunluk");
   revalidatePath("/f/[slug]", "page");
   return { ok: true, changed, same: found - changed, shops: found };
+}
+
+// ------------------------------------------------------------------ advisor tags (job 10)
+
+export async function setModelTagsAction(modelId: string, styleTags: unknown, useTags: unknown): Promise<Result> {
+  const user = await getPanelUser();
+  if (!user) return { ok: false, error: "Oturum süresi doldu. Yeniden giriş yapın." };
+  if (!can(user.role, "icerik")) return { ok: false, error: DENIED };
+  const repo = getRepository();
+  const model = (await repo.listAllModels()).find((m) => m.id === String(modelId).slice(0, 60));
+  if (!model) return { ok: false, error: "Model bulunamadı." };
+  const s = cleanTags(styleTags, STYLE_TAGS);
+  const u = cleanTags(useTags, USE_TAGS);
+  if (!(await repo.setModelTags(model.id, s, u))) return { ok: false, error: "Model bulunamadı." };
+  await getCentral().writeAudit({
+    actor: user.email,
+    actorRole: user.role,
+    firmId: model.firmId,
+    entity: "urun",
+    entityId: model.id,
+    action: "etiket-degisti",
+    summary: `${model.name}: danışman etiketleri ${[...s.map((t) => STYLE_LABELS[t]), ...u.map((t) => USE_LABELS[t])].join(", ") || "kaldırıldı"}`.slice(0, 300),
+    before: { styleTags: model.styleTags ?? [], useTags: model.useTags ?? [] },
+    after: { styleTags: s, useTags: u },
+  });
+  revalidatePath(`/panel/modeller/${model.id}`);
+  revalidatePath("/f/[slug]", "page");
+  return { ok: true };
 }
 
 // ------------------------------------------------------------------ module sets (job 4, second part)

@@ -113,6 +113,8 @@ Kamera izni verilmezse ya da ekranın kamerası yoksa **Kartela okut** düğmesi
 - GLB hazırlığı (modelciye iletin): birim metre; modelin önü +z yönüne baksın; kumaş alacak malzemenin adı `kumas`; minder ve kırlentin ayrı kumaş alabilmesi için parça adları `govde`, `kol`, `oturum`, `sirt-minder` ile başlasın. Köşe modülü kare olsun.
 - Modüller yan yana gelince araya boşluk giriyor ya da üst üste biniyorsa: modülün **Bağlantı noktaları** kısmına GLB'deki arka-sol ve arka-sağ köşenin (köşe modülünde ön-sol ve arka-sağ) koordinatlarını cm olarak yazın.
 
+**Asistan ve koltuk danışmanı:** Mağaza sayfasında ve ekranda **Asistan** düğmesi (ücretsiz, varsayılan açık; kapatmak için mağaza → Özellikler). Danışmanın iyi öneri yapması için her modele etiket verin: Modeller → model → **Danışman etiketleri** (tarz ve kullanım). Kumaşların Martindale, en, bileşim gibi bilgilerini girin: asistan yalnızca girilmiş bilgiyi söyler, girilmemişe "panelde girilmemiş" der.
+
 **Fotoğraftan dene (İş 5) — bugün kapalı:** Bir sağlayıcı seçilip anahtarı girilene kadar hiçbir mağazada çıkmaz. O gün sırası şöyle:
 1. Panel → **Fotoğraftan dene** → **Giydirme testi** → koşuya ad verin, en çok 4 kumaş seçin → **Koşuyu oluştur** → en az 20 koltuk fotoğrafını **Fotoğraf ekle** ile yükleyin → **Çalıştır**. Her sonucu **Gösterilebilir** / **Gösterilemez** diye işaretleyin, gerekirse not yazın. Üstte oran, ortalama süre ve toplam maliyet; "şart sağlandı (en az 16/20)" yazmadan sahaya çıkmayın. Bu sayfa yalnızca ORMEN yöneticisine açık (her görsel ücretlidir).
 2. Mağazanın sayfası → **Özellikler** → **Fotoğraftan dene**'yi açın; **Mağaza kaydı** → **Aylık fotoğraf denemesi kotası**. Kota boşsa deneme yapılmaz.
