@@ -7,6 +7,9 @@ import { ONLINE_WINDOW_MS } from "@/lib/devices/pairing";
 import { STALE_DAYS } from "./shops";
 
 export interface DeviceBeat {
+  /** Optional for callers that only count; the stores always give them. */
+  id?: string;
+  name?: string;
   firmId: string;
   lastSeenAt: string | null;
   syncStatus: string;

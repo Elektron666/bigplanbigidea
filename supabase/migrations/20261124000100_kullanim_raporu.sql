@@ -77,6 +77,14 @@ language sql stable security invoker set search_path = public as $$
 $$;
 grant execute on function public.usage_report(timestamptz, timestamptz, text) to authenticated;
 
+-- each showroom screen's last visit (for "30 gündür kullanılmayan ekran"); the caller's row rules apply
+create or replace function public.screen_last_sessions()
+returns table (device_id uuid, last_at timestamptz)
+language sql stable security invoker set search_path = public as $$
+  select device_id, max(created_at) from public.events where type = 'oturum_basladi' and device_id is not null group by device_id;
+$$;
+grant execute on function public.screen_last_sessions() to authenticated;
+
 -- the monthly summary handed to a shop: once per shop and month
 create table public.usage_notices (
   firm_id uuid not null references public.firms (id) on delete cascade,

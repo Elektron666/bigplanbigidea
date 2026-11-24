@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { requirePanelUser } from "@/lib/auth/panel";
 import { getRepository } from "@/lib/data";
 import { PageHeader, buttonClass, inputClass } from "@/components/panel/ui";
@@ -62,7 +63,11 @@ export default async function ReportPage({ searchParams }: PageProps<"/panel/rap
 
   return (
     <>
-      <PageHeader title="Rapor" eyebrow="Kullanım" />
+      <PageHeader title="Rapor" eyebrow="Kullanım">
+        <Link href="/panel/rapor/magazalar" className={buttonClass.secondary}>
+          Mağazaların aylık kullanımı
+        </Link>
+      </PageHeader>
       <form className="mb-6 flex flex-wrap items-end gap-3" role="search" aria-label="Rapor süzgeci">
         <label className="flex flex-col gap-1 text-[13px] text-antrasit-70">
           Dönem

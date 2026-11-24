@@ -112,7 +112,7 @@ export class MemoryCentral implements CentralStore {
   }
 
   async deviceBeats() {
-    return [...this.devices.values()].map((d) => ({ firmId: d.firmId, lastSeenAt: d.lastSeenAt, syncStatus: d.syncStatus, createdAt: d.createdAt }));
+    return [...this.devices.values()].map((d) => ({ id: d.id, name: d.name, firmId: d.firmId, lastSeenAt: d.lastSeenAt, syncStatus: d.syncStatus, createdAt: d.createdAt }));
   }
 
   async unpaidFees() {

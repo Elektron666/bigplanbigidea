@@ -3,6 +3,8 @@ import { requireShopUser } from "@/lib/auth/shop";
 import { getShopPanel, QUOTE_PAGE } from "@/lib/magaza/store";
 import { ORDER_STATUS_LABELS } from "@/lib/teklif/sabitler";
 import { Badge, PageHeader, buttonClass } from "@/components/panel/ui";
+import { getNotices } from "@/lib/rapor/store";
+import { monthRange } from "@/lib/monthly";
 
 export const metadata = { title: "Teklifler" };
 
@@ -19,8 +21,21 @@ export default async function ShopQuotesPage({ searchParams }: PageProps<"/magaz
   const page = Math.max(1, Math.min(10_000, Number(sp.sayfa) || 1));
   const { total, rows } = await getShopPanel().quotes(user, page);
   const pages = Math.max(1, Math.ceil(total / QUOTE_PAGE));
+  // the monthly usage summary ORMEN's daily job handed over, until it is opened (job 11)
+  const unseen = (await getNotices().forShop(user.firmId).catch(() => [])).find((n) => !n.seenAt);
   return (
     <>
+      {unseen && (
+        <div role="status" className="mb-5 flex flex-wrap items-center gap-3 rounded-2xl bg-[#E8EFE6] px-5 py-3 text-[15px] text-[#35523a]">
+          <span className="min-w-0 flex-1">{monthRange(unseen.month)?.label} kullanım raporunuz hazır.</span>
+          <Link href={`/magaza/rapor?ay=${unseen.month}`} className={buttonClass.secondary}>
+            Raporu aç
+          </Link>
+          <a href={`/magaza/rapor-pdf?ay=${unseen.month}`} download className={buttonClass.quiet}>
+            PDF indir
+          </a>
+        </div>
+      )}
       <PageHeader title="Teklifler" eyebrow={`${total} teklif`} />
       {rows.length === 0 ? (
         <p className="rounded-2xl border border-dashed border-cizgi-koyu p-10 text-center text-[15px] text-antrasit-50">

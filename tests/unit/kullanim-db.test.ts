@@ -2,7 +2,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { beforeAll, describe, expect, it } from "vitest";
 import { PGlite } from "@electric-sql/pglite";
-import { buildUsage, isEmpty, usageFromJson, usageOf } from "@/lib/rapor/kullanim";
+import { buildUsage, idleScreens, isEmpty, usageFromJson, usageOf } from "@/lib/rapor/kullanim";
 import type { EventType, StoredEvent } from "@/lib/events";
 
 // Job 11: the monthly usage report. The database's sums (usage_report())
@@ -105,11 +105,65 @@ describe("the monthly usage report", () => {
     expect((await as(OWNER, () => db.query("select distinct firm_slug from events"))).rows).toEqual([{ firm_slug: "a-mob" }]);
   });
 
+  it("finds each screen's last visit; a shop owner only their own", async () => {
+    const dev = (await db.query<{ id: string }>("insert into devices (firm_id, name, token_hash) select id, 'Ekran 1', repeat('a', 64) from firms where slug = 'a-mob' returning id")).rows[0].id;
+    await db.query("insert into events (type, session_id, firm_slug, device_id, created_at) values ('oturum_basladi', 'dev-session-1', 'a-mob', $1, '2026-09-01T10:00:00Z'), ('oturum_basladi', 'dev-session-2', 'a-mob', $1, '2026-09-20T10:00:00Z')", [dev]);
+    expect((await as(STAFF, () => db.query("select device_id, last_at from public.screen_last_sessions()"))).rows).toEqual([{ device_id: dev, last_at: new Date("2026-09-20T10:00:00Z") }]);
+    expect((await as(OWNER, () => db.query("select device_id from public.screen_last_sessions()"))).rows).toHaveLength(1);
+    expect((await as(null, () => db.query("select device_id from public.screen_last_sessions()"))).rows).toHaveLength(0);
+  });
+
   it("says a month without use is empty, not missing", async () => {
     const none = usageFromJson((await as(STAFF, () => db.query<{ r: unknown }>("select public.usage_report('2026-01-01', '2026-01-31', 'a-mob') as r"))).rows[0].r);
     expect(none).toEqual([]);
     const u = usageOf(none, "a-mob");
     expect(isEmpty(u)).toBe(true);
     expect(u.sessions).toBe(0);
+  });
+});
+
+describe("screens nobody uses", () => {
+  it("warns about a screen unused for 30 days, not about one paired last week", () => {
+    const now = Date.parse("2026-11-24T12:00:00Z");
+    const devices = [
+      { id: "old-used", firmId: "a", createdAt: "2026-01-01T00:00:00Z" },
+      { id: "old-idle", firmId: "a", createdAt: "2026-01-01T00:00:00Z" },
+      { id: "never-old", firmId: "a", createdAt: "2026-09-01T00:00:00Z" },
+      { id: "never-new", firmId: "a", createdAt: "2026-11-20T00:00:00Z" },
+    ];
+    const last = { "old-used": "2026-11-23T10:00:00Z", "old-idle": "2026-10-01T10:00:00Z" };
+    expect(idleScreens(devices, last, now).map((d) => [d.id, d.lastSessionAt])).toEqual([
+      ["old-idle", "2026-10-01T10:00:00Z"],
+      ["never-old", null],
+    ]);
+  });
+});
+
+describe("which months a report offers", () => {
+  it("the last twelve, none before 2026; the last full month by default", async () => {
+    const { pickMonth, reportMonths } = await import("@/lib/rapor/aylar");
+    const now = new Date("2026-11-24T12:00:00Z");
+    expect(reportMonths(now)).toEqual(["2026-11", "2026-10", "2026-09", "2026-08", "2026-07", "2026-06", "2026-05", "2026-04", "2026-03", "2026-02", "2026-01"]);
+    expect(pickMonth(undefined, now)).toBe("2026-10");
+    expect(pickMonth("2026-11", now)).toBe("2026-11");
+    expect(pickMonth("2025-12", now)).toBe("2026-10");
+    expect(pickMonth(undefined, new Date("2026-01-10T12:00:00Z"))).toBe("2026-01");
+  });
+});
+
+describe("fabrics quoted most, by shop", () => {
+  it("counts a fabric once per quote, by shop, most quoted first", async () => {
+    const { tallyQuotedFabrics } = await import("@/lib/rapor/kullanim");
+    expect(
+      tallyQuotedFabrics([
+        { firmId: "a", codes: ["LUMA-02", "LUMA-02", "MISSO-05"] },
+        { firmId: "a", codes: ["LUMA-02"] },
+        { firmId: "b", codes: ["LUMA-02"] },
+      ]),
+    ).toEqual([
+      { firmId: "a", code: "LUMA-02", quotes: 2 },
+      { firmId: "b", code: "LUMA-02", quotes: 1 },
+      { firmId: "a", code: "MISSO-05", quotes: 1 },
+    ]);
   });
 });

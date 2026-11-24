@@ -665,6 +665,11 @@ export class SupabaseRepository implements Repository {
     return usageFromJson(check(await this.db.rpc("usage_report", { p_from: from.toISOString(), p_to: to.toISOString(), p_firm: firmSlug ?? null })));
   }
 
+  async screenLastSessions() {
+    const rows = check(await this.db.rpc("screen_last_sessions")) as { device_id: string; last_at: string }[];
+    return Object.fromEntries(rows.map((r) => [r.device_id, r.last_at]));
+  }
+
   async createSampleRequest(input: SampleRequestInput) {
     const firm = input.firmSlug ? await this.getFirmBySlug(input.firmSlug) : null;
     const row = {

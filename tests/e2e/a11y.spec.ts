@@ -67,7 +67,7 @@ test.describe("erişilebilirlik: showroom paketi panelleri", () => {
   test("merkez paneli ve mağaza paneli", async ({ page, browser }) => {
     test.setTimeout(180_000);
     await login(page);
-    for (const path of ["/panel", "/panel/gunluk", "/panel/katalog", "/panel/siparisler", "/panel/firmalar/seed-firm-ornek", "/panel/modul-setleri", "/panel/modul-setleri/yeni", "/panel/giydirme", "/panel/giydirme/test", "/panel/kumaslar/stok"]) {
+    for (const path of ["/panel", "/panel/gunluk", "/panel/katalog", "/panel/siparisler", "/panel/firmalar/seed-firm-ornek", "/panel/modul-setleri", "/panel/modul-setleri/yeni", "/panel/giydirme", "/panel/giydirme/test", "/panel/kumaslar/stok", "/panel/rapor/magazalar"]) {
       await page.goto(path);
       expect(await violations(page), path).toEqual([]);
     }
@@ -85,7 +85,7 @@ test.describe("erişilebilirlik: showroom paketi panelleri", () => {
     await shop.getByLabel("Şifre").fill("ormen-magaza");
     await shop.getByRole("button", { name: "Giriş yap" }).click();
     await expect(shop.getByRole("heading", { name: "Teklifler" })).toBeVisible();
-    for (const path of ["/magaza", "/magaza/urunler", "/magaza/ekranlar", "/magaza/hesap"]) {
+    for (const path of ["/magaza", "/magaza/urunler", "/magaza/ekranlar", "/magaza/hesap", "/magaza/rapor"]) {
       await shop.goto(path);
       expect(await violations(shop), path).toEqual([]);
     }

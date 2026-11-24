@@ -3,5 +3,6 @@
 -- read rule and the record of summaries handed out go.
 drop table if exists public.usage_notices;
 drop function if exists public.usage_report(timestamptz, timestamptz, text);
+drop function if exists public.screen_last_sessions();
 drop policy if exists "owner reads own shop events" on public.events;
 drop function if exists public.my_firm_slugs();

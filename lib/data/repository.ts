@@ -104,6 +104,8 @@ export interface Repository {
   eventReport(from: Date, to: Date, firmSlug?: string): Promise<Report>;
   /** The monthly usage report (job 11) of every shop with events in the period, or of one shop. */
   usageReport(from: Date, to: Date, firmSlug?: string): Promise<Usage[]>;
+  /** Each showroom screen's last visit (device id → ISO time); screens never used are not in it. */
+  screenLastSessions(): Promise<Record<string, string>>;
 
   /** Stores an uploaded file and returns the URL it is served from. */
   putFile(path: string, data: ArrayBuffer, contentType: string): Promise<string>;

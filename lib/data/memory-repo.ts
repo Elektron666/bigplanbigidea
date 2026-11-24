@@ -302,6 +302,12 @@ export class MemoryRepository implements Repository {
     return buildUsage(firmSlug ? this.events.filter((e) => e.firmSlug === firmSlug) : this.events, from, to);
   }
 
+  async screenLastSessions() {
+    const out: Record<string, string> = {};
+    for (const e of this.events) if (e.type === "oturum_basladi" && e.deviceId && (!out[e.deviceId] || e.createdAt > out[e.deviceId])) out[e.deviceId] = e.createdAt;
+    return out;
+  }
+
   async putFile(path: string, data: ArrayBuffer, contentType: string) {
     this.files.set(path, { data, type: contentType });
     return `/api/dosya/${path}`;

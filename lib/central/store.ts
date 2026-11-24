@@ -254,8 +254,8 @@ class SupabaseCentral implements CentralStore {
   }
 
   async deviceBeats() {
-    const rows = check(await this.db.from("devices").select("firm_id, last_seen_at, sync_status, created_at").limit(5000)) as { firm_id: string; last_seen_at: string | null; sync_status: string; created_at: string }[];
-    return rows.map((r) => ({ firmId: r.firm_id, lastSeenAt: r.last_seen_at, syncStatus: r.sync_status, createdAt: r.created_at }));
+    const rows = check(await this.db.from("devices").select("id, name, firm_id, last_seen_at, sync_status, created_at").limit(5000)) as { id: string; name: string; firm_id: string; last_seen_at: string | null; sync_status: string; created_at: string }[];
+    return rows.map((r) => ({ id: r.id, name: r.name, firmId: r.firm_id, lastSeenAt: r.last_seen_at, syncStatus: r.sync_status, createdAt: r.created_at }));
   }
 
   async unpaidFees() {

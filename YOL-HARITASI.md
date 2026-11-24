@@ -16,7 +16,8 @@ Görev tanımı: "ORMEN Atelier — Showroom Paketi, tam kapsam". Plan `PLAN-SHO
 | **5. Anında giydirme** | 🟡 Akışın tamamı, etiket, kota, maliyet kaydı, gizlilik ve 20 fotoğraflık test sayfası hazır; arkasında yalnızca hiçbir yeri çağırmayan deneme sağlayıcısı var. Gerçek sağlayıcı ORMEN'in onayı ve anahtarıyla eklenecek; o güne kadar mağazalarda kapalı. |
 | **Asistan ve koltuk danışmanı (İş 10 + soru/metraj)** | ✅ Ücretsiz, cihazda çalışan sürüm: serbest sorular, metraj, karşılaştırma, 5 soruluk danışman, sesle soru. Dil modeli ORMEN'in onayıyla sonra. |
 | **8. Kumaş özellikleri, stok ve filtreler** | ✅ Üç özellik işareti, müşteri filtreleri (yalnız girilmiş işaretle), elle ve CSV ile stok, termin etiketi, muadil ve "benzer" önerisi. Stok yalnızca "Stok ve termin" açık mağazanın showroom ekranına gider. |
-| **Dalga 2'nin kalanı (6, 7, 9, 11), Dalga 3 (12–16)** | ⏳ Başlanmadı. |
+| **11. Aylık kullanım raporu** | ✅ Mağaza panelinde aylık rapor ve tek sayfa PDF, ayın başında "rapor hazır" bildirimi, ORMEN panelinde bütün mağazalar yan yana, 30 gündür kullanılmayan ekranlar, mağaza bazında en çok teklif edilen kumaşlar. Sayılar yalnızca olay kaydından. |
+| **Dalga 2'nin kalanı (6, 7, 9), Dalga 3 (12–16)** | ⏳ Başlanmadı. |
 
 Kabul ölçütlerinin testleri: `TEST-SHOWROOM.md` (demo akışı notu sonunda).
 

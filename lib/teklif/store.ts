@@ -1,4 +1,5 @@
 import "server-only";
+import { tallyQuotedFabrics } from "@/lib/rapor/kullanim";
 import { supabaseEnabled } from "@/lib/supabase/config";
 import { serviceClient } from "@/lib/supabase/server";
 import { EMPTY_WASTE, type WasteSettings } from "./metraj";
@@ -56,19 +57,6 @@ export interface QuoteStore {
   countSince(from: Date): Promise<{ quotes: number; orders: number }>;
   /** Per shop and fabric: in how many quotes of the period the fabric was (job 11, ORMEN's panel). */
   quotedFabrics(from: Date, to: Date): Promise<{ firmId: string | null; code: string; quotes: number }[]>;
-}
-
-/** Counts each fabric once per quote, by shop; most quoted first. */
-export function tallyQuotedFabrics(rows: { firmId: string | null; codes: string[] }[]): { firmId: string | null; code: string; quotes: number }[] {
-  const by = new Map<string, { firmId: string | null; code: string; quotes: number }>();
-  for (const r of rows)
-    for (const code of new Set(r.codes)) {
-      const k = `${r.firmId ?? ""}|${code}`;
-      const x = by.get(k) ?? { firmId: r.firmId, code, quotes: 0 };
-      x.quotes++;
-      by.set(k, x);
-    }
-  return [...by.values()].sort((a, b) => b.quotes - a.quotes || (a.code < b.code ? -1 : a.code > b.code ? 1 : 0));
 }
 
 // ------------------------------------------------------------------ memory

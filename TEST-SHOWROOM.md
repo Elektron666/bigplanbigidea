@@ -7,7 +7,7 @@ Görev tanımındaki ("ORMEN Atelier — Showroom Paketi") her kabul ölçütü,
 **Nasıl çalıştırılır:**
 - Birim ve veritabanı testleri: `npx vitest run` (veritabanı testleri PGlite ile gerçek SQL şemasını çalıştırır).
 - Uçtan uca testler: `PW_CHROMIUM_PATH=/opt/pw-browsers/chromium npx playwright test --project=masaustu --trace off`. Testler kendi sunucusunu kurar (örnek veri modu, demo panel kullanıcısı, demo mağaza sahibi, deneme giydirme sağlayıcısı; `playwright.config.ts`).
-- **Son tam koşu (24 Kasım 2026):** uçtan uca masaüstü 94 testten 91'i geçti, 2'si yalnızca telefon için olduğundan atlandı, 1'i (demo) kaldı: yük altındaki test makinesinde 3D yüklemesi 30 sn'yi aşınca en kısa vitrin süresi doldu ve ekran kendini sıfırladı. Düzeltildi (kumaş yüklenirken boşta sayacı en çok 60 sn durur); ardından demo, İş 8, asistan, panel ve erişilebilirlik testleri yeniden koşuldu, hepsi geçti. Birim ve veritabanı: 490/490.
+- **Son tam koşu (24 Kasım 2026):** uçtan uca masaüstü 94 testten 91'i geçti, 2'si yalnızca telefon için olduğundan atlandı, 1'i (demo) kaldı: yük altındaki test makinesinde 3D yüklemesi 30 sn'yi aşınca en kısa vitrin süresi doldu ve ekran kendini sıfırladı. Düzeltildi (kumaş yüklenirken boşta sayacı en çok 60 sn durur); ardından demo, İş 8, asistan, panel ve erişilebilirlik testleri yeniden koşuldu, hepsi geçti. Birim ve veritabanı: 494/494 (İş 11 dahil).
 
 ---
 
@@ -93,7 +93,7 @@ Arkasında yalnızca deneme sağlayıcısı var (hiçbir yeri çağırmaz, para 
 | **İş 8 — Kumaş özellikleri, stok ve filtreler** | Özelliği girilmemiş kumaş hiçbir özellik filtresinde çıkmaz ✅ (`tests/unit/kumas.test.ts`, `kumas.spec.ts`) · CSV ile 100 kumaşın stoğu tek seferde, hatalı satırlar raporlanır ✅ (`kumas.test.ts` 100 satır + 4 hatalı; `kumas.spec.ts` panelden yükleme ve satır numaralı rapor) · Stokta olmayan kumaş seçilince termin ve muadil görünür ✅ (`kumas.spec.ts`; stok herkese açık anahtarla okunamaz: `kumas-db.test.ts`) | ✅ |
 | **İş 9 — Oda planı ve Salon Yerleşim Projesi** | 4 × 5 m oda, kapı, pencere ve L köşe yalnızca dokunarak 5 dakikada | ⏳ |
 | **İş 10 — Koltuk danışmanı** | Her cevap birleşiminde en az bir öneri ya da "uygun ürün yok" ✅ (`tests/unit/asistan.test.ts`, 288 birleşim) · Gerekçede geçen her özellik panelde girili ✅ (`asistan.test.ts`, `asistan.spec.ts`) · Baştan sona 60 sn ✅ (`asistan.spec.ts`: 5 dokunuş, 0,3 sn) · Sesle anlatma: cihaz destekliyorsa düğme, ses saklanmaz ✅ (gerçek cihazda denenmeli 🟡) · Bütçe sorusu ⏳ (fiyatlar vitrine taşınınca) | ✅ büyük kısmı |
-| **İş 11 — Aylık kullanım raporu** | Rapordaki sayılar olay kaydıyla birebir; hiç kullanılmamış ayda rapor | ⏳ (olay kaydı İş 1'den beri dolu) |
+| **İş 11 — Aylık kullanım raporu** | Rapordaki sayılar olay kaydıyla birebir ✅ (`tests/unit/kullanim-db.test.ts`: veritabanı ve uygulama toplamları aynı olay kaydında sayı sayı aynı, elle sayımla da; `kullanim.spec.ts`: gönderilen olaylar kadar artar) · Hiç kullanılmamış ayda rapor boş değil, "kullanım yok" ✅ (`kullanim-db.test.ts`, `kullanim.spec.ts`, PDF'te de) · Firma yalnızca kendi raporunu görür ✅ (`kullanim-db.test.ts`: satır kuralı, başka mağaza ve herkese açık anahtar boş; `kullanim.spec.ts`: başka mağazanın olayları sayılmaz) | ✅ |
 
 Ek (görev tanımı dışında, Fatih Bey'in isteği): **Asistan** — serbest sorular, metraj, kumaş karşılaştırma; `asistan.test.ts`, `asistan.spec.ts`.
 

@@ -14,13 +14,7 @@ import type { UsagePdfData } from "./pdf";
 // from one place. The month is one of the last twelve; the photo quota is
 // shown for the running month only (a past month's "left" means nothing).
 
-export const REPORT_MONTHS = 12;
-
-/** The month asked for, if it is one of the last twelve; else the last full month. */
-export function pickMonth(raw: unknown, now = new Date()): string {
-  const months = recentMonths(REPORT_MONTHS, now);
-  return typeof raw === "string" && months.includes(raw) ? raw : months[1];
-}
+export { pickMonth, REPORT_MONTHS, reportMonths } from "./aylar";
 
 export async function shopReport(u: ShopUser, ym: string, origin: string): Promise<UsagePdfData & { month: string; running: boolean }> {
   const range = monthRange(ym)!;

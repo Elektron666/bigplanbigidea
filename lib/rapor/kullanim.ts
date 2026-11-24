@@ -158,3 +158,30 @@ export function duration(seconds: number | null): string {
   if (m) return r ? `${m} dk ${r} sn` : `${m} dk`;
   return `${r} sn`;
 }
+
+export const IDLE_SCREEN_DAYS = 30;
+
+/**
+ * Screens no visitor has used for 30 days: the last visit is older, or there
+ * was none and the screen was paired more than 30 days ago (a screen paired
+ * last week and not used yet is not a warning).
+ */
+export function idleScreens<D extends { id?: string; firmId: string; createdAt: string }>(devices: D[], lastSession: Record<string, string>, now = Date.now()): (D & { lastSessionAt: string | null })[] {
+  const limit = new Date(now - IDLE_SCREEN_DAYS * 86_400_000).toISOString();
+  return devices
+    .filter((d) => d.id && (lastSession[d.id] ? lastSession[d.id] < limit : d.createdAt < limit))
+    .map((d) => ({ ...d, lastSessionAt: (d.id && lastSession[d.id]) || null }));
+}
+
+/** Counts each fabric once per quote, by shop; most quoted first. */
+export function tallyQuotedFabrics(rows: { firmId: string | null; codes: string[] }[]): { firmId: string | null; code: string; quotes: number }[] {
+  const by = new Map<string, { firmId: string | null; code: string; quotes: number }>();
+  for (const r of rows)
+    for (const code of new Set(r.codes)) {
+      const k = `${r.firmId ?? ""}|${code}`;
+      const x = by.get(k) ?? { firmId: r.firmId, code, quotes: 0 };
+      x.quotes++;
+      by.set(k, x);
+    }
+  return [...by.values()].sort((a, b) => b.quotes - a.quotes || (a.code < b.code ? -1 : a.code > b.code ? 1 : 0));
+}
