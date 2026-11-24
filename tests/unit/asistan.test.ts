@@ -49,10 +49,19 @@ describe("free questions", () => {
   });
 
   it("answers a fabric question only from entered figures", () => {
-    expect(answer("Bu kumaş dayanıklı mı, kedimiz var", ctx()).lines[0]).toBe("MISSO-05: aşınma dayanımı 40.000 Martindale (panelde girilen değer). Evcil hayvan ve çocuk için kesin karar numuneyle verilir.");
+    expect(answer("Bu kumaş dayanıklı mı?", ctx()).lines[0]).toBe("MISSO-05: aşınma dayanımı 40.000 Martindale (panelde girilen değer). Evcil hayvan ve çocuk için kesin karar numuneyle verilir.");
+    // a cat: the pet mark is not entered, so it says so, and adds the wear figure that was entered
+    expect(answer("Bu kumaş dayanıklı mı, kedimiz var", ctx()).lines[0]).toBe(
+      "MISSO-05 için “evcil hayvana dayanıklı” bilgisi panelde girilmemiş. Kesin bilgi için mağaza görevlisine sorun ya da numune isteyin. Aşınma dayanımı 40.000 Martindale.",
+    );
     expect(answer("LUMA-02 dayanıklı mı?", ctx()).lines[0]).toBe("LUMA-02 için aşınma dayanımı panelde girilmemiş. Kesin bilgi için mağaza görevlisine sorun ya da numune isteyin.");
-    // there is no cleaning field at all: never made up
-    expect(answer("misso 5 makinede yıkanır mı", ctx()).lines[0]).toMatch(/^MISSO-05 için temizlik ve bakım bilgisi panelde girilmemiş/);
+    // cleaning not marked: never made up
+    expect(answer("misso 5 makinede yıkanır mı", ctx()).lines[0]).toMatch(/^MISSO-05 için “kolay temizlenir” bilgisi panelde girilmemiş/);
+    // marked by ORMEN: yes is said as yes, no as no
+    const marked = ctx({ fabrics: [{ ...LUMA, stainResistant: true, easyClean: false }] });
+    expect(answer("luma 2 leke tutar mı", marked).lines[0]).toBe("LUMA-02 panelde “leke tutmaz” olarak işaretli.");
+    expect(answer("luma 2 kolay temizlenir mi", marked).lines[0]).toBe("LUMA-02 panelde “kolay temizlenir” olarak işaretlenmemiş (hayır girilmiş).");
+    expect(fabricFacts({ ...LUMA, stainResistant: true, petResistant: false })).toContain("Özellikler: Leke tutmaz");
     expect(answer("bu kumaşın eni ne", ctx()).lines[0]).toBe("MISSO-05 kumaşın eni 140 cm.");
     expect(answer("MISSO-05 desen tekrarı", ctx()).lines[0]).toBe("MISSO-05 desenli; desen tekrarı 32 × 18 cm.");
   });

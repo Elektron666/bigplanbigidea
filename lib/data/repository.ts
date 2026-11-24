@@ -5,6 +5,7 @@ import type { CutReport } from "@/lib/cut-report";
 import type { Feedback, FeedbackInput } from "@/lib/feedback";
 import { applyShopProducts, type ShopProduct } from "@/lib/catalogue/shop-products";
 import type { ProductQuery, ProductRow } from "@/lib/catalogue/products";
+import type { Usage } from "@/lib/rapor/kullanim";
 
 export type FabricInput = Omit<Fabric, "id"> & { id?: string; derivedMaps?: boolean };
 export type ModelInput = Omit<FurnitureModel, "id"> & { id?: string };
@@ -101,6 +102,8 @@ export interface Repository {
   listEvents(since: Date, firmSlug?: string): Promise<StoredEvent[]>;
   /** The panel report for a period; scope as in listEvents. */
   eventReport(from: Date, to: Date, firmSlug?: string): Promise<Report>;
+  /** The monthly usage report (job 11) of every shop with events in the period, or of one shop. */
+  usageReport(from: Date, to: Date, firmSlug?: string): Promise<Usage[]>;
 
   /** Stores an uploaded file and returns the URL it is served from. */
   putFile(path: string, data: ArrayBuffer, contentType: string): Promise<string>;

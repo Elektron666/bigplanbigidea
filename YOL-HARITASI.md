@@ -15,7 +15,10 @@ Görev tanımı: "ORMEN Atelier — Showroom Paketi, tam kapsam". Plan `PLAN-SHO
 | **4. Köşe kurucu** | ✅ Örnek set ve panelden yüklenen GLB modül setleri; bağlantı noktalarıyla dizilim, ayna, ölçü, duvar uyumu, plan, teklif ve PDF'te şema. Gerçek üretici GLB'siyle ve gerçek cihazda kare hızı denenmedi. |
 | **5. Anında giydirme** | 🟡 Akışın tamamı, etiket, kota, maliyet kaydı, gizlilik ve 20 fotoğraflık test sayfası hazır; arkasında yalnızca hiçbir yeri çağırmayan deneme sağlayıcısı var. Gerçek sağlayıcı ORMEN'in onayı ve anahtarıyla eklenecek; o güne kadar mağazalarda kapalı. |
 | **Asistan ve koltuk danışmanı (İş 10 + soru/metraj)** | ✅ Ücretsiz, cihazda çalışan sürüm: serbest sorular, metraj, karşılaştırma, 5 soruluk danışman, sesle soru. Dil modeli ORMEN'in onayıyla sonra. |
-| **Dalga 2'nin kalanı (6–9, 11), Dalga 3 (12–16)** | ⏳ Başlanmadı. |
+| **8. Kumaş özellikleri, stok ve filtreler** | ✅ Üç özellik işareti, müşteri filtreleri (yalnız girilmiş işaretle), elle ve CSV ile stok, termin etiketi, muadil ve "benzer" önerisi. Stok yalnızca "Stok ve termin" açık mağazanın showroom ekranına gider. |
+| **Dalga 2'nin kalanı (6, 7, 9, 11), Dalga 3 (12–16)** | ⏳ Başlanmadı. |
+
+Kabul ölçütlerinin testleri: `TEST-SHOWROOM.md` (demo akışı notu sonunda).
 
 Yayına almadan önce: Vercel'in bu depoya çevrilmesi, yeni şemaların (`supabase/migrations/2026111*`) canlı Supabase'e onayla uygulanması, gerçek ekran ve tablette deneme (`KURULUM.md`, 8. adım). Yayındaki `ormen3xd` hâlâ güvenlik açıklı Next.js 16.3.8'de; 16.4.6'ya çekilmeli.
 

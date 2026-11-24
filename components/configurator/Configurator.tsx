@@ -5,7 +5,9 @@ import { useCallback, useContext, useEffect, useMemo, useRef, useState, type Poi
 import type { Fabric, Firm, FurnitureModel } from "@/lib/types";
 import { preferredTextureSize } from "@/lib/three/texture-size";
 import { t } from "@/lib/i18n/tr";
-import { CopyCodeButton, FabricHeadline, FabricSpecs } from "./FabricInfo";
+import { CopyCodeButton, FabricHeadline, FabricSpecs, FabricStock } from "./FabricInfo";
+import { alternativesFor } from "@/lib/kumas/muadil";
+import type { StockMap } from "@/lib/kumas/stok";
 import { QuickStrip } from "./QuickStrip";
 import { PresetStrip } from "./PresetStrip";
 import { useOnline } from "@/lib/offline/use-online";
@@ -93,6 +95,12 @@ export interface ConfiguratorProps {
   assistant?: boolean;
   /** "Kartela okut" on the kiosk (job 2); a shop may switch it off. */
   kartela?: boolean;
+  /** The customer's filters in the fabric list (job 8); a shop may switch them off. */
+  filters?: boolean;
+  /** Stock by fabric code (job 8): given only to a screen whose shop shows stock. */
+  stock?: StockMap;
+  /** ORMEN's alternatives by fabric code (job 8), shown when a fabric is out of stock. */
+  alternatives?: Record<string, string[]>;
 }
 
 type Tab = "kumas" | "oda" | "kose";
@@ -128,6 +136,9 @@ export function Configurator({
   kartela = true,
   tryOn = false,
   assistant = false,
+  filters = true,
+  stock,
+  alternatives,
 }: ConfiguratorProps) {
   // ---------------------------------------------------------------- corner set builder (job 4)
   // the set being built is one more model, at the fixed address "kose-kurucu"
@@ -650,6 +661,8 @@ export function Configurator({
             )}
             <div className="flex items-start justify-between gap-3">
               <FabricHeadline fabric={shownFabric} loading={loading && ready && shownFabric === active} />
+              {/* the visitor is waiting for the sofa: the kiosk's idle count holds (for a while; lib/kiosk.ts) */}
+              {loading && <span hidden data-yukleniyor="" />}
               <div className="-mr-2 mt-3 flex shrink-0 items-center">
                 <button
                   type="button"
@@ -766,6 +779,7 @@ export function Configurator({
           )}
           <div className="mb-6">
             <FabricSpecs fabric={shownFabric} />
+            {stock && <FabricStock entry={stock[shownFabric.code]} alternatives={alternativesFor(shownFabric, modelFabrics, alternatives?.[shownFabric.code], stock)} onSelect={select} />}
             {shownFabric.description && <p className="mt-3 text-sm leading-relaxed text-antrasit-70">{shownFabric.description}</p>}
             <button
               type="button"
@@ -807,7 +821,7 @@ export function Configurator({
               {selectedModel.name} bu serilerle sunuluyor: {seriesOf(modelFabrics).join(", ")}.
             </p>
           )}
-          <FabricPicker fabrics={modelFabrics} selectedCode={shownFabric.code} onSelect={select} onIntent={intent} />
+          <FabricPicker fabrics={modelFabrics} selectedCode={shownFabric.code} onSelect={select} onIntent={intent} needs={filters} stock={stock} />
           {/* the "Kendi koltuğunuzda görün — yakında" card was removed (2nd meeting, 5 Oct): the brief
               rules out real AI, so it was a promise we could not keep. lib/ai/reupholster.ts stays for Faz 3. */}
         </div>

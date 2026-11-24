@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { PROPERTY_KEYS, PROPERTY_LABELS } from "@/lib/kumas/ozellik";
 import { useRouter } from "next/navigation";
 import type { ColorFamily, Fabric, FabricType, FurnitureModel } from "@/lib/types";
 import { COLOR_FAMILIES, FABRIC_TYPES } from "@/lib/types";
@@ -30,11 +31,19 @@ interface Draft {
   weightGsm: string;
   martindale: string;
   fireRating: string;
+  stainResistant: YesNo;
+  petResistant: YesNo;
+  easyClean: YesNo;
   description: string;
   repeatW: string;
   repeatH: string;
   isActive: boolean;
 }
+
+/** A property as the form holds it: "" = not entered (never shown to customers). */
+type YesNo = "" | "evet" | "hayir";
+const yesNoOf = (v: boolean | undefined): YesNo => (v === undefined ? "" : v ? "evet" : "hayir");
+const boolOf = (v: YesNo): boolean | undefined => (v === "" ? undefined : v === "evet");
 
 function draftFrom(f?: Fabric | null): Draft {
   return {
@@ -52,6 +61,9 @@ function draftFrom(f?: Fabric | null): Draft {
     weightGsm: f?.weightGsm?.toString() ?? "",
     martindale: f?.martindale?.toString() ?? "",
     fireRating: f?.fireRating ?? "",
+    stainResistant: yesNoOf(f?.stainResistant),
+    petResistant: yesNoOf(f?.petResistant),
+    easyClean: yesNoOf(f?.easyClean),
     description: f?.description ?? "",
     repeatW: f?.texture.repeatCm.w.toString() ?? "10",
     repeatH: f?.texture.repeatCm.h.toString() ?? "",
@@ -75,6 +87,9 @@ function fieldsFrom(d: Draft): FabricFields {
     weightGsm: parseNumber(d.weightGsm),
     martindale: parseNumber(d.martindale),
     fireRating: d.fireRating.trim() || undefined,
+    stainResistant: boolOf(d.stainResistant),
+    petResistant: boolOf(d.petResistant),
+    easyClean: boolOf(d.easyClean),
     description: d.description.trim() || undefined,
     repeatW: parseNumber(d.repeatW) ?? 0,
     repeatH: parseNumber(d.repeatH) ?? 0,
@@ -447,6 +462,18 @@ export function FabricEditor({ fabric, models }: { fabric?: Fabric | null; model
             <Field label="Yanmazlık">
               <input value={draft.fireRating} onChange={(e) => set("fireRating", e.target.value)} className={inputClass} placeholder="ör. BS 5852" />
             </Field>
+            <fieldset className="col-span-2 mt-1 grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <legend className="mb-1 text-[13px] text-antrasit-70">Özellikler: yalnızca teknik föyde ya da testte doğrulananı işaretleyin. Boş bırakılan müşteriye gösterilmez, filtrelerde çıkmaz.</legend>
+              {PROPERTY_KEYS.map((k) => (
+                <Field key={k} label={PROPERTY_LABELS[k]}>
+                  <select value={draft[k]} onChange={(e) => set(k, e.target.value as YesNo)} className={inputClass}>
+                    <option value="">Girilmedi</option>
+                    <option value="evet">Evet</option>
+                    <option value="hayir">Hayır</option>
+                  </select>
+                </Field>
+              ))}
+            </fieldset>
             <Field label="Kısa açıklama" className="col-span-2">
               <textarea value={draft.description} onChange={(e) => set("description", e.target.value)} className={`${inputClass} h-20 py-2`} maxLength={300} />
             </Field>

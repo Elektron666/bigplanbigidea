@@ -74,7 +74,7 @@ const nfPrice = new Intl.NumberFormat("tr-TR", { maximumFractionDigits: 2, minim
 const metres = (m: number) => `${nfM.format(m)} m`;
 
 /** Two embedded files that together cover Turkish; each character is set from the one that has it. */
-class Face {
+export class Face {
   private sets: Set<number>[];
   constructor(private fonts: [PDFFont, PDFFont]) {
     this.sets = fonts.map((f) => new Set(f.getCharacterSet()));

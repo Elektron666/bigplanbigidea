@@ -13,6 +13,7 @@
 import type { ColorFamily, Fabric, FurnitureModel } from "@/lib/types";
 import { COLOR_FAMILY_LABELS, FABRIC_TYPE_LABELS, foldTr } from "@/lib/i18n/tr";
 import { quoteMetres, type WasteSettings } from "@/lib/teklif/metraj";
+import { propertyLabels, PROPERTY_LABELS, type PropertyKey } from "@/lib/kumas/ozellik";
 
 export interface Context {
   models: FurnitureModel[];
@@ -93,6 +94,8 @@ export function fabricFacts(f: Fabric): string[] {
   if (f.martindale) out.push(`Aşınma dayanımı: ${new Intl.NumberFormat("tr-TR").format(f.martindale)} Martindale`);
   if (f.weightGsm) out.push(`Ağırlık: ${f.weightGsm} g/m²`);
   if (f.fireRating) out.push(`Yanmazlık: ${f.fireRating}`);
+  const marks = propertyLabels(f);
+  if (marks.length) out.push(`Özellikler: ${marks.join(", ")}`);
   if (f.pattern === "desenli") out.push(f.patternRepeatCm ? `Desen tekrarı: ${f.patternRepeatCm.w} × ${f.patternRepeatCm.h} cm` : "Desenli (tekrar ölçüsü girilmemiş)");
   if (f.pattern === "duz") out.push("Düz (desensiz)");
   return out;
@@ -101,16 +104,27 @@ export function fabricFacts(f: Fabric): string[] {
 const NOT_ENTERED = (f: Fabric, what: string) => `${f.code} için ${what} panelde girilmemiş. Kesin bilgi için mağaza görevlisine sorun ya da numune isteyin.`;
 
 type Property = { re: RegExp; answer: (f: Fabric) => string };
+
+/** A property ORMEN marks yes or no; unmarked is said to be unmarked. */
+function mark(f: Fabric, k: PropertyKey): string {
+  const label = PROPERTY_LABELS[k].toLocaleLowerCase("tr-TR");
+  if (f[k] === true) return `${f.code} panelde “${label}” olarak işaretli.`;
+  if (f[k] === false) return `${f.code} panelde “${label}” olarak işaretlenmemiş (hayır girilmiş).`;
+  return NOT_ENTERED(f, `“${label}” bilgisi`);
+}
 const PROPERTIES: Property[] = [
+  // the marked properties first: "evcil hayvana dayanıklı mı" is about the mark, not only the wear figure
+  { re: /kedi|kopek|tirnak|evcil|hayvan/, answer: (f) => [mark(f, "petResistant"), ...(f.martindale ? [`Aşınma dayanımı ${new Intl.NumberFormat("tr-TR").format(f.martindale)} Martindale.`] : [])].join(" ") },
+  { re: /leke/, answer: (f) => mark(f, "stainResistant") },
+  { re: /yika|temizl|bakim/, answer: (f) => mark(f, "easyClean") },
   {
     // "aşınma" only at a word start: "kumaşın" folds to "kumasin", which also holds "asin"
-    re: /dayan|saglam|\basin|martindale|yipran|kedi|kopek|tirnak|evcil|cocuk/,
+    re: /dayan|saglam|\basin|martindale|yipran|cocuk/,
     answer: (f) =>
       f.martindale
         ? `${f.code}: aşınma dayanımı ${new Intl.NumberFormat("tr-TR").format(f.martindale)} Martindale (panelde girilen değer). Evcil hayvan ve çocuk için kesin karar numuneyle verilir.`
         : NOT_ENTERED(f, "aşınma dayanımı"),
   },
-  { re: /yika|temizl|leke|bakim/, answer: (f) => NOT_ENTERED(f, "temizlik ve bakım bilgisi") },
   { re: /icerik|bilesim|pamuk|polyester|yun\b|viskon/, answer: (f) => (f.composition ? `${f.code} bileşimi: ${f.composition}.` : NOT_ENTERED(f, "bileşim")) },
   { re: /yanmaz|alev|yangin/, answer: (f) => (f.fireRating ? `${f.code} yanmazlık: ${f.fireRating}.` : NOT_ENTERED(f, "yanmazlık bilgisi")) },
   { re: /agirlik|gram|gsm/, answer: (f) => (f.weightGsm ? `${f.code} ağırlığı ${f.weightGsm} g/m².` : NOT_ENTERED(f, "ağırlık")) },

@@ -9,6 +9,7 @@ import { cleanFeatures } from "@/lib/central/features";
 import { PRODUCT_PAGE_SIZE, type ProductCategory, type ProductQuery } from "@/lib/catalogue/products";
 import type { CutReport } from "@/lib/cut-report";
 import { cleanPresets } from "@/lib/firm-presets";
+import { usageFromJson } from "@/lib/rapor/kullanim";
 import { reportFromJson, type Device, type EventType, type Source, type StoredEvent, type UsageEvent } from "@/lib/events";
 import { STORAGE_BUCKET, SUPABASE_URL, publicFileUrl } from "@/lib/supabase/config";
 import { serviceClient } from "@/lib/supabase/server";
@@ -34,6 +35,9 @@ interface FabricRow {
   weight_gsm: number | null;
   martindale: number | null;
   fire_rating: string | null;
+  stain_resistant?: boolean | null;
+  pet_resistant?: boolean | null;
+  easy_clean?: boolean | null;
   description: string | null;
   is_active: boolean;
   is_placeholder: boolean;
@@ -123,6 +127,9 @@ function fabricFromRow(r: FabricRow): Fabric {
     weightGsm: und(r.weight_gsm),
     martindale: und(r.martindale),
     fireRating: und(r.fire_rating),
+    stainResistant: und(r.stain_resistant),
+    petResistant: und(r.pet_resistant),
+    easyClean: und(r.easy_clean),
     description: und(r.description),
     isActive: r.is_active,
     isPlaceholder: r.is_placeholder,
@@ -259,6 +266,9 @@ export class SupabaseRepository implements Repository {
       weight_gsm: input.weightGsm ?? null,
       martindale: input.martindale ?? null,
       fire_rating: input.fireRating ?? null,
+      stain_resistant: input.stainResistant ?? null,
+      pet_resistant: input.petResistant ?? null,
+      easy_clean: input.easyClean ?? null,
       description: input.description ?? null,
       is_active: input.isActive,
       is_placeholder: input.isPlaceholder,
@@ -611,7 +621,7 @@ export class SupabaseRepository implements Repository {
     // aggregated in the app; fine for Faz 1 volumes (a SQL view can take over later)
     let q = this.db
       .from("events")
-      .select("type, session_id, device, firm_slug, model_slug, fabric_code, source, tag, created_at")
+      .select("type, session_id, device, firm_slug, model_slug, fabric_code, source, tag, device_id, created_at")
       .gte("created_at", since.toISOString())
       .order("created_at", { ascending: false })
       .limit(50_000);
@@ -625,6 +635,7 @@ export class SupabaseRepository implements Repository {
       fabric_code: string | null;
       source: Source | null;
       tag: string | null;
+      device_id: string | null;
       created_at: string;
     }[];
     return rows.map(
@@ -637,6 +648,7 @@ export class SupabaseRepository implements Repository {
         fabricCode: r.fabric_code,
         source: r.source,
         tag: r.tag,
+        deviceId: r.device_id,
         createdAt: r.created_at,
       }),
     );
@@ -646,6 +658,11 @@ export class SupabaseRepository implements Repository {
     // computed in the database (migration 20261007000000_rapor_fonksiyonu.sql)
     const data = check(await this.db.rpc("atelier_report", { p_from: from.toISOString(), p_to: to.toISOString(), p_scope: firmSlug ?? null }));
     return reportFromJson(data);
+  }
+
+  async usageReport(from: Date, to: Date, firmSlug?: string) {
+    // summed in the database (20261124000100_kullanim_raporu.sql); the service role sees every shop
+    return usageFromJson(check(await this.db.rpc("usage_report", { p_from: from.toISOString(), p_to: to.toISOString(), p_firm: firmSlug ?? null })));
   }
 
   async createSampleRequest(input: SampleRequestInput) {

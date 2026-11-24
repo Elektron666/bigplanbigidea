@@ -3,6 +3,7 @@
 
 import { COLOR_FAMILIES, FABRIC_TYPES, type ColorFamily, type FabricType } from "@/lib/types";
 import { COLOR_FAMILY_LABELS, FABRIC_TYPE_LABELS, codeUpper, foldTr } from "@/lib/i18n/tr";
+import { parseYesNo } from "@/lib/kumas/ozellik";
 
 export interface FabricFields {
   code: string;
@@ -19,6 +20,9 @@ export interface FabricFields {
   weightGsm?: number;
   martindale?: number;
   fireRating?: string;
+  stainResistant?: boolean;
+  petResistant?: boolean;
+  easyClean?: boolean;
   description?: string;
   repeatW: number;
   repeatH: number;
@@ -91,6 +95,9 @@ export const CSV_COLUMNS = [
   "gramaj",
   "martindale",
   "yanmazlik",
+  "leke_tutmaz",
+  "evcil_hayvan",
+  "kolay_temizlik",
   "aciklama",
   "desen",
   "desen_en_cm",
@@ -112,6 +119,9 @@ export const CSV_EXAMPLE = [
   "480",
   "50000",
   "",
+  "evet",
+  "",
+  "evet",
   "",
   "düz",
   "",
@@ -138,6 +148,18 @@ export function parseCutDirection(s: string | undefined): FabricFields["cutDirec
   return undefined;
 }
 
+/** "evet" / "hayır" / empty; anything unreadable counts as not entered (validateFabricFields does not see it, so fieldsFromCsv reports it). */
+function yesNo(s: string | undefined): boolean | undefined {
+  const r = parseYesNo(s);
+  return r.ok ? r.value : undefined;
+}
+
+/** CSV cells of the three properties that are neither yes, no nor empty. */
+export function badYesNo(row: Record<string, string>): string | null {
+  const bad = (["leke_tutmaz", "evcil_hayvan", "kolay_temizlik"] as const).filter((k) => !parseYesNo(row[k]).ok);
+  return bad.length ? `${bad.join(", ")}: “evet”, “hayır” ya da boş olmalı.` : null;
+}
+
 /** One CSV row → form fields (+ the photo file name it refers to). */
 export function fieldsFromCsv(row: Record<string, string>): { fields: FabricFields; photo: string } {
   const repeatW = parseNumber(row.tekrar_en_cm) ?? 0;
@@ -158,6 +180,9 @@ export function fieldsFromCsv(row: Record<string, string>): { fields: FabricFiel
       weightGsm: parseNumber(row.gramaj),
       martindale: parseNumber(row.martindale),
       fireRating: row.yanmazlik || undefined,
+      stainResistant: yesNo(row.leke_tutmaz),
+      petResistant: yesNo(row.evcil_hayvan),
+      easyClean: yesNo(row.kolay_temizlik),
       description: row.aciklama || undefined,
       repeatW,
       repeatH: parseNumber(row.tekrar_boy_cm) ?? 0,

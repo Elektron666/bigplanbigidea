@@ -14,6 +14,7 @@ import { checkBulkAssign } from "@/lib/catalogue/products";
 import { validateWaste } from "@/lib/teklif/metraj";
 import { cleanFeatures, FEATURE_LABELS, FEATURES, featureOn, type Feature } from "@/lib/central/features";
 import { undoPermission, undoStep } from "@/lib/central/undo";
+import { getFabricExtras } from "@/lib/kumas/store";
 import { getQuotes, ORDER_STATUSES, type OrderStatus } from "@/lib/teklif/store";
 import { SHOP_STATUSES, SHOP_STATUS_LABELS, type ShopStatus } from "@/lib/central/shops";
 import { validateShopRecord, validateSubscription, validateTemplate, type ShopRecord } from "@/lib/central/record";
@@ -660,6 +661,15 @@ export async function undoAuditAction(id: string): Promise<Result> {
       if (firm) await repo.saveFirm({ ...firm, fabricSeries: step.fabricSeries });
       break;
     }
+    case "stok": {
+      const extras = getFabricExtras();
+      await extras.setStock(step.rows.filter((r) => r.status).map((r) => ({ fabricId: r.fabricId, status: r.status!, leadDays: r.leadDays })));
+      await extras.clearStock(step.rows.filter((r) => !r.status).map((r) => r.fabricId));
+      break;
+    }
+    case "liste":
+      await getFabricExtras().setLinks(step.list, step.fabricId, step.ids);
+      break;
   }
   await central.writeAudit({ actor: user.email, actorRole: user.role, firmId: entry.firmId, entity: entry.entity, entityId: entry.entityId, action: "geri-alindi", summary: `Geri alındı: ${entry.summary}`.slice(0, 300), before: entry.after, after: entry.before });
   revalidatePath("/panel/gunluk");

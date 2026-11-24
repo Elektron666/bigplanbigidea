@@ -6,6 +6,7 @@ import { getCentral } from "@/lib/central/store";
 import { getQuotes, MemoryQuotes, type OrderStatus } from "@/lib/teklif/store";
 import type { QuoteContent } from "@/lib/teklif/request";
 import type { ShopUser } from "@/lib/auth/shop";
+import { usageFromJson, usageOf, type Usage } from "@/lib/rapor/kullanim";
 
 // What the shop panel reads and writes (Showroom package, job 0). With
 // Supabase every call runs with the signed-in person's own session, so the
@@ -50,6 +51,8 @@ export interface ShopPanelStore {
   products(u: ShopUser): Promise<ShopProductRow[]>;
   saveProduct(u: ShopUser, modelId: string, patch: ProductPatch): Promise<boolean>;
   setPrice(u: ShopUser, modelId: string, price: number | null): Promise<boolean>;
+  /** The shop's monthly usage report (job 11): its own events only; "kullanım yok" when none. */
+  usage(u: ShopUser, from: Date, to: Date): Promise<Usage>;
 }
 
 const READ_ONLY = "Destek görünümünde değişiklik yapılmaz.";
@@ -84,6 +87,10 @@ function productRow(p: Awaited<ReturnType<typeof catalogueRows>>[number], price:
 
 class MemoryShopPanel implements ShopPanelStore {
   private prices = new Map<string, number>();
+
+  async usage(u: ShopUser, from: Date, to: Date) {
+    return usageOf(await getRepository().usageReport(from, to, u.firmSlug), u.firmSlug);
+  }
 
   async quotes(u: ShopUser, page: number) {
     const q = getQuotes();
@@ -143,6 +150,13 @@ class MemoryShopPanel implements ShopPanelStore {
 // ------------------------------------------------------------------ Supabase (the person's own session)
 
 class SupabaseShopPanel implements ShopPanelStore {
+  async usage(u: ShopUser, from: Date, to: Date) {
+    // with the owner's own session: the events table's row rules give their shop's events only
+    const res = await (await sessionClient()).rpc("usage_report", { p_from: from.toISOString(), p_to: to.toISOString(), p_firm: u.firmSlug });
+    if (res.error) throw new Error(res.error.message);
+    return usageOf(usageFromJson(res.data), u.firmSlug);
+  }
+
   async quotes(u: ShopUser, page: number) {
     const db = await sessionClient();
     const res = await db

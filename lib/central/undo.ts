@@ -7,6 +7,7 @@ import type { AuditEntry } from "./types";
 import { SHOP_STATUSES, type ShopStatus } from "./shops";
 import { cleanFeatures } from "./features";
 import { validateShopRecord, type ShopRecord } from "./record";
+import { STOCK_STATUSES, validateStock, type StockStatus } from "@/lib/kumas/stok";
 
 export type UndoStep =
   | { kind: "durum"; firmId: string; status: ShopStatus }
@@ -18,7 +19,11 @@ export type UndoStep =
   | { kind: "kayit"; firmId: string; record: ShopRecord }
   | { kind: "sablon"; firmId: string; record: ShopRecord; features: Record<string, boolean>; fabricSeries: string[] }
   | { kind: "odeme"; subscriptionId: string; paidOn: string | null }
-  | { kind: "seri"; firmId: string; fabricSeries: string[] };
+  | { kind: "seri"; firmId: string; fabricSeries: string[] }
+  /** Fabric stock as it was (job 8); status null = there was no entry. */
+  | { kind: "stok"; rows: { fabricId: string; status: StockStatus | null; leadDays?: number }[] }
+  /** A fabric's muadil or uyumlu list as it was (job 8). */
+  | { kind: "liste"; fabricId: string; list: "muadil" | "uyumlu"; ids: string[] };
 
 const obj = (v: unknown): Record<string, unknown> => (v && typeof v === "object" ? (v as Record<string, unknown>) : {});
 const ids = (v: unknown) => (Array.isArray(v) && v.every((x) => typeof x === "string") ? (v as string[]) : null);
@@ -71,6 +76,23 @@ export function undoStep(e: AuditEntry): UndoStep | null {
     case "seri-degisti": {
       const series = ids(before.fabricSeries);
       return e.firmId && series ? { kind: "seri", firmId: e.firmId, fabricSeries: series } : null;
+    }
+    case "stok-degisti": {
+      const rows = before.rows;
+      if (!Array.isArray(rows) || !rows.length) return null;
+      const out: { fabricId: string; status: StockStatus | null; leadDays?: number }[] = [];
+      for (const r of rows.map(obj)) {
+        const status = r.status === null ? null : (STOCK_STATUSES as unknown[]).includes(r.status) ? (r.status as StockStatus) : undefined;
+        const leadDays = typeof r.leadDays === "number" ? r.leadDays : undefined;
+        if (typeof r.fabricId !== "string" || status === undefined || (status && validateStock(status, leadDays))) return null;
+        out.push({ fabricId: r.fabricId, status, leadDays });
+      }
+      return { kind: "stok", rows: out };
+    }
+    case "liste-degisti": {
+      const list = before.list;
+      const was = ids(before.ids);
+      return e.entityId && (list === "muadil" || list === "uyumlu") && was ? { kind: "liste", fabricId: e.entityId, list, ids: was } : null;
     }
     case "odendi":
     case "odenmedi": {

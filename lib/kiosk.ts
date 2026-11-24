@@ -24,6 +24,18 @@ export function idleState(idleMs: number, idleSeconds: number): { remaining: num
   return { remaining, warn: remaining > 0 && remaining <= KIOSK_WARNING, reset: remaining === 0 };
 }
 
+/**
+ * The longest a fabric still loading on the 3D sofa holds the idle count, ms:
+ * the visitor touched and is waiting for the screen, not gone; but a load that
+ * never ends must not keep the screen from its loop for ever.
+ */
+export const LOAD_HOLD_MS = 60_000;
+
+/** Whether a load that began at `since` (null: none going on) still holds the idle count. */
+export function loadHolds(since: number | null, now: number): boolean {
+  return since !== null && now - since < LOAD_HOLD_MS;
+}
+
 // Showroom loop (acil toplantı, 11 Oct): while the welcome screen waits for
 // someone, the sofa turns slowly and wears ORMEN's real fabrics in turn, so
 // the screen draws people in. Placeholders never take part: the shop window

@@ -187,7 +187,7 @@ export function KartelaScanner({ fabrics, onSelect, onScanned }: { fabrics: Fabr
       )}
 
       {open && (
-        <div role="dialog" aria-modal="true" aria-labelledby="kartela-oku" className="fixed inset-0 z-[60] flex items-center justify-center bg-antrasit/70 p-6">
+        <div role="dialog" aria-modal="true" aria-labelledby="kartela-oku" data-mesgul className="fixed inset-0 z-[60] flex items-center justify-center bg-antrasit/70 p-6">
           <div className="flex w-full max-w-[44rem] flex-col items-center gap-4 rounded-3xl bg-kagit p-6 shadow-2xl">
             <h2 id="kartela-oku" className="font-display text-[clamp(1.5rem,2.4vw,2rem)]">
               Kartelanın QR etiketini kameraya tutun

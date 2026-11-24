@@ -5,6 +5,7 @@ import { Configurator } from "@/components/configurator/Configurator";
 import { initialStateFrom } from "@/lib/page-state";
 import { parseKiosk } from "@/lib/kiosk";
 import { KioskShell } from "@/components/kiosk/KioskShell";
+import { featureOn } from "@/lib/central/features";
 
 // One model of a firm, e.g. for a QR label on a showroom piece.
 
@@ -38,6 +39,7 @@ export default async function FirmModelPage({ params, searchParams }: PageProps<
             firm={cat.firm}
             {...initialStateFrom({ ...sp, m: model }, cat.models, cat.fabrics)}
             kiosk={!!kiosk}
+            filters={featureOn(cat.firm.features, "filtre")}
           />
         </KioskShell>
       ) : (
@@ -47,6 +49,7 @@ export default async function FirmModelPage({ params, searchParams }: PageProps<
           firm={cat.firm}
           {...initialStateFrom({ ...sp, m: model }, cat.models, cat.fabrics)}
           kiosk={!!kiosk}
+          filters={featureOn(cat.firm.features, "filtre")}
         />
       )}
     </main>

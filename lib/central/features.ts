@@ -2,7 +2,7 @@
 // kapanabilmeli"). Stored in firms.features as { "teklif": false, … }; a key
 // that is missing takes the feature's default. Pure.
 
-export const FEATURES = ["teklif", "siparis", "kose", "kartela", "giydirme", "asistan"] as const;
+export const FEATURES = ["teklif", "siparis", "kose", "kartela", "giydirme", "asistan", "filtre", "stok"] as const;
 export type Feature = (typeof FEATURES)[number];
 
 export const FEATURE_LABELS: Record<Feature, { name: string; hint: string }> = {
@@ -12,10 +12,12 @@ export const FEATURE_LABELS: Record<Feature, { name: string; hint: string }> = {
   kartela: { name: "Kartela okut", hint: "Showroom ekranının kamerasıyla kartela etiketini okutma." },
   giydirme: { name: "Fotoğraftan dene", hint: "Yapay zekâ ile fotoğraftaki koltuğa kumaş. Bir sağlayıcı ve kota gerekir." },
   asistan: { name: "Asistan ve koltuk danışmanı", hint: "Soru sorma, metraj, kumaş karşılaştırma ve birkaç soruyla koltuk önerisi. Ücretsiz; cihazda çalışır." },
+  filtre: { name: "Müşteri filtreleri", hint: "Kumaş listesinde “Çocuklu ev”, “Evcil hayvan”, “Kolay temizlik”. Yalnızca panelde girilmiş özelliklere dayanır." },
+  stok: { name: "Stok ve termin", hint: "Showroom ekranında stokta olmayan kumaşa termin etiketi ve muadil kumaşlar. Kapalıyken stok ekrana hiç gönderilmez." },
 };
 
-/** On unless the panel switched it off; the paid one (giydirme) is off unless switched on. */
-const DEFAULTS: Record<Feature, boolean> = { teklif: true, siparis: true, kose: true, kartela: true, giydirme: false, asistan: true };
+/** On unless the panel switched it off; the paid one (giydirme) and stock (seller's information, job 7) are off unless switched on. */
+const DEFAULTS: Record<Feature, boolean> = { teklif: true, siparis: true, kose: true, kartela: true, giydirme: false, asistan: true, filtre: true, stok: false };
 
 export function featureOn(features: Record<string, unknown> | null | undefined, f: Feature): boolean {
   const v = features?.[f];

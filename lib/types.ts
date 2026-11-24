@@ -72,6 +72,10 @@ export interface Fabric {
   weightGsm?: number;
   martindale?: number;
   fireRating?: string;
+  /** Marked by ORMEN (job 8); undefined = not entered, never shown or filtered on. */
+  stainResistant?: boolean;
+  petResistant?: boolean;
+  easyClean?: boolean;
   description?: string;
   isActive: boolean;
   isPlaceholder: boolean;

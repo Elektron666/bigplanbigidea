@@ -64,10 +64,17 @@ function rankFabrics(fabrics: Fabric[], a: Answers): { fabric: Fabric; why: stri
       if (tone?.includes(f.colorFamily)) s += 3;
       // only an entered wear figure counts; the higher, the better
       if (wantsWear && f.martindale) s += Math.min(3, f.martindale / 20_000);
+      // only what ORMEN marked: children → stains and cleaning, heavy use → cleaning
+      if (a.kids && f.stainResistant) s += 2;
+      if (a.kids && f.petResistant) s += 1;
+      if ((a.kids || a.use === "yogun") && f.easyClean) s += 1;
       if (!f.isPlaceholder) s += 0.5;
       const why: string[] = [];
       if (tone?.includes(f.colorFamily)) why.push(`${COLOR_FAMILY_LABELS[f.colorFamily].toLocaleLowerCase("tr-TR")} bir ${FABRIC_TYPE_LABELS[f.type].toLocaleLowerCase("tr-TR")}`);
       if (wantsWear && f.martindale) why.push(`aşınma dayanımı ${nf.format(f.martindale)} Martindale`);
+      if (a.kids && f.stainResistant) why.push("leke tutmaz");
+      if (a.kids && f.petResistant) why.push("evcil hayvana dayanıklı");
+      if ((a.kids || a.use === "yogun") && f.easyClean) why.push("kolay temizlenir");
       return { fabric: f, why, s };
     })
     .sort((x, y) => y.s - x.s || x.fabric.sortOrder - y.fabric.sortOrder || x.fabric.code.localeCompare(y.fabric.code))

@@ -54,6 +54,21 @@ export interface QuoteStore {
   setOrderStatus(id: string, status: OrderStatus): Promise<boolean>;
   /** How many quotes and order requests since `from` (the overview's month). Counts only. */
   countSince(from: Date): Promise<{ quotes: number; orders: number }>;
+  /** Per shop and fabric: in how many quotes of the period the fabric was (job 11, ORMEN's panel). */
+  quotedFabrics(from: Date, to: Date): Promise<{ firmId: string | null; code: string; quotes: number }[]>;
+}
+
+/** Counts each fabric once per quote, by shop; most quoted first. */
+export function tallyQuotedFabrics(rows: { firmId: string | null; codes: string[] }[]): { firmId: string | null; code: string; quotes: number }[] {
+  const by = new Map<string, { firmId: string | null; code: string; quotes: number }>();
+  for (const r of rows)
+    for (const code of new Set(r.codes)) {
+      const k = `${r.firmId ?? ""}|${code}`;
+      const x = by.get(k) ?? { firmId: r.firmId, code, quotes: 0 };
+      x.quotes++;
+      by.set(k, x);
+    }
+  return [...by.values()].sort((a, b) => b.quotes - a.quotes || (a.code < b.code ? -1 : a.code > b.code ? 1 : 0));
 }
 
 // ------------------------------------------------------------------ memory
@@ -109,6 +124,11 @@ export class MemoryQuotes implements QuoteStore {
   async countSince(from: Date) {
     const t = from.toISOString();
     return { quotes: this.quotes.filter((q) => q.createdAt >= t).length, orders: this.orders.filter((o) => o.createdAt >= t).length };
+  }
+
+  async quotedFabrics(from: Date, to: Date) {
+    const [f, t] = [from.toISOString(), to.toISOString()];
+    return tallyQuotedFabrics(this.quotes.filter((q) => q.createdAt >= f && q.createdAt <= t).map((q) => ({ firmId: q.firmId, codes: q.content.totals.map((x) => x.code) })));
   }
 }
 
@@ -199,6 +219,14 @@ class SupabaseQuotes implements QuoteStore {
     if (q.error) throw new Error(q.error.message);
     if (o.error) throw new Error(o.error.message);
     return { quotes: q.count ?? 0, orders: o.count ?? 0 };
+  }
+
+  async quotedFabrics(from: Date, to: Date) {
+    // only the fabric list of each quote travels, not the quote
+    const res = await this.db.from("quotes").select("firm_id, fabrics:content->totals").gte("created_at", from.toISOString()).lte("created_at", to.toISOString()).limit(20_000);
+    if (res.error) throw new Error(res.error.message);
+    const rows = (res.data ?? []) as unknown as { firm_id: string | null; fabrics: { code?: unknown }[] | null }[];
+    return tallyQuotedFabrics(rows.map((r) => ({ firmId: r.firm_id, codes: (r.fabrics ?? []).map((x) => x.code).filter((c): c is string => typeof c === "string") })));
   }
 }
 

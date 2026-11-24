@@ -4,12 +4,18 @@ import { useMemo, useRef, useState, type KeyboardEvent } from "react";
 import type { ColorFamily, Fabric, FabricType } from "@/lib/types";
 import { COLOR_FAMILY_LABELS, COLOR_FAMILY_SWATCH, FABRIC_TYPE_LABELS, foldTr, t } from "@/lib/i18n/tr";
 import { IconClose, IconSearch } from "@/components/ui/icons";
+import { availableNeeds, meetsNeeds, NEED_LABELS, NEED_RULES, type Need } from "@/lib/kumas/ozellik";
+import { swatchLabel, type StockMap } from "@/lib/kumas/stok";
 
 export interface FabricPickerProps {
   fabrics: Fabric[];
   selectedCode: string;
   onSelect: (fabric: Fabric) => void;
   onIntent?: (fabric: Fabric) => void;
+  /** The customer's filters ("Çocuklu ev" …, job 8); a shop may switch them off. */
+  needs?: boolean;
+  /** Stock of the shown fabrics, only on a screen whose shop shows it: out of stock gets its lead time under the swatch. */
+  stock?: StockMap;
 }
 
 export function filterFabrics(
@@ -17,10 +23,13 @@ export function filterFabrics(
   q: string,
   type: FabricType | null,
   family: ColorFamily | null,
+  needs: Need[] = [],
 ): Fabric[] {
   const needle = foldTr(q.trim());
   return fabrics.filter((f) => {
     if (type && f.type !== type) return false;
+    // only what was entered: a fabric with no marks is in no property filter
+    if (needs.length && !meetsNeeds(f, needs)) return false;
     if (family && f.colorFamily !== family) return false;
     if (!needle) return true;
     const hay = foldTr(`${f.code} ${f.series} ${f.colorName} ${FABRIC_TYPE_LABELS[f.type]}`);
@@ -38,15 +47,18 @@ function groupBySeries(fabrics: Fabric[]) {
   return [...groups.entries()];
 }
 
-export function FabricPicker({ fabrics, selectedCode, onSelect, onIntent }: FabricPickerProps) {
+export function FabricPicker({ fabrics, selectedCode, onSelect, onIntent, needs: needsOn = true, stock }: FabricPickerProps) {
   const [query, setQuery] = useState("");
+  const [needs, setNeeds] = useState<Need[]>([]);
+  // a filter is offered only when some fabric here meets it
+  const needChoices = useMemo(() => (needsOn ? availableNeeds(fabrics) : []), [fabrics, needsOn]);
   const [type, setType] = useState<FabricType | null>(null);
   const [family, setFamily] = useState<ColorFamily | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
   const types = useMemo(() => [...new Set(fabrics.map((f) => f.type))], [fabrics]);
   const families = useMemo(() => [...new Set(fabrics.map((f) => f.colorFamily))], [fabrics]);
-  const filtered = useMemo(() => filterFabrics(fabrics, query, type, family), [fabrics, query, type, family]);
+  const filtered = useMemo(() => filterFabrics(fabrics, query, type, family, needs), [fabrics, query, type, family, needs]);
   const groups = useMemo(() => groupBySeries(filtered), [filtered]);
 
   // Roving tab index: the selected swatch (or the first one) is the single tab stop.
@@ -68,7 +80,8 @@ export function FabricPicker({ fabrics, selectedCode, onSelect, onIntent }: Fabr
     onSelect(fabric);
   }
 
-  const hasFilters = Boolean(query || type || family);
+  const hasFilters = Boolean(query || type || family || needs.length);
+  const toggleNeed = (n: Need) => setNeeds((old) => (old.includes(n) ? old.filter((x) => x !== n) : [...old, n]));
 
   return (
     <div className="flex flex-col gap-5">
@@ -106,6 +119,19 @@ export function FabricPicker({ fabrics, selectedCode, onSelect, onIntent }: Fabr
           ))}
         </div>
 
+        {needChoices.length > 0 && (
+          <div className="flex flex-col gap-1">
+            <div className="-mx-1 flex flex-wrap gap-1.5 px-1" role="group" aria-label="Evinize göre">
+              {needChoices.map((n) => (
+                <Chip key={n} active={needs.includes(n)} onClick={() => toggleNeed(n)}>
+                  {NEED_LABELS[n]}
+                </Chip>
+              ))}
+            </div>
+            {needs.length > 0 && <p className="text-[12px] leading-snug text-antrasit-50">{needs.map((n) => `${NEED_LABELS[n]}: ${NEED_RULES[n]}.`).join(" ")}</p>}
+          </div>
+        )}
+
         <div className="flex flex-wrap items-center gap-1" role="group" aria-label={t.colorFamily}>
           {families.map((fam) => (
             <button
@@ -138,6 +164,7 @@ export function FabricPicker({ fabrics, selectedCode, onSelect, onIntent }: Fabr
                   setQuery("");
                   setType(null);
                   setFamily(null);
+                  setNeeds([]);
                 }}
               >
                 {t.clearFilters}
@@ -156,13 +183,14 @@ export function FabricPicker({ fabrics, selectedCode, onSelect, onIntent }: Fabr
             <div className="grid grid-cols-[repeat(auto-fill,minmax(64px,1fr))] gap-x-2 gap-y-3">
               {items.map((f) => {
                 const selected = f.code === selectedCode;
+                const lead = swatchLabel(stock?.[f.code]);
                 return (
                   <button
                     key={f.code}
                     type="button"
                     role="radio"
                     aria-checked={selected}
-                    aria-label={`${f.code}, ${f.colorName}`}
+                    aria-label={`${f.code}, ${f.colorName}${lead ? `, ${lead}` : ""}`}
                     data-code={f.code}
                     tabIndex={f.code === tabStop ? 0 : -1}
                     onClick={() => onSelect(f)}
@@ -184,6 +212,7 @@ export function FabricPicker({ fabrics, selectedCode, onSelect, onIntent }: Fabr
                     <span className={`max-w-full truncate text-[11px] leading-tight ${selected ? "text-antrasit" : "text-antrasit-70"}`}>
                       {f.colorName}
                     </span>
+                    {lead && <span className="max-w-full truncate rounded-full bg-[#F4E9DD] px-1.5 text-[10.5px] leading-[1.5] text-ceviz">{lead}</span>}
                   </button>
                 );
               })}

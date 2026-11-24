@@ -22,6 +22,9 @@ export default async function FabricsPage({ searchParams }: PageProps<"/panel/ku
   return (
     <>
       <PageHeader title="Kumaşlar" eyebrow={`${fabrics.length} kumaş · ${fabrics.filter((f) => f.isActive).length} yayında`}>
+        <Link href="/panel/kumaslar/stok" className={buttonClass.secondary}>
+          Stok
+        </Link>
         <Link href="/panel/kumaslar/toplu" className={buttonClass.secondary}>
           Toplu ekle (CSV)
         </Link>

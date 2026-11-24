@@ -67,7 +67,7 @@ test.describe("erişilebilirlik: showroom paketi panelleri", () => {
   test("merkez paneli ve mağaza paneli", async ({ page, browser }) => {
     test.setTimeout(180_000);
     await login(page);
-    for (const path of ["/panel", "/panel/gunluk", "/panel/katalog", "/panel/siparisler", "/panel/firmalar/seed-firm-ornek", "/panel/modul-setleri", "/panel/modul-setleri/yeni", "/panel/giydirme", "/panel/giydirme/test"]) {
+    for (const path of ["/panel", "/panel/gunluk", "/panel/katalog", "/panel/siparisler", "/panel/firmalar/seed-firm-ornek", "/panel/modul-setleri", "/panel/modul-setleri/yeni", "/panel/giydirme", "/panel/giydirme/test", "/panel/kumaslar/stok"]) {
       await page.goto(path);
       expect(await violations(page), path).toEqual([]);
     }

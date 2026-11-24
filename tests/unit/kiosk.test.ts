@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { attractFabrics, idleState, nextAttract, parseKiosk } from "@/lib/kiosk";
+import { attractFabrics, idleState, LOAD_HOLD_MS, loadHolds, nextAttract, parseKiosk } from "@/lib/kiosk";
 
 describe("kiosk", () => {
   it("reads the link parameter", () => {
@@ -14,6 +14,11 @@ describe("kiosk", () => {
     expect(idleState(10_000, 90)).toEqual({ remaining: 80, warn: false, reset: false });
     expect(idleState(81_000, 90)).toEqual({ remaining: 9, warn: true, reset: false });
     expect(idleState(90_000, 90)).toEqual({ remaining: 0, warn: false, reset: true });
+  });
+  it("holds the count while a fabric loads, but not for ever", () => {
+    expect(loadHolds(null, 5_000)).toBe(false);
+    expect(loadHolds(1_000, 1_000 + 30_000)).toBe(true);
+    expect(loadHolds(1_000, 1_000 + LOAD_HOLD_MS)).toBe(false);
   });
 });
 

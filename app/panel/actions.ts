@@ -172,6 +172,9 @@ export async function saveFabricAction(p: SaveFabricPayload): Promise<SaveResult
       weightGsm: f.weightGsm,
       martindale: f.martindale,
       fireRating: f.fireRating?.trim() || undefined,
+      stainResistant: typeof f.stainResistant === "boolean" ? f.stainResistant : undefined,
+      petResistant: typeof f.petResistant === "boolean" ? f.petResistant : undefined,
+      easyClean: typeof f.easyClean === "boolean" ? f.easyClean : undefined,
       description: f.description?.trim() || undefined,
       isActive: f.isActive,
       // A real photo replaces the generated stand-in.

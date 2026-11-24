@@ -18,6 +18,7 @@ import { featureOn, type Feature } from "@/lib/central/features";
 import { ShowroomLock } from "@/components/kiosk/ShowroomLock";
 import { SyncAgent } from "@/components/kiosk/SyncAgent";
 import { accentStyle } from "@/lib/firm";
+import { getFabricExtras, linksByCode, stockByCode } from "@/lib/kumas/store";
 
 // The showroom screen (Showroom package, job 1): one address for every
 // shop's screen. Which shop it shows is decided by the screen's own secret,
@@ -69,12 +70,15 @@ export default async function ShowroomPage({ searchParams }: PageProps<"/showroo
   const moduleSets = on("kose") ? sets : undefined;
   // a half feature is not shown: the button needs the shop's switch and a provider
   const tryOn = on("giydirme") && !!(await getProvider());
+  // stock goes to the screen only when the shop shows it (job 8); otherwise not at all
+  const extras = on("stok") ? getFabricExtras() : null;
+  const [stock, alternatives] = extras ? await Promise.all([extras.listStock().then((s) => stockByCode(s, cat.fabrics)), extras.listLinks("muadil").then((l) => linksByCode(l, cat.fabrics))]) : [undefined, undefined];
   const warm = { "1k": warmUrls({ ...cat, moduleSets }, "1k"), "2k": warmUrls({ ...cat, moduleSets }, "2k") };
   return (
     <main data-showroom>
       <h1 className="sr-only">{cat.firm.name}: kumaşınızı koltuğun üstünde görün</h1>
       <KioskShell idleSeconds={showroomIdleSeconds(shop.settings)} firm={cat.firm} showroom>
-        <Configurator models={models} fabrics={cat.fabrics} firm={cat.firm} {...initialStateFrom(sp, models, cat.fabrics)} kiosk profileChoice={who.device.quality} waste={waste} showroom={on("siparis")} moduleSets={moduleSets} kartela={on("kartela")} tryOn={tryOn} assistant={on("asistan")} />
+        <Configurator models={models} fabrics={cat.fabrics} firm={cat.firm} {...initialStateFrom(sp, models, cat.fabrics)} kiosk profileChoice={who.device.quality} waste={waste} showroom={on("siparis")} moduleSets={moduleSets} kartela={on("kartela")} tryOn={tryOn} assistant={on("asistan")} filters={on("filtre")} stock={stock} alternatives={alternatives} />
         <SyncAgent contentVersion={shop.contentVersion} appVersion={version} />
       </KioskShell>
       <ShowroomLock contentVersion={shop.contentVersion} appVersion={version} />

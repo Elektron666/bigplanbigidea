@@ -1,4 +1,5 @@
 import { codeUpper } from "@/lib/i18n/tr";
+import { buildUsage } from "@/lib/rapor/kullanim";
 import type { Fabric, Firm, FurnitureModel } from "@/lib/types";
 import { buildSeedFabrics } from "@/lib/seed/fabrics";
 import { buildPhotoFabrics } from "@/lib/seed/photo-fabrics";
@@ -295,6 +296,10 @@ export class MemoryRepository implements Repository {
   async eventReport(from: Date, to: Date, firmSlug?: string) {
     const t = to.toISOString();
     return buildReport((await this.listEvents(from, firmSlug)).filter((e) => e.createdAt <= t), { from, to });
+  }
+
+  async usageReport(from: Date, to: Date, firmSlug?: string) {
+    return buildUsage(firmSlug ? this.events.filter((e) => e.firmSlug === firmSlug) : this.events, from, to);
   }
 
   async putFile(path: string, data: ArrayBuffer, contentType: string) {

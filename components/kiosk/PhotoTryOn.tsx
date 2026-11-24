@@ -216,7 +216,8 @@ export function PhotoTryOn({
   const progress = Math.min(95, Math.round(100 * (1 - Math.exp(-elapsed / 14))));
 
   return (
-    <div role="dialog" aria-modal="true" aria-label="Fotoğraftan dene" className="fixed inset-0 z-50 flex flex-col bg-kirik-beyaz text-antrasit">
+    // while it is open the screen does not restart: the visitor may be sending the photo from their phone
+    <div role="dialog" aria-modal="true" aria-label="Fotoğraftan dene" data-mesgul className="fixed inset-0 z-50 flex flex-col bg-kirik-beyaz text-antrasit">
       <header className="flex items-center justify-between gap-4 border-b border-cizgi px-8 py-5">
         <h2 className="font-display text-[30px]">Fotoğraftan dene</h2>
         <button type="button" onClick={onClose} className={`${big} border border-cizgi bg-white`}>

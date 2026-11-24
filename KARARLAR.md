@@ -14,6 +14,30 @@ Bu dosyada projede verilen kararlar, yapılan varsayımlar ve bilinen sınırlar
 - **Numune taleplerindeki ad ve telefon** ORMEN panelinde görünmeye devam eder (6 Ekim kararı değişmedi). Yeni kural yalnızca yeni verilere uygulanır: teklifteki müşteri adı ve "ilgilenen müşteriler".
 - Görev tanımının eski kararlarla çeliştiği yerler ve seçilen yol: `PLAN-SHOWROOM.md`, 3. bölüm.
 
+## İş 8: kumaş özellikleri, müşteri filtreleri, stok ve muadil (24 Kasım 2026)
+
+- **Özellikler:** Kumaşa üç işaret eklendi: leke tutmaz, evcil hayvana dayanıklı, kolay temizlenir. Her biri "Girilmedi / Evet / Hayır"; panelde kumaş sayfasında ve toplu CSV'de (`leke_tutmaz`, `evcil_hayvan`, `kolay_temizlik`: evet, hayır ya da boş). Sürtünme dayanımı (Martindale) ve içerik zaten vardı. Girilmeyen hiçbir yerde görünmez; kumaş tipinden ya da Martindale'den hiçbir özellik çıkarılmaz. Ekranda "Özellikler" satırında yalnızca "Evet" girilenler yazar.
+- **Müşteri filtreleri** (kumaş listesinde, renk ve tipin yanında) ve okudukları işaretler, ekranda da yazılı:
+  - **Çocuklu ev:** leke tutmaz **ya da** kolay temizlenir girilmiş kumaşlar. (Martindale eşiği konmadı: bir sayı uydurmak olurdu.)
+  - **Evcil hayvan:** evcil hayvana dayanıklı girilmiş kumaşlar.
+  - **Kolay temizlik:** kolay temizlenir girilmiş kumaşlar.
+  - Bir filtre, o listede onu karşılayan en az bir kumaş varsa görünür; hiçbir kumaşa işaret girilmemişse filtre düğmeleri hiç çıkmaz. Mağaza bazında kapatılabilir ("Müşteri filtreleri", varsayılan açık).
+- **Stok:** Kumaş başına var / az / yok ve termin günü (1–365). Panelde **Kumaşlar → Stok**: tablodan elle ya da CSV ile (`kod;stok;termin_gun`, virgül de olur). CSV önce panelde okunur; hatalı satırlar satır numarası ve nedeniyle listelenir, doğrular tek seferde uygulanır. Termin girilmemiş "yok" ekranda "Termini mağazaya sorun" der; sayı uydurulmaz.
+- **Stok kime görünür:** Görev tanımı İş 7'de "fiyat, stok ve termin yalnızca satıcı modunda" diyor; satıcı modu henüz yok. Bu yüzden stok ayrı bir tabloda (`fabric_stock`) ve herkese açık anahtarla okunamıyor; sunucu onu yalnızca **"Stok ve termin" özelliği açık mağazaların showroom ekranına** veriyor (varsayılan kapalı). Mağazanın web sayfası ve ORMEN'in sitesi stoğu hiç almıyor. Satıcı modu gelince stok orada her zaman görünecek; bu anahtar o zaman "müşteri modunda da göster" anlamına gelecek.
+- **Muadil:** Kumaş sayfasında "Muadil kumaşlar" (kod listesi, sırayla). Stokta olmayan kumaş seçilince ekranda termin ve muadiller "Muadil" etiketiyle çıkar; biri de stokta yoksa önerilmez. Liste boşsa aynı tip **ve aynı renk ailesinden**, rengi en yakın üç kumaş "Benzer" etiketiyle önerilir (renk yakınlığı kumaş fotoğrafının ortalama renginden, Lab uzayında). Yer tutucu (örnek) kumaşlar "Benzer" diye önerilmez.
+- **Uyumlu kumaşlar** listesi de aynı yerde girilebiliyor; İş 6'daki kombin modu bunu kullanacak (boşsa öneri yok).
+- **Asistan da öğrendi:** "leke tutar mı", "yıkanır mı", "kedimiz var" soruları artık bu işaretlerden cevaplanıyor: evet girilmişse evet, hayır girilmişse hayır, girilmemişse "girilmemiş". Danışman, çocuk/evcil hayvan cevabında işaretli kumaşı öne alıyor ve gerekçeye yazıyor.
+- **Geri alma:** Stok ve muadil/uyumlu liste değişiklikleri günlüğe önceki hâliyle yazılıyor; günlükten geri alınabiliyor.
+- **Şema:** `20261124000000_kumas_ozellik_stok.sql` (yalnızca ekler; geri alma `supabase/geri-al/` altında). Stok ve liste değişince mağaza ekranları güncelleme alıyor.
+- **Test:** Birim: işaretlerin gösterimi, filtrelerin yalnızca girilmiş işarete dayanması, CSV'de evet/hayır, 100 satırlık stok CSV'si ve hatalı satırların satır numarasıyla raporu, termin metni, muadil ve benzer, geri alma. Veritabanı: stok herkese açık ve mağaza anahtarıyla okunamıyor, yalnızca ORMEN elemanı yazıyor, liste herkese açık okunuyor, kumaş kendine muadil olamıyor, göç geri alınıp yeniden uygulanıyor. Uçtan uca: CSV'den stok ve hata raporu, elle stok, muadil ve özellik girişi, stok açık mağaza ekranında termin ve muadil (muadile dokununca koltukta o kumaş), "Çocuklu ev" filtresi, mağazanın web sayfasında stoğun hiç olmaması.
+
+## Teslim: TEST-SHOWROOM.md ve demo akışı testi; vitrin sayacı kamerayla iş sürerken durur (24 Kasım 2026)
+
+- **TEST-SHOWROOM.md:** görev tanımındaki her kabul ölçütü (bölüm 3A, 4–8, 10), onu sınayan test ve durumu. İşaretler: otomatik test geçti, gerçek cihazda ayrıca denenmeli, ORMEN'in kararını bekliyor, henüz yazılmadı. Gerçek cihaz gerektirenler dürüstçe ayrı işaretlendi (kare hızı, 300 ms, gerçek kamera, 5 dakikada eşitleme ölçümü).
+- **Demo akışı testi (`tests/e2e/demo.spec.ts`):** görev tanımının altı adımı (fotoğraftan dene, kartela, parça parça, köşe kurucu, teklif ve sipariş talebi, vitrin döngüsü) tek tarayıcıda, tek eşleşmiş ekranda, sayfa yenilenmeden; her adımın süresi yazdırılıyor. Teslim listesindeki "kısa test notu" TEST-SHOWROOM.md'nin sonunda, bu testin son koşusuyla.
+- **Bu testin bulduğu kusur (düzeltildi):** müşteri kartelayı kameraya tutarken ya da fotoğrafı telefonundan gönderirken ekrana dokunmuyor; vitrin süresi kısa tutulmuşsa ekran bu sırada kendini sıfırlıyor, fotoğraf oturumu da kapanıyordu. Kartela okuyucu ve Fotoğraftan dene penceresi açıkken (`data-mesgul` işareti) boşta sayacı artık işlemiyor. Test en kısa vitrin süresiyle (30 sn) koşuyor. Asistan penceresinde yazı yazmak zaten dokunuş sayıldığı için işaret konmadı.
+- **Tam koşuda bulunan ikinci kusur (düzeltildi):** müşteri dokunup kumaşın 3D'de yüklenmesini beklerken de sayaç işliyordu; yavaş bir cihazda yükleme vitrin süresini aşarsa ekran müşterinin önünde sıfırlanıyordu. Kumaş yüklenirken (`data-yukleniyor`) sayaç artık durur, ama en çok 60 sn: hiç bitmeyen bir yükleme ekranı vitrin döngüsünden alıkoymaz (`lib/kiosk.ts`, `LOAD_HOLD_MS`).
+
 ## Asistan ve koltuk danışmanı (İş 10 + Fatih Bey'in "kendi yapay zekamız"ı), ücretsiz sürüm (23 Kasım 2026)
 
 **İstenen (Fatih Bey):** müşterinin ya da satıcının "soru sorabileceği, fikir alacağı, metraj hesaplatacağı" kendi asistanımız. Görev tanımındaki İş 10 (Koltuk danışmanı) bunun içine alındı. Özel giydirme (Fotoğraftan dene) ayrı bölümde kalıyor; asıl sistem Atelier'deki gibi 3D.

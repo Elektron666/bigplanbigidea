@@ -48,8 +48,10 @@ test.describe("asistan", () => {
       await box.getByRole("button", { name: "Sor", exact: true }).click();
       return box.getByTestId("asistan-cevap").last();
     };
-    await expect(await ask("misso 5 dayanıklı mı, kedimiz var")).toContainText("MISSO-05: aşınma dayanımı 40.000 Martindale (panelde girilen değer).");
-    await expect(await ask("Bu kumaş makinede yıkanır mı?")).toContainText("LUMA-02 için temizlik ve bakım bilgisi panelde girilmemiş.");
+    await expect(await ask("misso 5 dayanıklı mı?")).toContainText("MISSO-05: aşınma dayanımı 40.000 Martindale (panelde girilen değer).");
+    // a pet: the pet mark was not entered, so it says so, with the wear figure that was
+    await expect(await ask("misso 5 dayanıklı mı, kedimiz var")).toContainText("MISSO-05 için “evcil hayvana dayanıklı” bilgisi panelde girilmemiş.");
+    await expect(await ask("Bu kumaş makinede yıkanır mı?")).toContainText("LUMA-02 için “kolay temizlenir” bilgisi panelde girilmemiş.");
     await expect(await ask("Köşe Takımı için MISSO-05 kaç metre gider?")).toContainText(/Köşe Takımı için MISSO-05/);
     await expect(await ask("MISSO-05 ile LUMA-02 arasındaki fark ne?")).toContainText("Yalnızca panelde girilen bilgiler yazıldı.");
     await expect(await ask("hava nasıl")).toContainText("Bunu anlayamadım.");

@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { FabricType } from "@/lib/types";
 import { csvObjects, toCsv } from "@/lib/csv";
-import { CSV_COLUMNS, CSV_EXAMPLE, fieldsFromCsv, validateFabricFields, type FabricFields } from "@/lib/panel/fabric-form";
+import { badYesNo, CSV_COLUMNS, CSV_EXAMPLE, fieldsFromCsv, validateFabricFields, type FabricFields } from "@/lib/panel/fabric-form";
 import { processFabricPhoto, revoke } from "@/lib/fabric/process-browser";
 import { SEAM_LIMIT } from "@/lib/fabric/process";
 import { uploadFabricMaps } from "@/lib/panel/upload";
@@ -61,6 +61,8 @@ export function BulkImport({ existingCodes }: { existingCodes: string[] }) {
           // the height may be left empty: it then follows the photo's proportions
           const errs = validateFabricFields({ ...fields, repeatH: fields.repeatH || 1 });
           const problems = Object.values(errs);
+          const yesNo = badYesNo(o);
+          if (yesNo) problems.push(yesNo);
           if (known.has(fields.code)) problems.push(`${fields.code} zaten katalogda; düzenlemek için kumaş sayfasını açın.`);
           if (seen.has(fields.code)) problems.push("Bu kod dosyada iki kez geçiyor.");
           seen.add(fields.code);

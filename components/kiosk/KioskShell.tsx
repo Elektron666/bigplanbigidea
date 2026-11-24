@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import type { Firm } from "@/lib/types";
-import { idleState, KIOSK_WARNING } from "@/lib/kiosk";
+import { idleState, KIOSK_WARNING, loadHolds } from "@/lib/kiosk";
 import { BrandMark } from "@/components/configurator/BrandMark";
 import { accentStyle } from "@/lib/firm";
 import { AttractContext } from "./attract";
@@ -61,9 +61,15 @@ export function KioskShell({ idleSeconds, firm, children, showroom = false }: { 
     for (const e of ACTIVITY) window.addEventListener(e, bump, { capture: true, passive: true });
     const noMenu = (e: Event) => e.preventDefault();
     window.addEventListener("contextmenu", noMenu);
+    let loadSince: number | null = null;
     const tick = window.setInterval(() => {
-      if (onWelcome.current) {
-        last.current = Date.now();
+      const now = Date.now();
+      // a fabric still loading on the sofa (data-yukleniyor): the visitor is waiting, for a while
+      loadSince = document.querySelector("[data-yukleniyor]") ? (loadSince ?? now) : null;
+      // the welcome screen, or something the visitor is doing without touching the screen:
+      // a swatch card held to the camera, a photo coming from their phone (data-mesgul)
+      if (onWelcome.current || document.querySelector("[data-mesgul]") || loadHolds(loadSince, now)) {
+        last.current = now;
         return;
       }
       const s = idleState(Date.now() - last.current, idleSeconds);
