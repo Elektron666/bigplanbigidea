@@ -1,6 +1,7 @@
 "use client";
 
 import { formatTl, priceQuote, tl, type PriceTable } from "@/lib/satici/fiyat";
+import { rememberQuoteToken } from "@/lib/teklif/son";
 import { useEffect, useMemo, useState } from "react";
 import QRCode from "qrcode";
 import type { Fabric, Firm, FurnitureModel } from "@/lib/types";
@@ -149,6 +150,8 @@ export function QuoteDialog({
     setBusy(false);
     if (typeof r === "object") return setError(r.error);
     setCreated({ number: body.number, token: body.token, clientId, body, queued: r === "kuyrukta" });
+    // the phone video of this visit carries the quote's link (job 13)
+    rememberQuoteToken(body.token as string);
     void track("teklif_olusturuldu", { firmSlug: firm?.slug, n: pieces.length });
   };
 

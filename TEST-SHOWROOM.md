@@ -106,7 +106,8 @@ Ek (görev tanımı dışında, Fatih Bey'in isteği): **Asistan** — serbest s
 
 | **İş 16 — Marka alanı ve web gömme** | Markası kapatılan kumaşlar o firmada hiçbir ekranda görünmez ✅ (`tests/unit/marka.test.ts`, `marka.spec.ts`; bütün ekranlar aynı katalog yükleyicisinden geçiyor) · Gömme kodu izinli olmayan alan adında çalışmaz ✅ (`marka.spec.ts`) · Gömülü sürüm telefonda düzgün ✅ (`marka.spec.ts`: 390 px'te taşma yok) | ✅ |
 
-İş 13, 15 (telefona video ve müşteri kaydı, müşterinin salonu): ⏳
+| **İş 13 — Telefona video ve müşteri kaydı** | Rıza kutusu işaretlenmeden kayıt oluşmaz ✅ (`tests/unit/musteri.test.ts`, `video.spec.ts`) · Silinen kayıt veritabanından da gider ✅ (`musteri.test.ts`, `video.spec.ts`) · ORMEN kullanıcısı hiçbir sorguyla müşteri telefonuna erişemez ✅ (`musteri.test.ts`: okuma, sayma, yazma reddedilir; `video.spec.ts`: ORMEN sayfasında yalnız sayı) · Video orta sınıf telefonda açılır ve 10 MB'ı geçmez ✅ 10 MB (`video.spec.ts`) / 🟡 gerçek telefon | ✅ büyük kısmı |
+| **İş 15 — Müşterinin salonu** | Etiket indirilen görselde de görünür ✅ (`tests/unit/salon.test.ts`, `salon.spec.ts`) · Oturum sonunda fotoğraf sunucudan silinmiştir ✅ (`salon.test.ts`, `salon.spec.ts`; salon fotoğrafı saklanamaz, veritabanı kısıtı `kumas-db.test.ts`) · Başarısız üretim kotadan düşmez ✅ (`salon.test.ts`) | ✅ (deneme sağlayıcıyla; gerçek sağlayıcı 🔑) |
 
 ---
 

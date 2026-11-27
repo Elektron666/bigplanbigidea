@@ -24,12 +24,22 @@ export interface GiydirmeOutput {
   costUsd: number | null;
 }
 
+/** Job 15 ("Müşterinin salonu"): the customer's room and a picture of the product as the 3D shows it. */
+export interface SalonInput {
+  room: Uint8Array;
+  product: Uint8Array;
+  instruction: string;
+  signal: AbortSignal;
+}
+
 export interface GiydirmeProvider {
   id: string;
   name: string;
   /** What one picture is expected to cost, USD, for the panel's estimates; null = unknown. */
   costPerImageUsd: number | null;
   generate(input: GiydirmeInput): Promise<GiydirmeOutput>;
+  /** The product put into the customer's room photo; a provider that cannot do it leaves it out (then the button is not shown). */
+  placeInRoom?(input: SalonInput): Promise<GiydirmeOutput>;
 }
 
 /** The provider set for this server, or null (then the feature is off everywhere). */

@@ -2,7 +2,7 @@
 // kapanabilmeli"). Stored in firms.features as { "teklif": false, … }; a key
 // that is missing takes the feature's default. Pure.
 
-export const FEATURES = ["teklif", "siparis", "kose", "kartela", "giydirme", "asistan", "filtre", "stok", "satici", "musteri-fiyat", "takim"] as const;
+export const FEATURES = ["teklif", "siparis", "kose", "kartela", "giydirme", "asistan", "filtre", "stok", "satici", "musteri-fiyat", "takim", "salon", "video"] as const;
 export type Feature = (typeof FEATURES)[number];
 
 export const FEATURE_LABELS: Record<Feature, { name: string; hint: string }> = {
@@ -13,6 +13,8 @@ export const FEATURE_LABELS: Record<Feature, { name: string; hint: string }> = {
   giydirme: { name: "Fotoğraftan dene", hint: "Yapay zekâ ile fotoğraftaki koltuğa kumaş. Bir sağlayıcı ve kota gerekir." },
   asistan: { name: "Asistan ve koltuk danışmanı", hint: "Soru sorma, metraj, kumaş karşılaştırma ve birkaç soruyla koltuk önerisi. Ücretsiz; cihazda çalışır." },
   filtre: { name: "Müşteri filtreleri", hint: "Kumaş listesinde “Çocuklu ev”, “Evcil hayvan”, “Kolay temizlik”. Yalnızca panelde girilmiş özelliklere dayanır." },
+  video: { name: "Telefona video", hint: "Seçili koltuğun 9 saniyelik dönen videosu, mağaza logosuyla, QR ya da WhatsApp ile müşterinin telefonuna. Ücretsiz; ekranda üretilir." },
+  salon: { name: "Müşterinin salonunda", hint: "Müşteri salonunun fotoğrafını telefonundan gönderir; seçili ürün o fotoğrafa yerleştirilmiş ön izleme olur. Yapay zekâ: sağlayıcı ve kota gerekir, fotoğraftan dene ile aynı kota." },
   takim: { name: "Takım sahnesi", hint: "Panelde tanımlanan takımlar (üçlü, ikili, berjer, puf) showroom ekranında tek dokunuşla kurulur; berjer ve puf için kombin kumaşı." },
   satici: { name: "Satıcı modu", hint: "Showroom ekranında mağaza PIN'iyle açılan satıcı modu: fiyat, stok, termin ve teklif geçmişi. Dokunulmazsa 1 dakikada kapanır." },
   "musteri-fiyat": { name: "Fiyat müşteriye de görünsün", hint: "Kapalıyken fiyat yalnızca satıcı modunda (PIN ile) görünür; ekrana hiç gönderilmez." },
@@ -20,7 +22,7 @@ export const FEATURE_LABELS: Record<Feature, { name: string; hint: string }> = {
 };
 
 /** On unless the panel switched it off; the paid one (giydirme) and stock (seller's information, job 7) are off unless switched on. */
-const DEFAULTS: Record<Feature, boolean> = { teklif: true, siparis: true, kose: true, kartela: true, giydirme: false, asistan: true, filtre: true, stok: false, satici: true, "musteri-fiyat": false, takim: true };
+const DEFAULTS: Record<Feature, boolean> = { teklif: true, siparis: true, kose: true, kartela: true, giydirme: false, asistan: true, filtre: true, stok: false, satici: true, "musteri-fiyat": false, takim: true, salon: false, video: true };
 
 export function featureOn(features: Record<string, unknown> | null | undefined, f: Feature): boolean {
   const v = features?.[f];

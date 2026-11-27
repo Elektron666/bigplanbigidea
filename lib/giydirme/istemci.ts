@@ -11,9 +11,15 @@ export interface OpenSession {
 }
 
 let open: OpenSession | null = null;
+/** The room preview's sessions (job 15): ended with the visit too, never kept. */
+const extra: string[] = [];
 
 export function rememberSession(s: OpenSession | null) {
   open = s;
+}
+
+export function rememberExtraSession(code: string) {
+  if (!extra.includes(code)) extra.push(code);
 }
 
 export function openSession(): OpenSession | null {
@@ -22,13 +28,14 @@ export function openSession(): OpenSession | null {
 
 /** Ends the open session (files deleted unless the shop kept the photo); never throws. */
 export async function endOpenSession(): Promise<void> {
-  const s = open;
+  const codes = [...(open ? [open.code] : []), ...extra.splice(0)];
   open = null;
-  if (!s) return;
-  try {
-    // keepalive: the request survives the page reload that follows
-    await fetch(`/api/giydirme/oturum?kod=${encodeURIComponent(s.code)}`, { method: "DELETE", keepalive: true });
-  } catch {
-    /* the server sweeps it later */
+  for (const code of codes) {
+    try {
+      // keepalive: the request survives the page reload that follows
+      await fetch(`/api/giydirme/oturum?kod=${encodeURIComponent(code)}`, { method: "DELETE", keepalive: true });
+    } catch {
+      /* the server sweeps it later */
+    }
   }
 }

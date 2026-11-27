@@ -30,8 +30,17 @@ export default async function PhonePhotoPage({ params }: PageProps<"/y/[kod]">) 
         </>
       ) : (
         <>
-          <h1 className="font-display text-[28px] leading-tight">Koltuğunuzun fotoğrafını gönderin</h1>
-          <p className="text-[16px] text-antrasit-70">Koltuğu karşıdan, bütünüyle görünecek şekilde çekin. Fotoğraf birkaç saniyede mağazadaki ekrana düşer.</p>
+          {session.purpose === "salon" ? (
+            <>
+              <h1 className="font-display text-[28px] leading-tight">Salonunuzun fotoğrafını gönderin</h1>
+              <p className="text-[16px] text-antrasit-70">Koltuğun gideceği yeri karşıdan, geniş açıyla çekin. Fotoğraf yalnızca ön izleme için kullanılır, saklanmaz; ekrandaki pencere kapanınca silinir.</p>
+            </>
+          ) : (
+            <>
+              <h1 className="font-display text-[28px] leading-tight">Koltuğunuzun fotoğrafını gönderin</h1>
+              <p className="text-[16px] text-antrasit-70">Koltuğu karşıdan, bütünüyle görünecek şekilde çekin. Fotoğraf birkaç saniyede mağazadaki ekrana düşer.</p>
+            </>
+          )}
           <PhoneUpload code={code} />
         </>
       )}

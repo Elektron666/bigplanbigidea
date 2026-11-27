@@ -5,6 +5,7 @@ import { json, ownSession, screen } from "@/lib/giydirme/ekran";
 import { MAX_FABRICS } from "@/lib/giydirme/kota";
 import { makeTries } from "@/lib/giydirme/uret";
 import { codeUpper } from "@/lib/i18n/tr";
+import { featureOn } from "@/lib/central/features";
 
 // "Üret" (job 5): the session's photo in up to four of the shop's fabrics.
 // The fabrics must be on the shop's page; the quota and the provider are the
@@ -17,6 +18,7 @@ export async function POST(request: Request) {
   if (!g.ok) return g.res;
   const o = await ownSession(g.s, url.searchParams.get("kod"));
   if (!o.ok) return o.res;
+  if (!featureOn(g.s.features, "giydirme")) return json({ error: "Fotoğraftan deneme bu mağazada kapalı." }, 403);
   if (!o.session.photoPath) return json({ error: "Önce bir fotoğraf çekin ya da yükleyin." }, 409);
   let codes: string[] = [];
   try {

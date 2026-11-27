@@ -25,6 +25,8 @@ export interface PhotoSession {
   phoneUsed: boolean;
   keep: boolean;
   endedAt: string | null;
+  /** What the photo is of: the customer's sofa (job 5) or their room (job 15, never kept). */
+  purpose: "koltuk" | "salon";
 }
 
 export type CallStatus = "basarili" | "basarisiz" | "zaman-asimi" | "kota";
@@ -51,7 +53,7 @@ export interface UsageRow {
 }
 
 export interface GiydirmeStore {
-  createSession(firmId: string, deviceId: string | null): Promise<PhotoSession>;
+  createSession(firmId: string, deviceId: string | null, purpose?: PhotoSession["purpose"]): Promise<PhotoSession>;
   /** An open session (not ended, not past its time), or null. */
   getSession(code: string): Promise<PhotoSession | null>;
   setPhoto(code: string, path: string, from: "ekran" | "telefon" | "kayitli"): Promise<void>;
@@ -114,9 +116,9 @@ class MemoryGiydirme implements GiydirmeStore {
   private calls: (CallRow & { at: string })[] = [];
   private photos: { id: string; firmId: string; path: string; createdAt: string }[] = [];
 
-  async createSession(firmId: string, deviceId: string | null) {
+  async createSession(firmId: string, deviceId: string | null, purpose: PhotoSession["purpose"] = "koltuk") {
     const now = Date.now();
-    const s: PhotoSession = { code: newSessionCode(), firmId, deviceId, createdAt: new Date(now).toISOString(), expiresAt: new Date(now + SESSION_HOURS * 3_600_000).toISOString(), photoPath: null, photoFrom: null, phoneUsed: false, keep: false, endedAt: null };
+    const s: PhotoSession = { code: newSessionCode(), firmId, deviceId, createdAt: new Date(now).toISOString(), expiresAt: new Date(now + SESSION_HOURS * 3_600_000).toISOString(), photoPath: null, photoFrom: null, phoneUsed: false, keep: false, endedAt: null, purpose };
     this.sessions.set(s.code, s);
     return { ...s };
   }
@@ -152,7 +154,8 @@ class MemoryGiydirme implements GiydirmeStore {
     this.calls.push({ ...c, at: new Date().toISOString() });
   }
   async countOk(firmId: string, sinceIso: string) {
-    return this.calls.filter((c) => c.kind === "giydirme" && c.firmId === firmId && c.status === "basarili" && c.at >= sinceIso).length;
+    // the room previews (job 15) use the same quota
+    return this.calls.filter((c) => (c.kind === "giydirme" || c.kind === "salon") && c.firmId === firmId && c.status === "basarili" && c.at >= sinceIso).length;
   }
   async usage(sinceIso: string, kind?: CallRow["kind"]) {
     return summarise(this.calls.filter((c) => c.at >= sinceIso && (!kind || c.kind === kind)));
@@ -202,8 +205,8 @@ class MemoryGiydirme implements GiydirmeStore {
 
 // ------------------------------------------------------------------ Supabase
 
-type SessionRow = { code: string; firm_id: string; device_id: string | null; created_at: string; expires_at: string; photo_path: string | null; photo_from: PhotoSession["photoFrom"]; phone_used: boolean; keep: boolean; ended_at: string | null };
-const fromRow = (r: SessionRow): PhotoSession => ({ code: r.code, firmId: r.firm_id, deviceId: r.device_id, createdAt: r.created_at, expiresAt: r.expires_at, photoPath: r.photo_path, photoFrom: r.photo_from, phoneUsed: r.phone_used, keep: r.keep, endedAt: r.ended_at });
+type SessionRow = { code: string; firm_id: string; device_id: string | null; created_at: string; expires_at: string; photo_path: string | null; photo_from: PhotoSession["photoFrom"]; phone_used: boolean; keep: boolean; ended_at: string | null; purpose?: PhotoSession["purpose"] | null };
+const fromRow = (r: SessionRow): PhotoSession => ({ code: r.code, firmId: r.firm_id, deviceId: r.device_id, createdAt: r.created_at, expiresAt: r.expires_at, photoPath: r.photo_path, photoFrom: r.photo_from, phoneUsed: r.phone_used, keep: r.keep, endedAt: r.ended_at, purpose: r.purpose ?? "koltuk" });
 
 function check<T>(res: { data: T; error: { message: string } | null }): T {
   if (res.error) throw new Error(res.error.message);
@@ -214,10 +217,10 @@ class SupabaseGiydirme implements GiydirmeStore {
   private get db() {
     return serviceClient();
   }
-  async createSession(firmId: string, deviceId: string | null) {
+  async createSession(firmId: string, deviceId: string | null, purpose: PhotoSession["purpose"] = "koltuk") {
     const expires = new Date(Date.now() + SESSION_HOURS * 3_600_000).toISOString();
     for (let i = 0; i < 4; i++) {
-      const res = await this.db.from("photo_sessions").insert({ code: newSessionCode(), firm_id: firmId, device_id: deviceId, expires_at: expires }).select("*").single();
+      const res = await this.db.from("photo_sessions").insert({ code: newSessionCode(), firm_id: firmId, device_id: deviceId, expires_at: expires, ...(purpose === "salon" ? { purpose } : {}) }).select("*").single();
       if (!res.error) return fromRow(res.data as SessionRow);
       if (res.error.code !== "23505") throw new Error(res.error.message);
     }
@@ -255,7 +258,7 @@ class SupabaseGiydirme implements GiydirmeStore {
     );
   }
   async countOk(firmId: string, sinceIso: string) {
-    const res = await this.db.from("ai_calls").select("id", { count: "exact", head: true }).eq("kind", "giydirme").eq("firm_id", firmId).eq("status", "basarili").gte("at", sinceIso);
+    const res = await this.db.from("ai_calls").select("id", { count: "exact", head: true }).in("kind", ["giydirme", "salon"]).eq("firm_id", firmId).eq("status", "basarili").gte("at", sinceIso);
     if (res.error) throw new Error(res.error.message);
     return res.count ?? 0;
   }

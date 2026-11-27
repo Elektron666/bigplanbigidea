@@ -29,6 +29,22 @@ export interface StageApi {
   snapshot: () => string;
   /** The same, seen from the side: the camera turned about the target by `degrees`, then put back (job 9's two 3D views). */
   snapshotTurned: (degrees: number) => string;
+  /** Turns the camera about the target by `degrees` (it stays turned), draws, and gives the canvas to copy at once (job 13's video). */
+  turnAndDraw: (degrees: number) => HTMLCanvasElement;
+}
+
+function turnAndDraw(state: RootState, split: number | number[] | null, degrees: number): HTMLCanvasElement {
+  const controls = state.controls as unknown as { target?: THREE.Vector3; update?: () => void } | null;
+  const target = controls?.target?.clone() ?? new THREE.Vector3();
+  const cam = state.camera;
+  const offset = cam.position.clone().sub(target).applyAxisAngle(new THREE.Vector3(0, 1, 0), (degrees * Math.PI) / 180);
+  cam.position.copy(target).add(offset);
+  cam.lookAt(target);
+  cam.updateMatrixWorld();
+  controls?.update?.();
+  if (split !== null) renderSplit(state.gl, state.scene, state.camera, state.size, split);
+  else state.gl.render(state.scene, state.camera);
+  return state.gl.domElement;
 }
 
 function takeTurnedSnapshot(state: RootState, split: number | number[] | null, degrees: number): string {
@@ -69,7 +85,7 @@ function takeSnapshot(state: RootState, split: number | number[] | null): string
 function SnapshotBridge({ onApi, split }: { onApi: (api: StageApi) => void; split: number | number[] | null }) {
   const get = useThree((s) => s.get);
   useEffect(() => {
-    onApi({ snapshot: () => takeSnapshot(get(), split), snapshotTurned: (d) => takeTurnedSnapshot(get(), split, d) });
+    onApi({ snapshot: () => takeSnapshot(get(), split), snapshotTurned: (d) => takeTurnedSnapshot(get(), split, d), turnAndDraw: (d) => turnAndDraw(get(), split, d) });
   }, [get, onApi, split]);
   return null;
 }

@@ -13,6 +13,8 @@ import { blocksWay, clearanceWarnings, decodePlan, decorRect, DECOR_LABELS, DEFA
 import { PlanEditor } from "./PlanEditor";
 import { LayoutSuggestions } from "./LayoutSuggestions";
 import { FabricWall } from "./FabricWall";
+import { SalonPreview } from "@/components/kiosk/SalonPreview";
+import { VideoDialog } from "./VideoDialog";
 import { suggestLayouts, type Suggestion } from "@/lib/oda/oneri";
 import { QuoteHistory, SELLER_IDLE_MS, SellerPinPad, type SellerData } from "@/components/kiosk/SellerMode";
 import type { RecentQuote } from "@/lib/teklif/store";
@@ -117,6 +119,10 @@ export interface ConfiguratorProps {
   seller?: boolean;
   /** The shop's prices, only when the shop shows them to customers too (job 7). */
   prices?: PriceTable;
+  /** "Salonunuzda görün" (job 15): a paired screen whose shop has it on, with a provider that can place a product. */
+  salon?: boolean;
+  /** "Telefona video" (job 13): a paired showroom screen whose shop has it on. */
+  video?: boolean;
   /** The shop's sofa sets (job 6) and ORMEN's "uyumlu" fabrics by code, for "Kombin". */
   sets?: ScreenSet[];
   matches?: Record<string, string[]>;
@@ -166,6 +172,8 @@ export function Configurator({
   prices: customerPrices,
   sets,
   matches,
+  salon = false,
+  video = false,
 }: ConfiguratorProps) {
   // ---------------------------------------------------------------- seller mode (job 7)
   const [sellerData, setSellerData] = useState<SellerData | null>(null);
@@ -598,6 +606,9 @@ export function Configurator({
   const [sampleOpen, setSampleOpen] = useState(false);
   const [quoteOpen, setQuoteOpen] = useState(false);
   const [tryOnOpen, setTryOnOpen] = useState(false);
+  const [salonOpen, setSalonOpen] = useState(false);
+  const [videoOpen, setVideoOpen] = useState(false);
+  const drawTurned = useCallback((d: number) => stageApi.current?.turnAndDraw(d) ?? null, []);
   const [assistantOpen, setAssistantOpen] = useState(false);
   const [share, setShare] = useState<{ image: Blob | null; snapshot: string; url: string } | null>(null);
   const [printing, setPrinting] = useState<PrintData | null>(null);
@@ -738,6 +749,24 @@ export function Configurator({
                   className="flex h-10 items-center whitespace-nowrap rounded-full border border-cizgi bg-kagit/90 px-3 text-[13px] text-antrasit backdrop-blur-[2px] transition-colors hover:border-cizgi-koyu focus-visible:outline-2 focus-visible:outline-antrasit sm:px-4"
                 >
                   Asistan
+                </button>
+              )}
+              {video && (
+                <button
+                  type="button"
+                  onClick={() => setVideoOpen(true)}
+                  className="flex h-10 items-center whitespace-nowrap rounded-full border border-cizgi bg-kagit/90 px-3 text-[13px] text-antrasit backdrop-blur-[2px] transition-colors hover:border-cizgi-koyu focus-visible:outline-2 focus-visible:outline-antrasit sm:px-4"
+                >
+                  Telefona video
+                </button>
+              )}
+              {salon && (
+                <button
+                  type="button"
+                  onClick={() => setSalonOpen(true)}
+                  className="flex h-10 items-center whitespace-nowrap rounded-full border border-cizgi bg-kagit/90 px-3 text-[13px] text-antrasit backdrop-blur-[2px] transition-colors hover:border-cizgi-koyu focus-visible:outline-2 focus-visible:outline-antrasit sm:px-4"
+                >
+                  Salonunuzda görün
                 </button>
               )}
               {tryOn && (
@@ -884,7 +913,7 @@ export function Configurator({
             <div className="flex items-start justify-between gap-3">
               <FabricHeadline fabric={shownFabric} loading={loading && ready && shownFabric === active} />
               {/* the visitor is waiting for the sofa: the kiosk's idle count holds (for a while; lib/kiosk.ts) */}
-              {loading && <span hidden data-yukleniyor="" />}
+              {loading && <span hidden data-yukleniyor={selected.code} />}
               <div className="-mr-2 mt-3 flex shrink-0 items-center">
                 <button
                   type="button"
@@ -1249,6 +1278,31 @@ export function Configurator({
           showroom={showroom}
           snapshot={() => stageApi.current?.snapshot() ?? null}
           prices={priceTable}
+        />
+      )}
+      {videoOpen && (
+        <VideoDialog
+          draw={drawTurned}
+          firmName={firm?.name ?? "ORMEN"}
+          logoUrl={firm?.logoUrl}
+          product={`${selectedModel.name} · ${pieceCodes(selectedItem).join(" + ")}`}
+          onClose={() => setVideoOpen(false)}
+        />
+      )}
+      {salonOpen && (
+        <SalonPreview
+          modelSlug={selectedItem.modelSlug}
+          modelName={selectedModel.name}
+          fabricCodes={pieceCodes(selectedItem)}
+          onClose={() => setSalonOpen(false)}
+          product={async () => {
+            const { snapshotJpeg } = await import("./QuoteDialog");
+            const img = await snapshotJpeg(stageApi.current?.snapshot() ?? null);
+            if (!img) return null;
+            let s = "";
+            for (const b of img.bytes) s += String.fromCharCode(b);
+            return `data:image/jpeg;base64,${btoa(s)}`;
+          }}
         />
       )}
       {wallOpen && (

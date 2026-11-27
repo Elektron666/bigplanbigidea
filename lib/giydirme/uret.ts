@@ -111,7 +111,7 @@ export async function endSession(code: string): Promise<{ removed: number; kept:
   const s = await store.endSession(code);
   if (!s) return { removed: 0, kept: false };
   let kept = false;
-  if (s.keep && s.photoPath) {
+  if (s.keep && s.photoPath && s.purpose !== "salon") {
     const to = `magaza/${s.firmId}/${crypto.randomUUID()}.jpg`;
     if (await files.copy(s.photoPath, to)) {
       await store.addFirmPhoto(s.firmId, to);

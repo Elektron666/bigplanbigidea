@@ -73,7 +73,10 @@ export default async function ShowroomPage({ searchParams }: PageProps<"/showroo
   const models = withBuiltSet(cat.models, sp.mk, sets);
   const moduleSets = on("kose") ? sets : undefined;
   // a half feature is not shown: the button needs the shop's switch and a provider
-  const tryOn = on("giydirme") && !!(await getProvider());
+  const provider = await getProvider();
+  const tryOn = on("giydirme") && !!provider;
+  // the room preview (job 15): its own switch, and a provider that can place a product
+  const salon = on("salon") && !!provider?.placeInRoom;
   // stock goes to the screen only when the shop shows it (job 8); otherwise not at all
   const extras = on("stok") ? getFabricExtras() : null;
   const [stock, alternatives] = extras ? await Promise.all([extras.listStock().then((s) => stockByCode(s, cat.fabrics)), extras.listLinks("muadil").then((l) => linksByCode(l, cat.fabrics))]) : [undefined, undefined];
@@ -87,7 +90,7 @@ export default async function ShowroomPage({ searchParams }: PageProps<"/showroo
     <main data-showroom>
       <h1 className="sr-only">{cat.firm.name}: kumaşınızı koltuğun üstünde görün</h1>
       <KioskShell idleSeconds={showroomIdleSeconds(shop.settings)} firm={cat.firm} showroom>
-        <Configurator models={models} fabrics={cat.fabrics} firm={cat.firm} {...initialStateFrom(sp, models, cat.fabrics)} kiosk profileChoice={who.device.quality} waste={waste} showroom={on("siparis")} moduleSets={moduleSets} kartela={on("kartela")} tryOn={tryOn} assistant={on("asistan")} filters={on("filtre")} stock={stock} alternatives={alternatives} seller={on("satici")} prices={prices} sets={sofaSets} matches={matches} clearanceCm={clearanceOf(shop.settings)} />
+        <Configurator models={models} fabrics={cat.fabrics} firm={cat.firm} {...initialStateFrom(sp, models, cat.fabrics)} kiosk profileChoice={who.device.quality} waste={waste} showroom={on("siparis")} moduleSets={moduleSets} kartela={on("kartela")} tryOn={tryOn} assistant={on("asistan")} filters={on("filtre")} stock={stock} alternatives={alternatives} seller={on("satici")} prices={prices} sets={sofaSets} matches={matches} clearanceCm={clearanceOf(shop.settings)} salon={salon} video={on("video")} />
         <SyncAgent contentVersion={shop.contentVersion} appVersion={version} />
       </KioskShell>
       <ShowroomLock contentVersion={shop.contentVersion} appVersion={version} />

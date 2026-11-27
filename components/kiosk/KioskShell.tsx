@@ -62,14 +62,20 @@ export function KioskShell({ idleSeconds, firm, children, showroom = false }: { 
     const noMenu = (e: Event) => e.preventDefault();
     window.addEventListener("contextmenu", noMenu);
     let loadSince: number | null = null;
+    let loading: string | null = null;
     const tick = window.setInterval(() => {
       const now = Date.now();
-      // a fabric still loading on the sofa (data-yukleniyor): the visitor is waiting, for a while
-      loadSince = document.querySelector("[data-yukleniyor]") ? (loadSince ?? now) : null;
+      // a fabric still loading on the sofa (data-yukleniyor="<code>"): the visitor is waiting, for a while,
+      // counted per fabric: a new fabric is a new wait
+      const code = document.querySelector("[data-yukleniyor]")?.getAttribute("data-yukleniyor") ?? null;
+      if (code !== loading) loadSince = code === null ? null : now;
+      loading = code;
       // the welcome screen, or something the visitor is doing without touching the screen:
       // a swatch card held to the camera, a photo coming from their phone (data-mesgul)
       if (onWelcome.current || document.querySelector("[data-mesgul]") || loadHolds(loadSince, now)) {
         last.current = now;
+        // a warning already up goes away: the visitor is busy
+        setRemaining(null);
         return;
       }
       const s = idleState(Date.now() - last.current, idleSeconds);

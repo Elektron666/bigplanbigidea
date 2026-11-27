@@ -21,7 +21,8 @@ export async function screen(): Promise<{ ok: true; s: Screen } | { ok: false; r
   if (!who) return { ok: false, res: json({ error: "Bu ekran eşleşmemiş." }, 401) };
   if (who.shop.status === "askida" || who.shop.status === "ayrildi") return { ok: false, res: json({ error: "Mağaza şu an kapalı." }, 409) };
   const firm = await getRepository().getFirmById(who.shop.id);
-  if (!firm || !featureOn(firm.features, "giydirme")) return { ok: false, res: json({ error: "Fotoğraftan deneme bu mağazada kapalı." }, 403) };
+  // a session serves the sofa try-on (job 5) and the room preview (job 15); each route checks its own switch
+  if (!firm || !(featureOn(firm.features, "giydirme") || featureOn(firm.features, "salon"))) return { ok: false, res: json({ error: "Fotoğraftan deneme bu mağazada kapalı." }, 403) };
   const provider = await getProvider();
   if (!provider) return { ok: false, res: json({ error: "Fotoğraftan deneme henüz hazır değil." }, 503) };
   // sessions a screen left open are cleaned on the way (also daily, by the cron)

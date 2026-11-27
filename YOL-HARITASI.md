@@ -23,7 +23,8 @@ Görev tanımı: "ORMEN Atelier — Showroom Paketi, tam kapsam". Plan `PLAN-SHO
 | **14. Otomatik yerleşim önerisi** | ✅ Üç kural tabanlı yerleşim, kapı ve pencere önü açık, geçiş payı korunur; sığmayan ürün ve daha küçük öneri. |
 | **12. Kumaş duvarı** | ✅ 30 kumaşa kadar ızgara, kareler sahnenin 3D koduyla, ziyaret boyunca önbellekte; dokununca 3D, iki kare karşılaştırma. Gerçek cihazda süre ölçülmedi. |
 | **16. Marka alanı ve web gömme** | ✅ Kumaş markası (eskiler ORMEN), mağaza bazında marka seçimi, sipariş ve raporda marka kırılımı; yalnızca izinli sitelerde açılan gömme kodu. |
-| **Dalga 3'ün kalanı (13, 15)** | ⏳ Başlanmadı. |
+| **13. Telefona video ve müşteri kaydı** | ✅ Ekranda üretilen 9 sn dönen video (logo, ≤10 MB), QR ve WhatsApp; rıza kutulu müşteri kaydı, mağaza bazında saklama süresi, mağazada liste ve silme; ORMEN yalnız sayı görür. Aydınlatma metni ORMEN'den bekleniyor (yer tutucu). |
+| **15. Müşterinin salonu** | 🟡 Akış, etiket, kota, maliyet kaydı ve silme hazır; arkada yalnız deneme sağlayıcısı. Gerçek sağlayıcı ORMEN'in onayıyla. |
 
 Kabul ölçütlerinin testleri: `TEST-SHOWROOM.md` (demo akışı notu sonunda).
 

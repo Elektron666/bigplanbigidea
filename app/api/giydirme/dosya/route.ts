@@ -19,7 +19,7 @@ export async function GET(request: Request) {
   const o = await ownSession(g.s, url.searchParams.get("kod"));
   if (!o.ok) return o.res;
   const name = url.searchParams.get("ad") ?? "";
-  if (!/^(foto|sonuc-[A-ZÇĞİÖŞÜ0-9-]{2,24})$/.test(name)) return json({ error: "Geçersiz dosya." }, 400);
+  if (!/^(foto|sonuc-[A-ZÇĞİÖŞÜ0-9-]{2,24}|salon-[a-z0-9]{4,12})$/.test(name)) return json({ error: "Geçersiz dosya." }, 400);
   const data = await privateFiles().get(`oturum/${o.session.code}/${name}.jpg`);
   if (!data) return json({ error: "Dosya yok." }, 404);
   return jpeg(data);

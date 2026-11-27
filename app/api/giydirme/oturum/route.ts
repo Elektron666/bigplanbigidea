@@ -9,7 +9,9 @@ import { siteUrl, siteUrlIsFinal } from "@/lib/site";
 export async function POST(request: Request) {
   const g = await screen();
   if (!g.ok) return g.res;
-  const session = await getGiydirme().createSession(g.s.firmId, g.s.deviceId);
+  // ?amac=salon: the customer's room (job 15), never kept
+  const purpose = new URL(request.url).searchParams.get("amac") === "salon" ? "salon" : "koltuk";
+  const session = await getGiydirme().createSession(g.s.firmId, g.s.deviceId, purpose);
   const origin = new URL(request.url).origin;
   // the phone opens this page by the QR on the screen (the site's own address when it is set)
   const base = siteUrlIsFinal() ? siteUrl() : origin;

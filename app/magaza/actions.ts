@@ -1,6 +1,8 @@
 "use server";
 
 import { cleanGroup, parsePrice } from "@/lib/satici/fiyat";
+import { getLeads } from "@/lib/musteri/store";
+import { cleanRetention, RETENTION } from "@/lib/musteri/kayit";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { blocked, callerKey, recordFailure } from "@/lib/rate-limit";
@@ -100,4 +102,28 @@ export async function shopPasswordAction(_prev: { error?: string; ok?: boolean }
   if (res.ok) return { ok: true };
   recordFailure("magaza-sifre", caller);
   return { error: res.error };
+}
+
+// ------------------------------------------------------------------ interested customers (job 13)
+
+export async function deleteLeadsAction(ids: string[]): Promise<Result & { removed?: number }> {
+  const o = await owner();
+  if (!o.ok) return o;
+  const list = (Array.isArray(ids) ? ids : []).filter((x) => typeof x === "string" && /^[0-9a-f-]{36}$/i.test(x)).slice(0, 1000);
+  if (!list.length) return { ok: false, error: "Silinecek kayıt seçin." };
+  const removed = await getLeads().remove(o.user, list);
+  revalidatePath("/magaza/musteriler");
+  return { ok: true, removed };
+}
+
+export async function setLeadRetentionAction(raw: string): Promise<Result> {
+  const o = await owner();
+  if (!o.ok) return o;
+  const days = cleanRetention(raw);
+  if (days === "hata") return { ok: false, error: `Saklama süresi ${RETENTION.min}–${RETENTION.max} gün olmalı.` };
+  await getLeads().setRetention(o.user, days);
+  // a shorter period applies at once
+  await getLeads().purge().catch(() => undefined);
+  revalidatePath("/magaza/musteriler");
+  return { ok: true };
 }

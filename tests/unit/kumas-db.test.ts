@@ -81,3 +81,14 @@ describe("fabric properties, stock and links in the database", () => {
     await expect(as(STAFF, () => db.exec(`insert into fabric_links (fabric_id, other_id, kind) values ('${a}', '${a}', 'muadil')`))).rejects.toThrow();
   });
 });
+
+describe("room photo sessions in the database (job 15)", () => {
+  it("never lets a room photo session be kept for the shop", async () => {
+    await db.exec(readFileSync(path.join(process.cwd(), "supabase/geri-al/20261127000300_salon.sql"), "utf8"));
+    await db.exec(readFileSync(path.join(process.cwd(), "supabase/migrations/20261127000300_salon.sql"), "utf8"));
+    await db.query(`insert into photo_sessions (code, firm_id, expires_at, purpose) values ('SALAN123', '${firm}', now() + interval '1 hour', 'salon')`);
+    await expect(db.query("update photo_sessions set keep = true where code = 'SALAN123'")).rejects.toThrow();
+    await db.query(`insert into photo_sessions (code, firm_id, expires_at) values ('KXLTUK12', '${firm}', now() + interval '1 hour')`);
+    expect((await db.query<{ purpose: string }>("select purpose from photo_sessions where code = 'KXLTUK12'")).rows[0].purpose).toBe("koltuk");
+  });
+});

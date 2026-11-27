@@ -10,6 +10,7 @@ import { getNotices } from "@/lib/rapor/store";
 import { pickMonth, reportMonths } from "@/lib/rapor/veri";
 import { whatsappUrl } from "@/lib/samples";
 import { brandOf } from "@/lib/marka";
+import { getLeads } from "@/lib/musteri/store";
 import { siteUrl } from "@/lib/site";
 import { PageHeader, buttonClass } from "@/components/panel/ui";
 
@@ -30,6 +31,8 @@ export default async function ShopsUsagePage({ searchParams }: PageProps<"/panel
   // the daily job makes the month's notices; opening this page does too (it is safe twice)
   await ensureMonthlyNotices().catch(() => undefined);
   const repo = getRepository();
+  // interested customers (job 13): how many each shop holds; names and phones never reach ORMEN
+  const leadCounts = await getLeads().counts().catch(() => ({}) as Record<string, number>);
   const [usage, firms, beats, last, quoted, notices, fabrics] = await Promise.all([
     repo.usageReport(range.from, range.to),
     repo.listFirms(),
@@ -148,6 +151,22 @@ export default async function ShopsUsagePage({ searchParams }: PageProps<"/panel
           <p className="text-[14px] text-antrasit-70">Yok: bütün ekranlar son {IDLE_SCREEN_DAYS} günde kullanılmış.</p>
         )}
       </section>
+
+      {Object.keys(leadCounts).length > 0 && (
+        <section aria-labelledby="ilgilenen" className="mb-10">
+          <h2 id="ilgilenen" className="eyebrow mb-3">
+            İlgilenen müşteri kayıtları (yalnızca sayı)
+          </h2>
+          <ul className="flex flex-wrap gap-3 text-[14px]" data-testid="musteri-sayilari">
+            {Object.entries(leadCounts).map(([id, n]) => (
+              <li key={id} className="rounded-full border border-cizgi bg-white px-4 py-2">
+                {name.get(id) ?? "?"}: {nf.format(n)}
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2 text-[12px] text-antrasit-50">Ad ve telefonlar mağazanındır; ORMEN panelinde görünmez.</p>
+        </section>
+      )}
 
       {byBrand.size > 0 && (
         <section aria-labelledby="marka-kirilimi" className="mb-10">
