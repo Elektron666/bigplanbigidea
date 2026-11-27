@@ -12,7 +12,8 @@ test.describe("oda planı", () => {
   test("4 × 5 m oda, kapı, pencere ve köşe yalnızca dokunarak; kapı önü uyarısı; plan ve 3D; en çok iki sayfa PDF", async ({ page }) => {
     test.setTimeout(240_000);
     page.setDefaultTimeout(30_000);
-    await page.goto("/f/ornek-mobilya?m=kose-takimi&k=LUMA-02");
+    // ORMEN's own page: a shop's products are renamed and changed by other tests
+    await page.goto("/?m=kose-takimi&k=LUMA-02");
     const t0 = Date.now();
     await page.getByRole("tab", { name: "Oda" }).click();
     await page.getByRole("radio", { name: /Dikdörtgen/ }).click();
@@ -69,6 +70,6 @@ test.describe("oda planı", () => {
     expect(download.suggestedFilename()).toBe("salon-yerlesim-projesi.pdf");
     const pdf = await PDFDocument.load(await (await import("node:fs/promises")).readFile((await download.path())!));
     expect(pdf.getPageCount()).toBeLessThanOrEqual(2);
-    expect(pdf.getTitle()).toBe("Örnek Mobilya · Salon Yerleşim Projesi");
+    expect(pdf.getTitle()).toBe("ORMEN Atelier · Salon Yerleşim Projesi");
   });
 });

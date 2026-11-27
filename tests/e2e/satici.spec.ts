@@ -54,7 +54,8 @@ test.describe("satıcı modu ve karşılaştırma", () => {
     await shop.getByLabel("Şifre").fill("ormen-magaza");
     await shop.getByRole("button", { name: "Giriş yap" }).click();
     await shop.getByRole("link", { name: "Ürünler" }).click();
-    const item = shop.getByRole("listitem", { name: /Köşe Takımı|Köşe Lüks/ }).first();
+    // found by ORMEN's name: other tests give the product the shop's own names
+    const item = shop.getByRole("listitem").filter({ hasText: "ORMEN'deki adı: Köşe Takımı" }).first();
     await item.getByLabel("Satış fiyatı (TL)").fill("48.500");
     await item.getByLabel("B grubu").fill("52.000");
     await item.getByRole("button", { name: "Kaydet" }).click();

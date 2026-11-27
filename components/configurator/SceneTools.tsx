@@ -234,9 +234,12 @@ export function SceneTools({
   comparing,
   onCompare,
   kiosk = false,
+  roomPlan = false,
 }: {
   /** Showroom screen: visitors only try fabrics; no adding pieces, no plan (acil toplantı, 6 Oct). */
   kiosk?: boolean;
+  /** The room has walls (job 9's room plan): the plan ⇄ 3D switch is offered on the showroom screen too. */
+  roomPlan?: boolean;
   models: FurnitureModel[];
   onAdd: (slug: string) => void;
   plan: boolean;
@@ -266,8 +269,8 @@ export function SceneTools({
         onCompare={onCompare}
       />
       <div className="hidden items-center gap-0.5 md:flex">
-        {/* plan ⇄ 3D on the showroom screen too: the room plan (job 9) is made there */}
-        {(
+        {/* plan ⇄ 3D: on the showroom screen once the room has walls (job 9's room plan is made there) */}
+        {(!kiosk || roomPlan) && (
           <div
             role="group"
             aria-label="Görünüm"

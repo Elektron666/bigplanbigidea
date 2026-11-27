@@ -7,7 +7,7 @@ Görev tanımındaki ("ORMEN Atelier — Showroom Paketi") her kabul ölçütü,
 **Nasıl çalıştırılır:**
 - Birim ve veritabanı testleri: `npx vitest run` (veritabanı testleri PGlite ile gerçek SQL şemasını çalıştırır).
 - Uçtan uca testler: `PW_CHROMIUM_PATH=/opt/pw-browsers/chromium npx playwright test --project=masaustu --trace off`. Testler kendi sunucusunu kurar (örnek veri modu, demo panel kullanıcısı, demo mağaza sahibi, deneme giydirme sağlayıcısı; `playwright.config.ts`).
-- **Son tam koşu (27 Kasım 2026, İş 7'ye kadar):** uçtan uca masaüstü 97 testten 91'i geçti, 2'si yalnız telefon için atlandı, 4'ü kaldı. Dördü de düzeltildi: kumaş sayfasındaki yeni "…listesini kaydet" düğmelerine çarpan gevşek bir test seçicisi, iki testin aynı aylık özeti açması (testler arası durum), satıcı testinde gevşek ürün eşleşmesi, kalite profili testinde vitrin döngüsü ve yeniden yüklemeyle zamanlama yarışı. Sonra İş 6, 9, 12, 14, 16 eklendi; bunların testleri ve etkilenen testler (a11y, showroom, kesim, kullanım, satıcı, takım, oda, duvar, marka) yeni derlemede ayrı ayrı geçti. Birim ve veritabanı: 519/519.
+- **Son tam koşu (27 Kasım 2026, bütün işler):** uçtan uca masaüstü 103 testten 98'i geçti, 2'si yalnız telefon için atlandı, 3'ü kaldı. Üçü de test kusuruydu, ürün kusuru değil: başka bir testin Örnek Mobilya'daki ürünün adını ve listesini değiştirmesi (satıcı ve oda testleri artık ürünü merkezdeki adıyla buluyor ya da ORMEN'in kendi sayfasında koşuyor), ve kiosk testinin "plan düğmesi yok" beklentisi (plan düğmesi artık kiosk'ta yalnızca oda duvarlıyken çıkıyor; eski karar da korunuyor). Düzeltmelerden sonra bu üç test, onları bozan merkez testinin ardından yeniden koşuldu, hepsi geçti. Birim ve veritabanı: 530/530.
 
 ---
 

@@ -854,6 +854,7 @@ export function Configurator({
                 comparing={Boolean(compare)}
                 onCompare={toggleCompare}
                 kiosk={kiosk}
+                roomPlan={room.shape !== "yok"}
               />
             </div>
           </div>
