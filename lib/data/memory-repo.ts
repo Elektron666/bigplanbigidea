@@ -110,6 +110,9 @@ export class MemoryRepository implements Repository {
     const i = this.firms.findIndex((f) => f.id === firm.id);
     // the firm form does not carry the features: a save keeps them
     if (i >= 0 && input.features === undefined && this.firms[i].features) firm.features = this.firms[i].features;
+    // nor the brands and embed sites (job 16)
+    if (i >= 0 && input.brands === undefined) firm.brands = this.firms[i].brands;
+    if (i >= 0 && input.embedDomains === undefined) firm.embedDomains = this.firms[i].embedDomains;
     if (i >= 0) this.firms[i] = firm;
     else this.firms.push(firm);
     return firm;
@@ -120,6 +123,21 @@ export class MemoryRepository implements Repository {
     if (!m) return false;
     m.styleTags = [...styleTags];
     m.useTags = [...useTags];
+    return true;
+  }
+
+  async setFirmBrandsEmbed(firmId: string, brands: string[] | null, embedDomains: string[]) {
+    const f = this.firms.find((x) => x.id === firmId);
+    if (f) {
+      f.brands = brands;
+      f.embedDomains = embedDomains;
+    }
+  }
+
+  async setModelCategory(modelId: string, category: FurnitureModel["category"] | null) {
+    const m = this.models.find((x) => x.id === modelId);
+    if (!m) return false;
+    m.category = category ?? undefined;
     return true;
   }
 

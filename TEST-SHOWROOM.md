@@ -7,7 +7,7 @@ Görev tanımındaki ("ORMEN Atelier — Showroom Paketi") her kabul ölçütü,
 **Nasıl çalıştırılır:**
 - Birim ve veritabanı testleri: `npx vitest run` (veritabanı testleri PGlite ile gerçek SQL şemasını çalıştırır).
 - Uçtan uca testler: `PW_CHROMIUM_PATH=/opt/pw-browsers/chromium npx playwright test --project=masaustu --trace off`. Testler kendi sunucusunu kurar (örnek veri modu, demo panel kullanıcısı, demo mağaza sahibi, deneme giydirme sağlayıcısı; `playwright.config.ts`).
-- **Son tam koşu (24 Kasım 2026):** uçtan uca masaüstü 94 testten 91'i geçti, 2'si yalnızca telefon için olduğundan atlandı, 1'i (demo) kaldı: yük altındaki test makinesinde 3D yüklemesi 30 sn'yi aşınca en kısa vitrin süresi doldu ve ekran kendini sıfırladı. Düzeltildi (kumaş yüklenirken boşta sayacı en çok 60 sn durur); ardından demo, İş 8, asistan, panel ve erişilebilirlik testleri yeniden koşuldu, hepsi geçti. Birim ve veritabanı: 494/494 (İş 11 dahil).
+- **Son tam koşu (27 Kasım 2026, İş 7'ye kadar):** uçtan uca masaüstü 97 testten 91'i geçti, 2'si yalnız telefon için atlandı, 4'ü kaldı. Dördü de düzeltildi: kumaş sayfasındaki yeni "…listesini kaydet" düğmelerine çarpan gevşek bir test seçicisi, iki testin aynı aylık özeti açması (testler arası durum), satıcı testinde gevşek ürün eşleşmesi, kalite profili testinde vitrin döngüsü ve yeniden yüklemeyle zamanlama yarışı. Sonra İş 6, 9, 12, 14, 16 eklendi; bunların testleri ve etkilenen testler (a11y, showroom, kesim, kullanım, satıcı, takım, oda, duvar, marka) yeni derlemede ayrı ayrı geçti. Birim ve veritabanı: 519/519.
 
 ---
 
@@ -88,10 +88,10 @@ Arkasında yalnızca deneme sağlayıcısı var (hiçbir yeri çağırmaz, para 
 
 | İş | Kabul ölçütleri | Durum |
 |---|---|---|
-| **İş 6 — Takım sahnesi** | Takım metrajı parça metrajlarının toplamıyla tutar; dört parçalı takım hafif profilde akıcı | ⏳ |
-| **İş 7 — Satıcı modu ve karşılaştırma** | PIN'siz hiçbir yerden fiyat görünmez; karşılaştırmada dönüş ve yakınlaşma birlikte | ⏳ |
+| **İş 6 — Takım sahnesi** | Takım metrajı parça metrajlarının toplamıyla tutar ✅ (`tests/unit/takim.test.ts`: kumaş başına parçaların toplamı, elle hesapla) · Dört parçalı takım hafif profilde akıcı döner 🟡 (dört parça çakışmasız kuruluyor: `takim.test.ts`; kare hızı gerçek cihazda ölçülmeli) · Kombin seçimi teklif PDF'inde parça parça doğru ✅ (`takim.spec.ts`: teklif satırlarında berjer uyumlu kumaşla, kanepe ana kumaşla; PDF aynı satırlardan basılıyor) | ✅ büyük kısmı |
+| **İş 7 — Satıcı modu ve karşılaştırma** | PIN'siz hiçbir yerden fiyat görünmez ✅ (`satici.spec.ts`: sayfa HTML'inde yok, yanlış PIN boş; `satici-db.test.ts`: herkese açık anahtar ve ORMEN elemanı okuyamaz) · Karşılaştırmada dönüş ve yakınlaşma eş zamanlı ✅ (yapı gereği: üç bölüm tek kamerayla çizilir, `lib/three/layers.ts`; `satici.spec.ts` üç kumaşın sahnede olduğunu sınar) · Fiyat girilmiş modelde teklif toplamı elle hesapla tutar ✅ (`tests/unit/satici.test.ts`: 38.000 + 48.500 + 12.000 = 98.500; `satici.spec.ts`: 52.000 TL) · Kendiliğinden kapanma 🟡 (1 dk; uçtan uca beklenmedi) | ✅ |
 | **İş 8 — Kumaş özellikleri, stok ve filtreler** | Özelliği girilmemiş kumaş hiçbir özellik filtresinde çıkmaz ✅ (`tests/unit/kumas.test.ts`, `kumas.spec.ts`) · CSV ile 100 kumaşın stoğu tek seferde, hatalı satırlar raporlanır ✅ (`kumas.test.ts` 100 satır + 4 hatalı; `kumas.spec.ts` panelden yükleme ve satır numaralı rapor) · Stokta olmayan kumaş seçilince termin ve muadil görünür ✅ (`kumas.spec.ts`; stok herkese açık anahtarla okunamaz: `kumas-db.test.ts`) | ✅ |
-| **İş 9 — Oda planı ve Salon Yerleşim Projesi** | 4 × 5 m oda, kapı, pencere ve L köşe yalnızca dokunarak 5 dakikada | ⏳ |
+| **İş 9 — Oda planı ve Salon Yerleşim Projesi** | 4 × 5 m oda, kapı, pencere ve L köşe yalnızca dokunarak 5 dakikada ✅ (`oda.spec.ts`, süre yazdırılır; gerçek ekranda parmakla ayrıca 🟡) · Plandaki ölçüler ürün ölçüleriyle tutar ✅ (plan ve PDF aynı ayak izinden çizilir, `tests/unit/oda.test.ts` sabit yerleri cm cinsinden) · Kapının önünü kapatan yerleşimde uyarı ✅ (`oda.test.ts`, `oda.spec.ts`) · PDF en fazla iki sayfa, Türkçe karakterler doğru ✅ (`oda.spec.ts` sayfa sayısı ve başlık; yazı tipleri teklif PDF'inin aynısı) | ✅ |
 | **İş 10 — Koltuk danışmanı** | Her cevap birleşiminde en az bir öneri ya da "uygun ürün yok" ✅ (`tests/unit/asistan.test.ts`, 288 birleşim) · Gerekçede geçen her özellik panelde girili ✅ (`asistan.test.ts`, `asistan.spec.ts`) · Baştan sona 60 sn ✅ (`asistan.spec.ts`: 5 dokunuş, 0,3 sn) · Sesle anlatma: cihaz destekliyorsa düğme, ses saklanmaz ✅ (gerçek cihazda denenmeli 🟡) · Bütçe sorusu ⏳ (fiyatlar vitrine taşınınca) | ✅ büyük kısmı |
 | **İş 11 — Aylık kullanım raporu** | Rapordaki sayılar olay kaydıyla birebir ✅ (`tests/unit/kullanim-db.test.ts`: veritabanı ve uygulama toplamları aynı olay kaydında sayı sayı aynı, elle sayımla da; `kullanim.spec.ts`: gönderilen olaylar kadar artar) · Hiç kullanılmamış ayda rapor boş değil, "kullanım yok" ✅ (`kullanim-db.test.ts`, `kullanim.spec.ts`, PDF'te de) · Firma yalnızca kendi raporunu görür ✅ (`kullanim-db.test.ts`: satır kuralı, başka mağaza ve herkese açık anahtar boş; `kullanim.spec.ts`: başka mağazanın olayları sayılmaz) | ✅ |
 
@@ -99,7 +99,14 @@ Ek (görev tanımı dışında, Fatih Bey'in isteği): **Asistan** — serbest s
 
 ## Dalga 3
 
-İş 12–16 (kumaş duvarı, telefona video ve müşteri kaydı, otomatik yerleşim önerisi, müşterinin salonu, marka alanı ve web gömme): ⏳
+| İş | Kabul ölçütleri | Durum |
+|---|---|---|
+| **İş 12 — Kumaş duvarı** | 30 karelik ızgara hafif profilde 10 sn içinde dolar, dolarken ekran donmaz 🟡 (`duvar.spec.ts`: dolarken kareler seçilebiliyor, süre yazdırılıyor; 10 sn gerçek cihazda ölçülmeli) · Karedeki görüntü 3D'dekiyle aynı kumaş ve ölçek ✅ (yapı gereği: kare sahnenin kendi model ve malzeme koduyla çiziliyor, `components/configurator/FabricWall.tsx`) | 🟡 |
+| **İş 14 — Otomatik yerleşim önerisi** | Üç öneri gözle ayırt edilir ✅ (ana parça üç ayrı duvarda, küçük üstten çizimlerle; `tests/unit/oneri.test.ts`, `oda.spec.ts`) · Hiçbir öneride çakışma yok, kapı kapanmaz, geçiş payı eşiğin altına inmez ✅ (`oneri.test.ts`) · Öneri 3 sn içinde ✅ (`oneri.test.ts`) | ✅ |
+
+| **İş 16 — Marka alanı ve web gömme** | Markası kapatılan kumaşlar o firmada hiçbir ekranda görünmez ✅ (`tests/unit/marka.test.ts`, `marka.spec.ts`; bütün ekranlar aynı katalog yükleyicisinden geçiyor) · Gömme kodu izinli olmayan alan adında çalışmaz ✅ (`marka.spec.ts`) · Gömülü sürüm telefonda düzgün ✅ (`marka.spec.ts`: 390 px'te taşma yok) | ✅ |
+
+İş 13, 15 (telefona video ve müşteri kaydı, müşterinin salonu): ⏳
 
 ---
 

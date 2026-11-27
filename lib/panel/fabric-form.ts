@@ -23,6 +23,8 @@ export interface FabricFields {
   stainResistant?: boolean;
   petResistant?: boolean;
   easyClean?: boolean;
+  priceGroup?: string;
+  brand?: string;
   description?: string;
   repeatW: number;
   repeatH: number;
@@ -79,6 +81,7 @@ export function validateFabricFields(v: FabricFields): FabricFieldErrors {
   const repeatOk = (n: number | undefined) => n !== undefined && n > 0 && n <= 300;
   if (v.pattern === "desenli" && !(repeatOk(v.patternW) && repeatOk(v.patternH))) e.patternW = "Desenli kumaşta desen raporunun enini ve boyunu teknik föyden yazın (cm).";
   if (!positive(v.weightGsm)) e.weightGsm = "Gramaj pozitif bir sayı olmalı.";
+  if (v.priceGroup !== undefined && !/^[A-Z0-9]{1,3}$/.test(v.priceGroup)) e.priceGroup = "Fiyat grubu en çok 3 harf ya da rakam olmalı (ör. A, B, C).";
   if (!(v.martindale === undefined || (Number.isInteger(v.martindale) && v.martindale > 0))) e.martindale = "Martindale tam sayı olmalı.";
   return e;
 }
@@ -98,6 +101,8 @@ export const CSV_COLUMNS = [
   "leke_tutmaz",
   "evcil_hayvan",
   "kolay_temizlik",
+  "fiyat_grubu",
+  "marka",
   "aciklama",
   "desen",
   "desen_en_cm",
@@ -122,6 +127,8 @@ export const CSV_EXAMPLE = [
   "evet",
   "",
   "evet",
+  "B",
+  "ORMEN",
   "",
   "düz",
   "",
@@ -183,6 +190,8 @@ export function fieldsFromCsv(row: Record<string, string>): { fields: FabricFiel
       stainResistant: yesNo(row.leke_tutmaz),
       petResistant: yesNo(row.evcil_hayvan),
       easyClean: yesNo(row.kolay_temizlik),
+      priceGroup: codeUpper((row.fiyat_grubu ?? "").trim()) || undefined,
+      brand: (row.marka ?? "").trim() || undefined,
       description: row.aciklama || undefined,
       repeatW,
       repeatH: parseNumber(row.tekrar_boy_cm) ?? 0,

@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { saveShopProductAction, setShopPriceAction } from "@/app/magaza/actions";
+import { saveShopProductAction, setShopGroupPricesAction, setShopPriceAction } from "@/app/magaza/actions";
 import { SHOP_PRODUCT_LIMITS } from "@/lib/catalogue/shop-products";
 import type { ShopProductRow } from "@/lib/magaza/store";
 import { Badge, Field, buttonClass, inputClass } from "@/components/panel/ui";
@@ -10,9 +10,11 @@ import { Badge, Field, buttonClass, inputClass } from "@/components/panel/ui";
 const priceText = (p: number | null) => (p === null ? "" : p.toLocaleString("tr-TR", { maximumFractionDigits: 2 }));
 
 // One product as the shop shows it. Read-only in ORMEN's support view.
-export function ShopProductEditor({ row, readOnly }: { row: ShopProductRow; readOnly: boolean }) {
+export function ShopProductEditor({ row, groups = [], readOnly }: { row: ShopProductRow; groups?: string[]; readOnly: boolean }) {
   const router = useRouter();
   const [f, setF] = useState({ displayName: row.displayName ?? "", productCode: row.productCode ?? "", description: row.description ?? "", featured: row.featured, hidden: row.hidden, price: priceText(row.price) });
+  const groupText = () => Object.fromEntries(groups.map((g) => [g, priceText(row.groupPrices[g] ?? null)]));
+  const [gp, setGp] = useState<Record<string, string>>(groupText);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const [pending, start] = useTransition();
   const title = row.displayName ?? row.centralName;
@@ -24,6 +26,12 @@ export function ShopProductEditor({ row, readOnly }: { row: ShopProductRow; read
       if (f.price !== priceText(row.price)) {
         const b = await setShopPriceAction(row.modelId, f.price);
         if (!b.ok) return setMessage({ ok: false, text: b.error });
+      }
+      const was = groupText();
+      const changed = Object.fromEntries(Object.entries(gp).filter(([g, v]) => v !== was[g]));
+      if (Object.keys(changed).length) {
+        const c = await setShopGroupPricesAction(row.modelId, changed);
+        if (!c.ok) return setMessage({ ok: false, text: c.error });
       }
       setMessage({ ok: true, text: "Kaydedildi." });
       router.refresh();
@@ -58,6 +66,16 @@ export function ShopProductEditor({ row, readOnly }: { row: ShopProductRow; read
           <Field label="Satış fiyatı (TL)" hint="Yalnızca siz ve ORMEN yöneticisi görür.">
             <input className={inputClass} value={f.price} inputMode="decimal" maxLength={14} onChange={(e) => setF({ ...f, price: e.target.value })} />
           </Field>
+          {groups.length > 0 && (
+            <fieldset className="grid gap-3 sm:col-span-2 sm:grid-cols-3 lg:col-span-4 lg:grid-cols-6">
+              <legend className="mb-1 text-[13px] text-antrasit-70">Kumaş grubuna göre fiyat (TL). Boş bırakılan grupta yukarıdaki satış fiyatı geçer.</legend>
+              {groups.map((g) => (
+                <Field key={g} label={`${g} grubu`}>
+                  <input className={inputClass} value={gp[g] ?? ""} inputMode="decimal" maxLength={14} onChange={(e) => setGp({ ...gp, [g]: e.target.value })} />
+                </Field>
+              ))}
+            </fieldset>
+          )}
           <Field label="Açıklama">
             <input className={inputClass} value={f.description} maxLength={SHOP_PRODUCT_LIMITS.description} onChange={(e) => setF({ ...f, description: e.target.value })} />
           </Field>

@@ -9,6 +9,8 @@ export interface InitialState {
   initialRoom: RoomSpec | null;
   initialLayout: Placement[] | null;
   initialPlan: boolean;
+  /** The room plan's fixtures and decor (job 9), as in the link (?sb=). */
+  initialPlanObjects?: string;
 }
 
 /** Turns link parameters (?y=, ?oda=, ?g=, legacy ?m= / ?k=) into the configurator's start state. */
@@ -37,5 +39,6 @@ export function initialStateFrom(
     initialRoom: decodeRoom(str("oda")),
     initialLayout: layout?.length ? layout : null,
     initialPlan: str("g") === "plan",
+    initialPlanObjects: str("sb"),
   };
 }

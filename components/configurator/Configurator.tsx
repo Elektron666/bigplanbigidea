@@ -7,6 +7,15 @@ import { preferredTextureSize } from "@/lib/three/texture-size";
 import { t } from "@/lib/i18n/tr";
 import { CopyCodeButton, FabricHeadline, FabricSpecs, FabricStock } from "./FabricInfo";
 import { alternativesFor } from "@/lib/kumas/muadil";
+import { formatTl, priceQuote, type PriceTable } from "@/lib/satici/fiyat";
+import { isAccent, placeSet, type ScreenSet } from "@/lib/takim/takim";
+import { blocksWay, clearanceWarnings, decodePlan, decorRect, DECOR_LABELS, DEFAULT_CLEARANCE_CM, encodePlan, fixtureRect, FIXTURE_LABELS, type Decor, type Fixture, type Thing } from "@/lib/oda/plan";
+import { PlanEditor } from "./PlanEditor";
+import { LayoutSuggestions } from "./LayoutSuggestions";
+import { FabricWall } from "./FabricWall";
+import { suggestLayouts, type Suggestion } from "@/lib/oda/oneri";
+import { QuoteHistory, SELLER_IDLE_MS, SellerPinPad, type SellerData } from "@/components/kiosk/SellerMode";
+import type { RecentQuote } from "@/lib/teklif/store";
 import type { StockMap } from "@/lib/kumas/stok";
 import { QuickStrip } from "./QuickStrip";
 import { PresetStrip } from "./PresetStrip";
@@ -29,11 +38,11 @@ import { cleanZones, fabricParts, pieceCodes, zoneCode, zoneFabricsOf, type Zone
 import { useMedia } from "@/lib/use-media";
 import { FabricPicker } from "./FabricPicker";
 import { BrandMark } from "./BrandMark";
-import { CompareDivider, SceneTools } from "./SceneTools";
+import { CompareDivider, CompareThirds, SceneTools } from "./SceneTools";
 import { useFavorites } from "@/lib/favorites";
 import { IconAr, IconClose, IconHeart, IconShare } from "@/components/ui/icons";
-import { DEFAULT_PRESET, encodeRoom, matchingPreset, type RoomPreset, type RoomSpec } from "@/lib/room/spec";
-import { constrain, encodeLayout, findFreeSpot, modelDims, newId, overlapping, type Dims, type Placement } from "@/lib/room/layout";
+import { DEFAULT_PRESET, encodeRoom, L_NOTCH, matchingPreset, type RoomPreset, type RoomSpec } from "@/lib/room/spec";
+import { constrain, encodeLayout, findFreeSpot, footprintParts, modelDims, newId, overlapping, roomRect, type Dims, type Placement } from "@/lib/room/layout";
 import type { StageApi } from "@/components/three/Stage";
 import { encodeShare } from "@/lib/share";
 import { shortenShare } from "@/lib/share-client";
@@ -77,6 +86,9 @@ export interface ConfiguratorProps {
   /** Pieces from a shared link; when absent one piece of initialModelSlug is placed. */
   initialLayout?: Placement[] | null;
   initialPlan?: boolean;
+  initialPlanObjects?: string;
+  /** The shop's clearance for the room plan's warnings, cm (job 9; default 60). */
+  clearanceCm?: number;
   firm?: Firm | null;
   /** Showroom kiosk: sharing becomes a QR the visitor scans to take the combination home. */
   kiosk?: boolean;
@@ -101,12 +113,21 @@ export interface ConfiguratorProps {
   stock?: StockMap;
   /** ORMEN's alternatives by fabric code (job 8), shown when a fabric is out of stock. */
   alternatives?: Record<string, string[]>;
+  /** Seller mode (job 7): a paired showroom screen whose shop has it on; the PIN opens it. */
+  seller?: boolean;
+  /** The shop's prices, only when the shop shows them to customers too (job 7). */
+  prices?: PriceTable;
+  /** The shop's sofa sets (job 6) and ORMEN's "uyumlu" fabrics by code, for "Kombin". */
+  sets?: ScreenSet[];
+  matches?: Record<string, string[]>;
 }
 
 type Tab = "kumas" | "oda" | "kose";
-type Slot = "sol" | "sag";
+type Slot = "sol" | "sag" | "ucuncu";
 interface CompareState {
   right: Fabric;
+  /** A third fabric (job 7): the screen is cut in thirds, still one camera. */
+  third?: Fabric;
   active: Slot;
 }
 
@@ -127,6 +148,8 @@ export function Configurator({
   initialRoom,
   initialLayout,
   initialPlan = false,
+  initialPlanObjects,
+  clearanceCm = DEFAULT_CLEARANCE_CM,
   firm,
   kiosk = false,
   profileChoice,
@@ -137,9 +160,43 @@ export function Configurator({
   tryOn = false,
   assistant = false,
   filters = true,
-  stock,
-  alternatives,
+  stock: customerStock,
+  alternatives: customerAlternatives,
+  seller = false,
+  prices: customerPrices,
+  sets,
+  matches,
 }: ConfiguratorProps) {
+  // ---------------------------------------------------------------- seller mode (job 7)
+  const [sellerData, setSellerData] = useState<SellerData | null>(null);
+  // "Kombin" (job 6): while on, a picked fabric dresses the berjer and puf pieces
+  const [kombin, setKombin] = useState(false);
+  const [sellerPin, setSellerPin] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  // prices, stock and lead times: the seller's when the PIN opened it, else what the shop shows everyone
+  const stock = sellerData?.stock ?? customerStock;
+  const alternatives = sellerData?.alternatives ?? customerAlternatives;
+  const priceTable = sellerData?.prices ?? customerPrices;
+  // untouched for SELLER_IDLE_MS: seller mode closes by itself (the visit's end reloads the page anyway)
+  useEffect(() => {
+    if (!sellerData) return;
+    let last = Date.now();
+    const bump = () => {
+      last = Date.now();
+    };
+    for (const e of ["pointerdown", "keydown", "wheel"]) window.addEventListener(e, bump, { capture: true, passive: true });
+    const tick = window.setInterval(() => {
+      if (Date.now() - last >= SELLER_IDLE_MS) {
+        setSellerData(null);
+        setHistoryOpen(false);
+      }
+    }, 1000);
+    return () => {
+      for (const e of ["pointerdown", "keydown", "wheel"]) window.removeEventListener(e, bump, { capture: true });
+      window.clearInterval(tick);
+    };
+  }, [sellerData]);
+
   // ---------------------------------------------------------------- corner set builder (job 4)
   // the set being built is one more model, at the fixed address "kose-kurucu"
   const [built, setBuilt] = useState<FurnitureModel | null>(() => catalogueModels.find((m) => m.slug === KURULUM_SLUG) ?? null);
@@ -191,6 +248,21 @@ export function Configurator({
     urlTimer.current = window.setTimeout(() => setQuery({ y: encodeLayout(next), m: null, k: null }), 350);
   }, []);
 
+  // a quote from the history back on the screen, piece by piece (job 7); pieces this screen no longer has are left out
+  const openQuote = (q: RecentQuote): boolean => {
+    const next: Placement[] = [];
+    for (const piece of q.pieces) {
+      const model = bySlug.get(piece.modelSlug);
+      if (!model || !byCode.has(piece.fabricCode)) continue;
+      const spot = findFreeSpot(modelDims(model), room, next.map((p) => ({ p, dims: dimsOf(p.modelSlug) })));
+      next.push({ id: newId(), modelSlug: model.slug, fabricCode: piece.fabricCode, ...spot, ...(piece.zones ? { zones: piece.zones } : {}), ...(piece.turned ? { yon: "donuk" as const } : {}) });
+    }
+    if (!next.length) return false;
+    commit(next);
+    setSelectedId(next[0].id);
+    return true;
+  };
+
   // a valid set goes on the selected piece at once (3D, sizes, metres); an invalid one keeps the last good set
   const changeArrangement = (a: Arrangement) => {
     setArrangement(a);
@@ -224,6 +296,103 @@ export function Configurator({
     [commit, items, dimsOf, firm],
   );
 
+  // ---------------------------------------------------------------- room plan (job 9)
+  const [planObjects, setPlanObjects] = useState(() => decodePlan(initialPlanObjects, initialRoom ?? DEFAULT_PRESET.spec));
+  const changePlanObjects = (next: { fixtures: Fixture[]; decor: Decor[] }) => {
+    setPlanObjects(next);
+    setQuery({ sb: encodePlan(next.fixtures, next.decor) || null });
+  };
+  const clearance = useMemo(() => {
+    if (room.shape === "yok") return [];
+    const things: Thing[] = [
+      ...items.map((p) => ({ name: bySlug.get(p.modelSlug)?.name ?? p.modelSlug, rects: footprintParts(p, dimsOf(p.modelSlug)), furniture: true })),
+      ...planObjects.decor.filter((d) => blocksWay(d.kind)).map((d) => ({ name: DECOR_LABELS[d.kind], rects: [decorRect(d)], furniture: false })),
+      ...planObjects.fixtures.filter((f) => f.kind === "kolon" || f.kind === "radyator").map((f) => ({ name: FIXTURE_LABELS[f.kind], rects: [fixtureRect(room, f)], furniture: false })),
+    ];
+    // the same model twice is told apart by its order
+    const seen = new Map<string, number>();
+    for (const t of things) {
+      const n = (seen.get(t.name) ?? 0) + 1;
+      seen.set(t.name, n);
+      if (n > 1) t.name = `${t.name} (${n})`;
+    }
+    return clearanceWarnings(room, things, planObjects.fixtures, clearanceCm);
+  }, [room, items, bySlug, dimsOf, planObjects, clearanceCm]);
+
+  // the fabric wall (job 12): the picker's filtered fabrics, else the selected fabric's series
+  const [wallOpen, setWallOpen] = useState(false);
+  const [pickerList, setPickerList] = useState<{ fabrics: Fabric[]; filtered: boolean }>({ fabrics: [], filtered: false });
+  const onPickerFiltered = useCallback((fabrics: Fabric[], filtered: boolean) => setPickerList({ fabrics, filtered }), []);
+
+  // layout suggestions (job 14): three by rule, one tap to use one
+  const [layoutIdeas, setLayoutIdeas] = useState<{ suggestions: Suggestion[]; note: string | null } | null>(null);
+  const suggest = () => {
+    const pieces = items.flatMap((p) => {
+      const m = bySlug.get(p.modelSlug);
+      return m ? [{ id: p.id, modelSlug: p.modelSlug, fabricCode: p.fabricCode, zones: p.zones, name: m.name, dims: dimsOf(p.modelSlug) }] : [];
+    });
+    const smaller = (p: { modelSlug: string }) => {
+      const m = bySlug.get(p.modelSlug);
+      const alt = models
+        .filter((x) => x.slug !== p.modelSlug && x.isActive && m && x.category && x.category === m.category && x.dimensionsCm.w < m.dimensionsCm.w)
+        .sort((a, b) => b.dimensionsCm.w - a.dimensionsCm.w)[0];
+      return alt ? `${alt.name} (${alt.dimensionsCm.w} cm)` : null;
+    };
+    setLayoutIdeas(suggestLayouts(room, pieces, planObjects.fixtures, planObjects.decor, clearanceCm, smaller));
+  };
+
+  // "Salon Yerleşim Projesi" (job 9): made on the screen, downloaded as a PDF
+  const [layoutBusy, setLayoutBusy] = useState(false);
+  const makeLayoutPdf = async () => {
+    setLayoutBusy(true);
+    try {
+      const [{ buildLayoutPdf }, { loadPdfFonts, imageForPdf }, { snapshotJpeg }, { quoteMetres }] = await Promise.all([import("@/lib/oda/pdf"), import("@/lib/teklif/pdf"), import("./QuoteDialog"), import("@/lib/teklif/metraj")]);
+      const api = stageApi.current;
+      const shots = await Promise.all([api?.snapshot() ?? null, api?.snapshotTurned(40) ?? null].map((u) => snapshotJpeg(u)));
+      const outline = roomRect(room);
+      const notch = room.shape === "l" ? { minX: outline.maxX - (room.widthCm / 100) * L_NOTCH, maxX: outline.maxX, minZ: outline.maxZ - (room.depthCm / 100) * L_NOTCH, maxZ: outline.maxZ } : null;
+      const pieceInputs = items.flatMap((p) => {
+        const model = bySlug.get(p.modelSlug);
+        const fabric = byCode.get(p.fabricCode);
+        return model && fabric ? [{ p, model, fabric }] : [];
+      });
+      const noWaste = { duz: null, donuk: null, raporlu: null, roundStep: 0.5 };
+      const m = quoteMetres(pieceInputs.map(({ p, model, fabric }) => ({ model, fabric, zoneFabrics: zoneFabricsOf(p, byCode), turned: p.yon === "donuk" })), waste ?? noWaste);
+      const nfM = new Intl.NumberFormat("tr-TR", { maximumFractionDigits: 2 });
+      const priced = priceTable ? priceQuote(pieceInputs.map(({ p, model }) => ({ modelSlug: p.modelSlug, modelName: model.name, fabricCode: p.fabricCode, zones: p.zones })), priceTable, (c) => byCode.get(c)?.priceGroup) : null;
+      const pdf = await buildLayoutPdf(
+        {
+          shop: { name: firm?.name ?? "ORMEN Atelier", logo: await imageForPdf(firm?.logoUrl) },
+          date: new Date().toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" }),
+          room: { widthCm: room.widthCm, depthCm: room.depthCm, outline, notch },
+          pieces: pieceInputs.map(({ p, model, fabric }) => ({
+            name: model.name,
+            size: `${model.dimensionsCm.w} × ${model.dimensionsCm.d} cm`,
+            rects: footprintParts(p, dimsOf(p.modelSlug)),
+            fabric: [fabric.code, ...Object.values(p.zones ?? {}).filter((c) => c && c !== fabric.code)].join(" + "),
+          })),
+          fixtures: planObjects.fixtures.map((f) => ({ kind: f.kind, label: `${FIXTURE_LABELS[f.kind]} ${f.widthCm} cm`, rect: fixtureRect(room, f) })),
+          decor: planObjects.decor.map((d) => ({ label: `${DECOR_LABELS[d.kind]} (şekil)`, rect: decorRect(d) })),
+          shots,
+          metres: m.totals.map((t) => `${t.fabric.code} · ${t.fabric.series} ${t.fabric.colorName}: ${t.total === null ? `hesaplanamadı (${t.reasons[0] ?? "bilgi eksik"})` : `${nfM.format(t.total)} m${t.wasteMissing || !waste ? " (fire dahil değil)" : ""}`}`),
+          price: priced ? { lines: priced.lines.map((l) => `${l.modelName}${l.group ? ` · ${l.group} grubu` : ""}: ${l.price === null ? "fiyat girilmemiş" : formatTl(l.price)}`), total: priced.total === null ? `Toplam yok: ${priced.missing.join(", ")} için fiyat girilmemiş.` : `Toplam: ${formatTl(priced.total)}` } : null,
+          warnings: clearance.map((w) => w.text),
+        },
+        await loadPdfFonts(),
+      );
+      const url = URL.createObjectURL(new Blob([pdf as BlobPart], { type: "application/pdf" }));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "salon-yerlesim-projesi.pdf";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 30_000);
+    } finally {
+      setLayoutBusy(false);
+    }
+  };
+
   const [closeUp, setCloseUp] = useState(false);
   const [plan, setPlan] = useState(initialPlan);
   const [fading, setFading] = useState(false);
@@ -248,8 +417,17 @@ export function Configurator({
   const onKartela = useCallback((f: Fabric) => void track("kartela_okutuldu", { firmSlug: firm?.slug, fabricCode: f.code }), [firm?.slug]);
   const select = useCallback(
     (f: Fabric) => {
+      // Kombin (job 6): the fabric goes on the set's berjer and puf pieces
+      if (kombin) {
+        commit(items.map((p) => (isAccent(bySlug.get(p.modelSlug)) ? { ...p, fabricCode: f.code, zones: undefined } : p)));
+        return;
+      }
       if (compare?.active === "sag") {
         setCompare({ ...compare, right: f });
+        return;
+      }
+      if (compare?.active === "ucuncu") {
+        setCompare({ ...compare, third: f });
         return;
       }
       commit(
@@ -262,7 +440,7 @@ export function Configurator({
       );
       track("kumas_denendi", { firmSlug: firm?.slug, modelSlug: selectedItem.modelSlug, fabricCode: f.code });
     },
-    [compare, commit, items, selectedItem.id, selectedItem.modelSlug, firm, activeZone],
+    [kombin, bySlug, compare, commit, items, selectedItem.id, selectedItem.modelSlug, firm, activeZone],
   );
 
   // fabrics offered on the selected piece's model (a model can be limited to some series)
@@ -394,7 +572,17 @@ export function Configurator({
     setTab("kumas");
   };
 
-  const shownFabric = compare?.active === "sag" ? compare.right : active;
+  // Kombin (job 6): the main piece's fabric, and ORMEN's "uyumlu" fabrics for it (none entered: no suggestion)
+  const hasAccent = items.some((p) => isAccent(bySlug.get(p.modelSlug)));
+  const kombinMain = items.find((p) => !isAccent(bySlug.get(p.modelSlug))) ?? items[0];
+  const kombinSuggested = (matches?.[kombinMain.fabricCode] ?? []).map((c) => byCode.get(c)).filter((f): f is Fabric => !!f && modelFabrics.includes(f));
+  const shownFabric = compare?.active === "sag" ? compare.right : compare?.active === "ucuncu" && compare.third ? compare.third : active;
+  const addThird = () => {
+    if (!compare) return;
+    const used = new Set([selected.code, compare.right.code]);
+    const third = modelFabrics.find((f) => !used.has(f.code) && f.series !== selected.series && f.series !== compare.right.series) ?? modelFabrics.find((f) => !used.has(f.code));
+    if (third) setCompare({ ...compare, third, active: "ucuncu" });
+  };
 
   // a fabric the visitor is about to pick starts loading; the loader (and three.js) comes with the scene anyway
   const intent = useCallback((f: Fabric) => {
@@ -493,6 +681,8 @@ export function Configurator({
       <section className="studio-backdrop relative h-[60dvh] md:h-dvh" aria-label="3B sahne">
         <div className={`absolute inset-0 transition-opacity duration-150 ${fading ? "opacity-0" : "opacity-100"}`}>
           <Stage
+            fixtures={planObjects.fixtures}
+            decor={planObjects.decor}
             profileChoice={profileChoice}
             spin={attract && !reducedMotion}
             models={bySlug}
@@ -506,6 +696,7 @@ export function Configurator({
             onApi={onStageApi}
             ambient={ambient}
             compareFabric={compare?.right ?? null}
+            compareFabric2={compare?.third ?? null}
             split={split}
             closeUp={closeUp}
             showDimensions={showDims || tab === "kose"}
@@ -558,6 +749,33 @@ export function Configurator({
                   Fotoğraftan dene
                 </button>
               )}
+              {seller && !sellerData && (
+                <button
+                  type="button"
+                  onClick={() => setSellerPin(true)}
+                  className="flex h-10 items-center whitespace-nowrap rounded-full border border-cizgi bg-kagit/90 px-3 text-[13px] text-antrasit backdrop-blur-[2px] transition-colors hover:border-cizgi-koyu focus-visible:outline-2 focus-visible:outline-antrasit sm:px-4"
+                >
+                  Satıcı
+                </button>
+              )}
+              {sellerData && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setHistoryOpen(true)}
+                    className="flex h-10 items-center whitespace-nowrap rounded-full border border-antrasit bg-kagit/90 px-3 text-[13px] text-antrasit sm:px-4"
+                  >
+                    Teklif geçmişi
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSellerData(null)}
+                    className="flex h-10 items-center whitespace-nowrap rounded-full bg-antrasit px-3 text-[13px] text-kagit sm:px-4"
+                  >
+                    Satıcı modunu kapat
+                  </button>
+                </>
+              )}
               {waste && (
                 <button
                   type="button"
@@ -585,7 +803,11 @@ export function Configurator({
         </header>
 
         {compare && ready && (
-          <CompareDivider split={split} onSplit={setSplit} leftCode={selected.code} rightCode={compare.right.code} />
+          compare.third ? (
+            <CompareThirds codes={[selected.code, compare.right.code, compare.third.code]} />
+          ) : (
+            <CompareDivider split={split} onSplit={setSplit} leftCode={selected.code} rightCode={compare.right.code} />
+          )
         )}
 
         {ready && (
@@ -719,6 +941,62 @@ export function Configurator({
               onLegs={(ayak) => commit(items.map((p) => (p.id === selectedItem.id ? { ...p, ayak: ayak === DEFAULT_LEG ? undefined : ayak } : p)))}
             />
           )}
+          {(!!sets?.length || hasAccent) && (
+            <div className="mb-6 rounded-xl border border-cizgi p-3" data-testid="takim">
+              {!!sets?.length && (
+                <div className="flex flex-wrap gap-2" role="group" aria-label="Takımlar">
+                  {sets.map((s) => (
+                    <button
+                      key={s.slug}
+                      type="button"
+                      onClick={() => {
+                        const next = placeSet(s, bySlug, room, selected.code, newId);
+                        if (!next.length) return;
+                        commit(next);
+                        setSelectedId(next[0].id);
+                        setKombin(false);
+                      }}
+                      className="min-h-11 rounded-full border border-cizgi bg-white px-4 text-[13px] hover:border-cizgi-koyu"
+                    >
+                      Takımı kur: {s.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {hasAccent && items.length > 1 && (
+                  <div className="mt-3">
+                    <button
+                      type="button"
+                      aria-pressed={kombin}
+                      onClick={() => setKombin(!kombin)}
+                      className={`min-h-11 rounded-full px-4 text-[13px] ${kombin ? "bg-antrasit text-kagit" : "border border-cizgi bg-white"}`}
+                    >
+                      {kombin ? "Kombin açık: kumaş berjer ve pufa gider" : "Kombin: berjer ve puf farklı kumaş"}
+                    </button>
+                    {kombin && (
+                      <div className="mt-2 text-[13px]">
+                        {kombinSuggested.length ? (
+                          <>
+                            <p className="mb-1.5 text-antrasit-70">{kombinMain.fabricCode} ile uyumlu:</p>
+                            <div className="flex flex-wrap gap-2">
+                              {kombinSuggested.map((f) => (
+                                <button key={f.code} type="button" onClick={() => select(f)} aria-label={`Uyumlu: ${f.code}, ${f.colorName}`} className="flex min-h-11 items-center gap-2 rounded-full border border-cizgi bg-white py-1 pl-1 pr-3 text-[12px]">
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img src={f.texture.thumbUrl} alt="" className="h-8 w-8 rounded-full" />
+                                  {f.code}
+                                </button>
+                              ))}
+                            </div>
+                          </>
+                        ) : (
+                          <p className="text-antrasit-70">{kombinMain.fabricCode} için uyumlu kumaş girilmemiş; öneri yok. Aşağıdan bir kumaş seçin.</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+              )}
+            </div>
+          )}
           {compare && (
             <div className="mb-6 rounded-xl border border-cizgi p-3">
               <div className="mb-2 flex items-center justify-between">
@@ -731,12 +1009,17 @@ export function Configurator({
                   <IconClose width={14} height={14} /> Kapat
                 </button>
               </div>
-              <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Kumaş seçilecek taraf">
-                {(
-                  [
-                    ["sol", "Sol", selected],
-                    ["sag", "Sağ", compare.right],
-                  ] as const
+              <div className={`grid gap-2 ${compare.third ? "grid-cols-3" : "grid-cols-2"}`} role="radiogroup" aria-label="Kumaş seçilecek taraf">
+                {(compare.third
+                  ? ([
+                      ["sol", "Sol", selected],
+                      ["sag", "Orta", compare.right],
+                      ["ucuncu", "Sağ", compare.third],
+                    ] as const)
+                  : ([
+                      ["sol", "Sol", selected],
+                      ["sag", "Sağ", compare.right],
+                    ] as const)
                 ).map(([slot, label, f]) => (
                   <button
                     key={slot}
@@ -757,7 +1040,18 @@ export function Configurator({
                   </button>
                 ))}
               </div>
-              <p className="mt-2 text-[12px] leading-snug text-antrasit-50">Seçili tarafa kumaş atamak için aşağıdan bir kumaşa dokunun.</p>
+              <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                <p className="text-[12px] leading-snug text-antrasit-50">Seçili tarafa kumaş atamak için aşağıdan bir kumaşa dokunun. Döndürme ve yakınlaştırma hepsinde birlikte.</p>
+                {compare.third ? (
+                  <button type="button" onClick={() => setCompare({ ...compare, third: undefined, active: compare.active === "ucuncu" ? "sag" : compare.active })} className="h-9 rounded-full border border-cizgi px-3 text-[12px]">
+                    Üçüncüyü kaldır
+                  </button>
+                ) : (
+                  <button type="button" onClick={addThird} className="h-9 rounded-full border border-cizgi px-3 text-[12px]">
+                    Üçüncü kumaş ekle
+                  </button>
+                )}
+              </div>
             </div>
           )}
           {items.length > 1 && (
@@ -777,8 +1071,24 @@ export function Configurator({
               Bazı mobilyalar üst üste duruyor. Sürükleyerek ayırın.
             </p>
           )}
+          {clearance.length > 0 && (
+            <ul role="status" aria-label="Geçiş uyarıları" className="mb-5 flex flex-col gap-1 rounded-lg bg-[#F4E9DD] px-3 py-2 text-[13px] text-ceviz" data-testid="gecis-uyari">
+              {clearance.map((w, i) => (
+                <li key={i}>{w.text}</li>
+              ))}
+            </ul>
+          )}
           <div className="mb-6">
             <FabricSpecs fabric={shownFabric} />
+            {priceTable && (() => {
+              const r = priceQuote([{ modelSlug: selectedItem.modelSlug, modelName: selectedModel.name, fabricCode: selectedItem.fabricCode, zones: selectedItem.zones }], priceTable, (c) => byCode.get(c)?.priceGroup);
+              const l = r.lines[0];
+              return (
+                <p className="mt-3 rounded-xl bg-cizgi/40 px-3 py-2.5 text-[14px]" data-testid="fiyat">
+                  {l.price === null ? `${selectedModel.name}: bu kumaşta mağaza fiyatı girilmemiş.` : `${selectedModel.name}: ${formatTl(l.price)}${l.group ? ` · ${l.group} grubu` : ""}`}
+                </p>
+              );
+            })()}
             {stock && <FabricStock entry={stock[shownFabric.code]} alternatives={alternativesFor(shownFabric, modelFabrics, alternatives?.[shownFabric.code], stock)} onSelect={select} />}
             {shownFabric.description && <p className="mt-3 text-sm leading-relaxed text-antrasit-70">{shownFabric.description}</p>}
             <button
@@ -821,7 +1131,10 @@ export function Configurator({
               {selectedModel.name} bu serilerle sunuluyor: {seriesOf(modelFabrics).join(", ")}.
             </p>
           )}
-          <FabricPicker fabrics={modelFabrics} selectedCode={shownFabric.code} onSelect={select} onIntent={intent} needs={filters} stock={stock} />
+          <button type="button" onClick={() => setWallOpen(true)} className="mb-4 min-h-11 rounded-full border border-cizgi bg-white px-4 text-[13px] hover:border-cizgi-koyu">
+            Kumaş duvarı: {pickerList.filtered ? "filtredeki kumaşlar" : `${selected.series} serisi`}
+          </button>
+          <FabricPicker fabrics={modelFabrics} selectedCode={shownFabric.code} onSelect={select} onIntent={intent} needs={filters} stock={stock} onFiltered={onPickerFiltered} />
           {/* the "Kendi koltuğunuzda görün — yakında" card was removed (2nd meeting, 5 Oct): the brief
               rules out real AI, so it was a promise we could not keep. lib/ai/reupholster.ts stays for Faz 3. */}
         </div>
@@ -832,6 +1145,38 @@ export function Configurator({
         )}
         <div id="bolum-oda" role="tabpanel" aria-labelledby="sekme-oda" hidden={tab !== "oda"}>
           {roomTabUsed && <RoomPanel spec={room} onChange={changeRoom} furnitureCm={selectedModel.dimensionsCm} />}
+          {roomTabUsed && room.shape !== "yok" && (
+            <div className="mt-7 flex flex-col gap-7">
+              {clearance.length > 0 && (
+                <ul aria-label="Geçiş uyarıları (oda)" className="flex flex-col gap-1 rounded-lg bg-[#F4E9DD] px-3 py-2 text-[13px] text-ceviz">
+                  {clearance.map((w, i) => (
+                    <li key={i}>{w.text}</li>
+                  ))}
+                </ul>
+              )}
+              <button type="button" onClick={suggest} className="min-h-12 rounded-full border border-antrasit bg-white px-5 text-[15px]">
+                Yerleşim öner
+              </button>
+              {layoutIdeas && (
+                <LayoutSuggestions
+                  room={room}
+                  suggestions={layoutIdeas.suggestions}
+                  note={layoutIdeas.note}
+                  dimsOf={dimsOf}
+                  onPick={(s) => {
+                    // a piece that fit nowhere stays where it was (the overlap warning says so)
+                    commit([...s.placements, ...items.filter((p) => !s.placements.some((q) => q.id === p.id))]);
+                    setSelectedId(s.placements[0].id);
+                    setLayoutIdeas(null);
+                  }}
+                />
+              )}
+              <PlanEditor room={room} fixtures={planObjects.fixtures} decor={planObjects.decor} onFixtures={(fixtures) => changePlanObjects({ ...planObjects, fixtures })} onDecor={(decor) => changePlanObjects({ ...planObjects, decor })} />
+              <button type="button" onClick={() => void makeLayoutPdf()} disabled={layoutBusy} className="min-h-12 rounded-full bg-antrasit px-5 text-[15px] text-kagit disabled:opacity-60">
+                {layoutBusy ? "Hazırlanıyor…" : "Salon Yerleşim Projesi (PDF)"}
+              </button>
+            </div>
+          )}
         </div>
         <p className="mt-10 border-t border-cizgi pt-4 text-center text-[11px] tracking-[0.12em] text-antrasit-50 uppercase">
           {firm ? (
@@ -903,6 +1248,50 @@ export function Configurator({
           kiosk={kiosk}
           showroom={showroom}
           snapshot={() => stageApi.current?.snapshot() ?? null}
+          prices={priceTable}
+        />
+      )}
+      {wallOpen && (
+        <FabricWall
+          model={selectedModel}
+          fabrics={pickerList.filtered ? pickerList.fabrics : modelFabrics.filter((f) => f.series === selected.series).concat(modelFabrics.filter((f) => f.series !== selected.series))}
+          title={pickerList.filtered ? "filtredeki kumaşlar" : `${selected.series} serisi ve diğerleri`}
+          textureSize={preferredTextureSize()}
+          onClose={() => setWallOpen(false)}
+          onOpen={(f) => {
+            setWallOpen(false);
+            select(f);
+          }}
+          onCompare={(a, b) => {
+            setWallOpen(false);
+            select(a);
+            setCompare({ right: b, active: "sag" });
+            setSplit(0.5);
+          }}
+        />
+      )}
+      {sellerPin && (
+        <SellerPinPad
+          onClose={() => setSellerPin(false)}
+          onUnlock={(d) => {
+            setSellerPin(false);
+            setSellerData(d);
+          }}
+        />
+      )}
+      {historyOpen && sellerData && (
+        <QuoteHistory
+          quotes={sellerData.quotes}
+          onClose={() => setHistoryOpen(false)}
+          onOpen={(q) => {
+            openQuote(q);
+            setHistoryOpen(false);
+          }}
+          onCopy={(q) => {
+            if (!openQuote(q)) return;
+            setHistoryOpen(false);
+            setQuoteOpen(true);
+          }}
         />
       )}
       {sampleOpen && (

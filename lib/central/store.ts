@@ -207,6 +207,7 @@ class SupabaseCentral implements CentralStore {
     if (!firm) return null;
     const ad = check(a) as { package: string | null; tags: string[] | null; contact: string | null; installed_on: string | null; ai_quota: number | null } | null;
     const vitrin = Number(firm.settings?.vitrinSn);
+    const gecis = Number(firm.settings?.gecisCm);
     return {
       city: firm.city,
       region: firm.region,
@@ -217,6 +218,7 @@ class SupabaseCentral implements CentralStore {
       contact: ad?.contact ?? null,
       installedOn: ad?.installed_on ?? null,
       aiQuota: ad?.ai_quota ?? null,
+      gecisCm: Number.isInteger(gecis) && gecis > 0 ? gecis : null,
     };
   }
 
@@ -227,6 +229,8 @@ class SupabaseCentral implements CentralStore {
     const settings = { ...(now.settings ?? {}) };
     if (rec.vitrinSn) settings.vitrinSn = rec.vitrinSn;
     else delete settings.vitrinSn;
+    if (rec.gecisCm) settings.gecisCm = rec.gecisCm;
+    else delete settings.gecisCm;
     check(await this.db.from("firms").update({ city: rec.city, region: rec.region, update_mode: rec.updateMode, settings }).eq("id", firmId));
     check(
       await this.db

@@ -33,7 +33,13 @@ export default async function OrdersPage() {
                 <p className="font-medium">
                   {o.firmName ?? "Mağaza bilinmiyor"} <span className="font-normal text-antrasit-50">· teklif {o.quoteNumber}</span>
                 </p>
-                <p className="text-[14px] tracking-wide">{o.items.map((i) => `${i.code} ${formatM(i.metres)}`).join(" · ")}</p>
+                <p className="text-[14px] tracking-wide">{o.items.map((i) => `${i.code}${i.brand && i.brand !== "ORMEN" ? ` (${i.brand})` : ""} ${formatM(i.metres)}`).join(" · ")}</p>
+                {new Set(o.items.map((i) => i.brand ?? "ORMEN")).size > 1 && (
+                  <p className="text-[12px] text-antrasit-50">
+                    Marka kırılımı:{" "}
+                    {[...new Set(o.items.map((i) => i.brand ?? "ORMEN"))].map((b) => `${b} ${formatM(o.items.filter((i) => (i.brand ?? "ORMEN") === b).reduce((s, i) => s + i.metres, 0))}`).join(" · ")}
+                  </p>
+                )}
                 <p className="text-[12px] text-antrasit-50">{when.format(new Date(o.createdAt))}</p>
               </div>
               {o.status === "yeni" && <Badge tone="warn">yeni</Badge>}

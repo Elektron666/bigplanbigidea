@@ -1,5 +1,6 @@
 "use server";
 
+import { cleanGroup, parsePrice } from "@/lib/satici/fiyat";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { blocked, callerKey, recordFailure } from "@/lib/rate-limit";
@@ -68,6 +69,24 @@ export async function setShopPriceAction(modelId: string, raw: string): Promise<
     price = Math.round(n * 100) / 100;
   }
   if (!(await getShopPanel().setPrice(o.user, String(modelId).slice(0, 40), price))) return { ok: false, error: "Bu ürün mağazanızda yok." };
+  revalidatePath("/magaza/urunler");
+  return { ok: true };
+}
+
+/** Prices per fabric group (job 7): { "B": "52.000", "C": "" } — empty takes the group's price off. */
+export async function setShopGroupPricesAction(modelId: string, raw: Record<string, string>): Promise<Result> {
+  const o = await owner();
+  if (!o.ok) return o;
+  const entries = Object.entries(raw ?? {}).slice(0, 20);
+  const parsed: [string, number | null][] = [];
+  for (const [g, v] of entries) {
+    const group = cleanGroup(g);
+    if (!group) return { ok: false, error: "Geçersiz fiyat grubu." };
+    const price = parsePrice(String(v ?? ""));
+    if (Number.isNaN(price)) return { ok: false, error: `${group} grubu: fiyatı rakamla yazın (ör. 48.500).` };
+    parsed.push([group, price]);
+  }
+  for (const [group, price] of parsed) if (!(await getShopPanel().setGroupPrice(o.user, String(modelId).slice(0, 40), group, price))) return { ok: false, error: "Bu ürün mağazanızda yok." };
   revalidatePath("/magaza/urunler");
   return { ok: true };
 }

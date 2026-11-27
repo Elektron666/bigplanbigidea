@@ -2,6 +2,7 @@ import { requireShopUser } from "@/lib/auth/shop";
 import { getShopPanel } from "@/lib/magaza/store";
 import { ShopProductEditor } from "@/components/magaza/ShopProductEditor";
 import { PageHeader } from "@/components/panel/ui";
+import { getRepository } from "@/lib/data";
 
 export const metadata = { title: "Ürünler" };
 
@@ -10,7 +11,9 @@ export const metadata = { title: "Ürünler" };
 // ORMEN and cannot be changed here.
 export default async function ShopProductsPage() {
   const user = await requireShopUser();
-  const rows = await getShopPanel().products(user);
+  const [rows, fabrics] = await Promise.all([getShopPanel().products(user), getRepository().listFabrics()]);
+  // the price groups ORMEN gave its fabrics (job 7)
+  const groups = [...new Set(fabrics.map((f) => f.priceGroup).filter((g): g is string => !!g))].sort();
   return (
     <>
       <PageHeader title="Ürünler" eyebrow={`${rows.length} ürün`} />
@@ -22,7 +25,7 @@ export default async function ShopProductsPage() {
       ) : (
         <ul className="flex flex-col gap-4" aria-label="Ürünler">
           {rows.map((r) => (
-            <ShopProductEditor key={r.modelId} row={r} readOnly={!!user.support} />
+            <ShopProductEditor key={r.modelId} row={r} groups={groups} readOnly={!!user.support} />
           ))}
         </ul>
       )}

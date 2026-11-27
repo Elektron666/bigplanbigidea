@@ -175,6 +175,8 @@ export async function saveFabricAction(p: SaveFabricPayload): Promise<SaveResult
       stainResistant: typeof f.stainResistant === "boolean" ? f.stainResistant : undefined,
       petResistant: typeof f.petResistant === "boolean" ? f.petResistant : undefined,
       easyClean: typeof f.easyClean === "boolean" ? f.easyClean : undefined,
+      priceGroup: f.priceGroup || undefined,
+      brand: f.brand?.trim().slice(0, 40) || existing?.brand || "ORMEN",
       description: f.description?.trim() || undefined,
       isActive: f.isActive,
       // A real photo replaces the generated stand-in.

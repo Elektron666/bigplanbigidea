@@ -85,7 +85,8 @@ test.describe("erişilebilirlik: showroom paketi panelleri", () => {
     await shop.getByLabel("Şifre").fill("ormen-magaza");
     await shop.getByRole("button", { name: "Giriş yap" }).click();
     await expect(shop.getByRole("heading", { name: "Teklifler" })).toBeVisible();
-    for (const path of ["/magaza", "/magaza/urunler", "/magaza/ekranlar", "/magaza/hesap", "/magaza/rapor"]) {
+    // the running month's report: opening last month's would mark its summary as seen for the report test
+    for (const path of ["/magaza", "/magaza/urunler", "/magaza/ekranlar", "/magaza/hesap", `/magaza/rapor?ay=${new Date().toLocaleDateString("en-CA", { timeZone: "Europe/Istanbul" }).slice(0, 7)}`]) {
       await shop.goto(path);
       expect(await violations(shop), path).toEqual([]);
     }

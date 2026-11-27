@@ -9,3 +9,5 @@ export const WOOD_MATERIAL = "ahsap";
  */
 export const LAYER_PRIMARY = 1;
 export const LAYER_COMPARE = 2;
+/** The third fabric when three are compared (job 7). */
+export const LAYER_COMPARE2 = 3;

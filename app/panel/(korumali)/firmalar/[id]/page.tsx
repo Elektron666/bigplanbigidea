@@ -17,6 +17,11 @@ import { FirmShare } from "@/components/panel/FirmShare";
 import { Badge, PageHeader } from "@/components/panel/ui";
 import { siteUrl, siteUrlIsFinal } from "@/lib/site";
 import { seriesOf } from "@/lib/fabric/allowed";
+import { FirmSets } from "@/components/panel/FirmSets";
+import { FirmBrandsEmbed } from "@/components/panel/FirmBrandsEmbed";
+import { brandsOf } from "@/lib/marka";
+import { getSets } from "@/lib/takim/store";
+import { modelsForFirm } from "@/lib/data/repository";
 
 /** Where each screen stands right now (worked out on the server, so the list and the clock agree). */
 function withState(devices: Device[], shopVersion: number) {
@@ -49,6 +54,7 @@ export default async function EditFirmPage({ params, searchParams }: PageProps<"
     withFees ? central.listSubscriptions(firm.id) : null,
   ]);
   const owners = can(user.role, "uye") ? await central.listOwners(firm.id) : null;
+  const [sets, setModels] = await Promise.all([getSets().forFirm(firm.id, { includeInactive: true }), modelsForFirm(repo, firm.id)]);
   const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Istanbul" });
   const showcaseIds = products.map((p) => p.modelId);
   const showcase = all.filter((m) => m.firmId === null && m.isActive);
@@ -81,6 +87,17 @@ export default async function EditFirmPage({ params, searchParams }: PageProps<"
         canRemove={can(user.role, "sil")}
         hasPin={hasPin}
       />
+      {can(user.role, "kurulum") && (
+        <FirmSets
+          firmId={firm.id}
+          sets={sets}
+          canDelete={can(user.role, "sil")}
+          models={setModels.filter((m) => m.slug !== "kose-kurucu").map((m) => ({ id: m.id, name: m.name, category: m.category ?? null, w: m.dimensionsCm.w, d: m.dimensionsCm.d }))}
+        />
+      )}
+      {can(user.role, "kurulum") && (
+        <FirmBrandsEmbed firmId={firm.id} slug={firm.slug} site={siteUrl()} allBrands={brandsOf(await repo.listFabrics({ includeInactive: true }))} brands={firm.brands ?? null} embedDomains={firm.embedDomains ?? []} />
+      )}
       <ShopProducts
         firmId={firm.id}
         rows={products.flatMap((p) => {

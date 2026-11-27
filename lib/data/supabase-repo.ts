@@ -38,6 +38,8 @@ interface FabricRow {
   stain_resistant?: boolean | null;
   pet_resistant?: boolean | null;
   easy_clean?: boolean | null;
+  price_group?: string | null;
+  brand?: string | null;
   description: string | null;
   is_active: boolean;
   is_placeholder: boolean;
@@ -130,6 +132,8 @@ function fabricFromRow(r: FabricRow): Fabric {
     stainResistant: und(r.stain_resistant),
     petResistant: und(r.pet_resistant),
     easyClean: und(r.easy_clean),
+    priceGroup: und(r.price_group),
+    brand: und(r.brand),
     description: und(r.description),
     isActive: r.is_active,
     isPlaceholder: r.is_placeholder,
@@ -191,6 +195,8 @@ interface FirmRow {
   presets: unknown;
   is_active: boolean;
   features?: Record<string, unknown> | null;
+  brands?: string[] | null;
+  embed_domains?: string[] | null;
 }
 
 function firmFromRow(r: FirmRow): Firm {
@@ -204,6 +210,8 @@ function firmFromRow(r: FirmRow): Firm {
     fabricSeries: r.fabric_series ?? [],
     presets: cleanPresets(r.presets),
     features: cleanFeatures(r.features),
+    brands: r.brands ?? null,
+    embedDomains: r.embed_domains ?? [],
     isActive: r.is_active,
   };
 }
@@ -269,6 +277,8 @@ export class SupabaseRepository implements Repository {
       stain_resistant: input.stainResistant ?? null,
       pet_resistant: input.petResistant ?? null,
       easy_clean: input.easyClean ?? null,
+      price_group: input.priceGroup ?? null,
+      ...(input.brand ? { brand: input.brand } : {}),
       description: input.description ?? null,
       is_active: input.isActive,
       is_placeholder: input.isPlaceholder,
@@ -403,6 +413,14 @@ export class SupabaseRepository implements Repository {
     const res = await this.db.from("models").update({ style_tags: styleTags, use_tags: useTags }).eq("id", modelId).select("id");
     if (res.error && /use_tags/.test(res.error.message)) throw new Error("Kullanım etiketleri için Supabase'te 20261123000000_asistan.sql dosyasını çalıştırın.");
     return (check(res) as unknown[]).length > 0;
+  }
+
+  async setFirmBrandsEmbed(firmId: string, brands: string[] | null, embedDomains: string[]) {
+    check(await this.db.from("firms").update({ brands, embed_domains: embedDomains }).eq("id", firmId));
+  }
+
+  async setModelCategory(modelId: string, category: ProductCategory | null) {
+    return (check(await this.db.from("models").update({ category }).eq("id", modelId).select("id")) as unknown[]).length > 0;
   }
 
   async setFirmFeatures(firmId: string, features: Record<string, boolean>) {

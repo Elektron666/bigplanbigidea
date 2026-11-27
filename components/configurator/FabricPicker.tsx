@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import type { ColorFamily, Fabric, FabricType } from "@/lib/types";
 import { COLOR_FAMILY_LABELS, COLOR_FAMILY_SWATCH, FABRIC_TYPE_LABELS, foldTr, t } from "@/lib/i18n/tr";
 import { IconClose, IconSearch } from "@/components/ui/icons";
@@ -16,6 +16,8 @@ export interface FabricPickerProps {
   needs?: boolean;
   /** Stock of the shown fabrics, only on a screen whose shop shows it: out of stock gets its lead time under the swatch. */
   stock?: StockMap;
+  /** The fabrics the filters leave (for the fabric wall, job 12). */
+  onFiltered?: (fabrics: Fabric[], filtered: boolean) => void;
 }
 
 export function filterFabrics(
@@ -47,7 +49,7 @@ function groupBySeries(fabrics: Fabric[]) {
   return [...groups.entries()];
 }
 
-export function FabricPicker({ fabrics, selectedCode, onSelect, onIntent, needs: needsOn = true, stock }: FabricPickerProps) {
+export function FabricPicker({ fabrics, selectedCode, onSelect, onIntent, needs: needsOn = true, stock, onFiltered }: FabricPickerProps) {
   const [query, setQuery] = useState("");
   const [needs, setNeeds] = useState<Need[]>([]);
   // a filter is offered only when some fabric here meets it
@@ -60,6 +62,10 @@ export function FabricPicker({ fabrics, selectedCode, onSelect, onIntent, needs:
   const families = useMemo(() => [...new Set(fabrics.map((f) => f.colorFamily))], [fabrics]);
   const filtered = useMemo(() => filterFabrics(fabrics, query, type, family, needs), [fabrics, query, type, family, needs]);
   const groups = useMemo(() => groupBySeries(filtered), [filtered]);
+  const isFiltered = Boolean(query || type || family || needs.length);
+  useEffect(() => {
+    onFiltered?.(filtered, isFiltered);
+  }, [filtered, isFiltered, onFiltered]);
 
   // Roving tab index: the selected swatch (or the first one) is the single tab stop.
   const tabStop = filtered.some((f) => f.code === selectedCode) ? selectedCode : filtered[0]?.code;

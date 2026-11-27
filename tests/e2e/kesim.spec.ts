@@ -15,7 +15,7 @@ test("usta föyü firmanın metrajını yalnızca uygun kumaşta gösterir; ger�
   await page.getByLabel("En (cm)").fill("140");
   await page.getByRole("combobox", { name: /^Desen/ }).selectOption("duz");
   await page.getByRole("combobox", { name: /^Kesim yönü/ }).selectOption("cift");
-  await page.getByRole("button", { name: "Kaydet" }).click();
+  await page.getByRole("button", { name: "Kaydet", exact: true }).click();
   await expect(page).toHaveURL(/kaydedildi=LUMA-02/);
 
   // and the firm's metres for the corner set (not for the armchair)

@@ -7,6 +7,7 @@ import { getQuotes, MemoryQuotes, type OrderStatus } from "@/lib/teklif/store";
 import type { QuoteContent } from "@/lib/teklif/request";
 import type { ShopUser } from "@/lib/auth/shop";
 import { usageFromJson, usageOf, type Usage } from "@/lib/rapor/kullanim";
+import { getPrices, type MemoryPrices } from "@/lib/satici/store";
 
 // What the shop panel reads and writes (Showroom package, job 0). With
 // Supabase every call runs with the signed-in person's own session, so the
@@ -42,6 +43,8 @@ export interface ShopProductRow {
   featured: boolean;
   hidden: boolean;
   price: number | null;
+  /** The price per fabric group where it differs from `price` (job 7). */
+  groupPrices: Record<string, number>;
 }
 
 type ProductPatch = { displayName: string | null; productCode: string | null; description: string | null; featured: boolean; hidden: boolean };
@@ -51,6 +54,8 @@ export interface ShopPanelStore {
   products(u: ShopUser): Promise<ShopProductRow[]>;
   saveProduct(u: ShopUser, modelId: string, patch: ProductPatch): Promise<boolean>;
   setPrice(u: ShopUser, modelId: string, price: number | null): Promise<boolean>;
+  /** One fabric group's price of a product (null takes it off). */
+  setGroupPrice(u: ShopUser, modelId: string, group: string, price: number | null): Promise<boolean>;
   /** The shop's monthly usage report (job 11): its own events only; "kullanım yok" when none. */
   usage(u: ShopUser, from: Date, to: Date): Promise<Usage>;
 }
@@ -68,7 +73,7 @@ async function catalogueRows(firmId: string) {
   });
 }
 
-function productRow(p: Awaited<ReturnType<typeof catalogueRows>>[number], price: number | null): ShopProductRow {
+function productRow(p: Awaited<ReturnType<typeof catalogueRows>>[number], price: number | null, groupPrices: Record<string, number> = {}): ShopProductRow {
   const { p: sp, m } = p;
   return {
     modelId: m.id,
@@ -80,13 +85,16 @@ function productRow(p: Awaited<ReturnType<typeof catalogueRows>>[number], price:
     featured: sp.featured,
     hidden: sp.hidden,
     price,
+    groupPrices,
   };
 }
 
 // ------------------------------------------------------------------ memory
 
 class MemoryShopPanel implements ShopPanelStore {
-  private prices = new Map<string, number>();
+  private get prices() {
+    return getPrices() as MemoryPrices;
+  }
 
   async usage(u: ShopUser, from: Date, to: Date) {
     return usageOf(await getRepository().usageReport(from, to, u.firmSlug), u.firmSlug);
@@ -112,7 +120,8 @@ class MemoryShopPanel implements ShopPanelStore {
   }
 
   async products(u: ShopUser) {
-    return (await catalogueRows(u.firmId)).map((r) => productRow(r, this.prices.get(`${u.firmId}:${r.m.id}`) ?? null));
+    const rows = await this.prices.rows(u.firmId);
+    return (await catalogueRows(u.firmId)).map((r) => productRow(r, rows[r.m.id]?.base ?? null, rows[r.m.id]?.groups ?? {}));
   }
 
   async saveProduct(u: ShopUser, modelId: string, patch: ProductPatch) {
@@ -139,10 +148,17 @@ class MemoryShopPanel implements ShopPanelStore {
   async setPrice(u: ShopUser, modelId: string, price: number | null) {
     if (u.support) throw new Error(READ_ONLY);
     if (!(await this.products(u)).some((r) => r.modelId === modelId)) return false;
-    if (price === null) this.prices.delete(`${u.firmId}:${modelId}`);
-    else this.prices.set(`${u.firmId}:${modelId}`, price);
+    this.prices.setBase(u.firmId, modelId, price);
     // that a price changed, never the price: ORMEN elemanı reads the log
     await getCentral().writeAudit({ actor: u.email, actorRole: "sahip", firmId: u.firmId, entity: "urun", entityId: modelId, action: "fiyat-degisti", summary: `${u.firmName}: bir ürünün satış fiyatı değişti (mağaza)` });
+    return true;
+  }
+
+  async setGroupPrice(u: ShopUser, modelId: string, group: string, price: number | null) {
+    if (u.support) throw new Error(READ_ONLY);
+    if (!(await this.products(u)).some((r) => r.modelId === modelId)) return false;
+    this.prices.setGroup(u.firmId, modelId, group, price);
+    await getCentral().writeAudit({ actor: u.email, actorRole: "sahip", firmId: u.firmId, entity: "urun", entityId: modelId, action: "fiyat-degisti", summary: `${u.firmName}: bir ürünün ${group} grubu satış fiyatı değişti (mağaza)` });
     return true;
   }
 }
@@ -189,9 +205,15 @@ class SupabaseShopPanel implements ShopPanelStore {
 
   async products(u: ShopUser) {
     const db = await sessionClient();
-    const [rows, prices] = await Promise.all([catalogueRows(u.firmId), db.from("firm_prices").select("model_id, price").eq("firm_id", u.firmId)]);
+    const [rows, prices, groups] = await Promise.all([
+      catalogueRows(u.firmId),
+      db.from("firm_prices").select("model_id, price").eq("firm_id", u.firmId),
+      db.from("firm_group_prices").select("model_id, price_group, price").eq("firm_id", u.firmId),
+    ]);
     const price = new Map(((prices.data ?? []) as { model_id: string; price: number | string }[]).map((p) => [p.model_id, Number(p.price)]));
-    return rows.map((r) => productRow(r, price.get(r.m.id) ?? null));
+    const byGroup = new Map<string, Record<string, number>>();
+    for (const g of (groups.data ?? []) as { model_id: string; price_group: string; price: number | string }[]) byGroup.set(g.model_id, { ...byGroup.get(g.model_id), [g.price_group]: Number(g.price) });
+    return rows.map((r) => productRow(r, price.get(r.m.id) ?? null, byGroup.get(r.m.id) ?? {}));
   }
 
   async saveProduct(u: ShopUser, modelId: string, patch: ProductPatch) {
@@ -212,6 +234,13 @@ class SupabaseShopPanel implements ShopPanelStore {
   async setPrice(u: ShopUser, modelId: string, price: number | null) {
     if (u.support) throw new Error(READ_ONLY);
     const res = await (await sessionClient()).rpc("shop_set_price", { p_firm_id: u.firmId, p_model_id: modelId, p_price: price });
+    if (res.error) throw new Error(res.error.message);
+    return res.data === true;
+  }
+
+  async setGroupPrice(u: ShopUser, modelId: string, group: string, price: number | null) {
+    if (u.support) throw new Error(READ_ONLY);
+    const res = await (await sessionClient()).rpc("shop_set_group_price", { p_firm_id: u.firmId, p_model_id: modelId, p_group: group, p_price: price });
     if (res.error) throw new Error(res.error.message);
     return res.data === true;
   }

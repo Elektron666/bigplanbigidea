@@ -266,7 +266,8 @@ export function SceneTools({
         onCompare={onCompare}
       />
       <div className="hidden items-center gap-0.5 md:flex">
-        {!kiosk && (
+        {/* plan ⇄ 3D on the showroom screen too: the room plan (job 9) is made there */}
+        {(
           <div
             role="group"
             aria-label="Görünüm"
@@ -400,6 +401,22 @@ export function CompareDivider({
       >
         {rightCode}
       </span>
+    </div>
+  );
+}
+
+/** Three fabrics side by side (job 7): fixed thirds, each with its code. */
+export function CompareThirds({ codes }: { codes: [string, string, string] }) {
+  return (
+    <div className="pointer-events-none absolute inset-0" aria-label={`Karşılaştırma: solda ${codes[0]}, ortada ${codes[1]}, sağda ${codes[2]}`} role="img" data-testid="karsilastirma-3">
+      {[1, 2].map((i) => (
+        <div key={i} className="absolute inset-y-0 w-px bg-kagit shadow-[0_0_0_0.5px_rgba(42,42,40,0.25)]" style={{ left: `${(i / 3) * 100}%` }} />
+      ))}
+      {codes.map((c, i) => (
+        <span key={i} className="absolute top-24 -translate-x-1/2 rounded-full bg-kagit/95 px-3 py-1 font-display text-[15px] tracking-[0.02em] text-antrasit md:top-28" style={{ left: `${((2 * i + 1) / 6) * 100}%` }} translate="no">
+          {c}
+        </span>
+      ))}
     </div>
   );
 }

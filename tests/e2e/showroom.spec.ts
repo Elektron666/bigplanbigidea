@@ -6,6 +6,20 @@ import type { Page } from "@playwright/test";
 // panel, opens that shop's showroom without asking again, follows a
 // suspension, and is locked out when removed.
 
+/** Asks the screen to check for changes until it shows the profile (it may already be restarting: then it is asked again). */
+async function syncUntil(screen: Page, profil: string) {
+  await expect
+    .poll(
+      async () => {
+        if ((await screen.locator("html").getAttribute("data-profil").catch(() => null)) === profil) return true;
+        await screen.evaluate(() => (window as unknown as { __ormenSync?: () => Promise<void> }).__ormenSync?.()).catch(() => undefined);
+        return false;
+      },
+      { timeout: 60_000, intervals: [500, 1000, 2000] },
+    )
+    .toBe(true);
+}
+
 async function typeCode(screen: Page, code: string) {
   for (const digit of code) await screen.getByRole("button", { name: digit, exact: true }).click();
 }
@@ -284,21 +298,24 @@ test.describe("showroom ekranı", () => {
     await page.reload();
     await row.getByLabel(`${name}: kalite profili`).selectOption("tam");
     await expect(page.getByText(/Kalite profili kaydedildi \(Tam\)/)).toBeVisible();
-    await screen.evaluate(() => (window as unknown as { __ormenSync: () => Promise<void> }).__ormenSync());
+    await syncUntil(screen, "tam");
     const tam = await settle("tam");
     expect(tam.shadows).toBe(true);
 
     // then "hafif"
     await row.getByLabel(`${name}: kalite profili`).selectOption("hafif");
     await expect(page.getByText(/Kalite profili kaydedildi \(Hafif\)/)).toBeVisible();
-    await screen.evaluate(() => (window as unknown as { __ormenSync: () => Promise<void> }).__ormenSync());
+    await syncUntil(screen, "hafif");
     const hafif = await settle("hafif");
 
     // detail goes down: no cast shadows, textures at most 1K
     expect(hafif.shadows).toBe(false);
     for (const f of hafif.fabrics) expect(f.mapWidth, f.name).toBeLessThanOrEqual(1024);
     // the fabric's colour and its real-world scale are exactly the same
-    const key = (l: Look) => l.fabrics.map((f) => `${f.name} ${f.color} ${f.repeat.join("x")}`).sort();
+    // the welcome loop may be half way from one fabric to the next in either look: the fabrics both looks show are compared
+    const both = new Set(hafif.fabrics.map((f) => f.name).filter((n) => tam.fabrics.some((t) => t.name === n)));
+    expect(both.size).toBeGreaterThan(0);
+    const key = (l: Look) => l.fabrics.filter((f) => both.has(f.name)).map((f) => `${f.name} ${f.color} ${f.repeat.join("x")}`).sort();
     expect(key(hafif)).toEqual(key(tam));
     await context.close();
   });

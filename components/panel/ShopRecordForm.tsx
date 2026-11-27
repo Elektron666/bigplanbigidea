@@ -19,6 +19,7 @@ const fields = (record: ShopRecord) => ({
   updateMode: record.updateMode,
   vitrinSn: record.vitrinSn === null ? "" : String(record.vitrinSn),
   aiQuota: record.aiQuota === null ? "" : String(record.aiQuota),
+  gecisCm: record.gecisCm == null ? "" : String(record.gecisCm),
 });
 
 export function ShopRecordForm({ firmId, record }: { firmId: string; record: ShopRecord }) {
@@ -83,6 +84,9 @@ export function ShopRecordForm({ firmId, record }: { firmId: string; record: Sho
         </Field>
         <Field label="Aylık fotoğraf denemesi kotası" hint="Boş: ORMEN belirlemedi, deneme yapılmaz.">
           <input className={inputClass} value={f.aiQuota} onChange={set("aiQuota")} inputMode="numeric" maxLength={6} />
+        </Field>
+        <Field label="Geçiş payı (cm)" hint="Oda planında iki eşya ya da eşya ile kapı arası bundan azsa uyarı. Boş: 60 cm.">
+          <input className={inputClass} value={f.gecisCm} onChange={set("gecisCm")} inputMode="numeric" maxLength={3} />
         </Field>
         <div className="flex flex-wrap items-center gap-3 sm:col-span-2 lg:col-span-3">
           <button type="submit" disabled={pending} className={buttonClass.primary}>

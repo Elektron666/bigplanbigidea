@@ -9,6 +9,7 @@ import { ensureMonthlyNotices } from "@/lib/rapor/bildirim";
 import { getNotices } from "@/lib/rapor/store";
 import { pickMonth, reportMonths } from "@/lib/rapor/veri";
 import { whatsappUrl } from "@/lib/samples";
+import { brandOf } from "@/lib/marka";
 import { siteUrl } from "@/lib/site";
 import { PageHeader, buttonClass } from "@/components/panel/ui";
 
@@ -29,14 +30,19 @@ export default async function ShopsUsagePage({ searchParams }: PageProps<"/panel
   // the daily job makes the month's notices; opening this page does too (it is safe twice)
   await ensureMonthlyNotices().catch(() => undefined);
   const repo = getRepository();
-  const [usage, firms, beats, last, quoted, notices] = await Promise.all([
+  const [usage, firms, beats, last, quoted, notices, fabrics] = await Promise.all([
     repo.usageReport(range.from, range.to),
     repo.listFirms(),
     getCentral().deviceBeats(),
     repo.screenLastSessions(),
     getQuotes().quotedFabrics(range.from, range.to),
     getNotices().forMonth(ym),
+    repo.listFabrics({ includeInactive: true }),
   ]);
+  // brand breakdown of what was quoted (job 16)
+  const brandOfCode = new Map(fabrics.map((f) => [f.code, brandOf(f)]));
+  const byBrand = new Map<string, number>();
+  for (const q of quoted) byBrand.set(brandOfCode.get(q.code) ?? "ORMEN", (byBrand.get(brandOfCode.get(q.code) ?? "ORMEN") ?? 0) + q.quotes);
   const shown = firms.filter((f) => f.isActive || usage.some((u) => u.firmSlug === f.slug)).sort((a, b) => a.name.localeCompare(b.name, "tr"));
   const name = new Map(firms.map((f) => [f.id, f.name]));
   const idle = idleScreens(beats, last);
@@ -142,6 +148,21 @@ export default async function ShopsUsagePage({ searchParams }: PageProps<"/panel
           <p className="text-[14px] text-antrasit-70">Yok: bütün ekranlar son {IDLE_SCREEN_DAYS} günde kullanılmış.</p>
         )}
       </section>
+
+      {byBrand.size > 0 && (
+        <section aria-labelledby="marka-kirilimi" className="mb-10">
+          <h2 id="marka-kirilimi" className="eyebrow mb-3">
+            Marka kırılımı (teklif edilen kumaşlar)
+          </h2>
+          <ul className="flex flex-wrap gap-3 text-[14px]">
+            {[...byBrand].map(([b, n]) => (
+              <li key={b} className="rounded-full border border-cizgi bg-white px-4 py-2">
+                {b}: {nf.format(n)} kumaş-teklif
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <section aria-labelledby="teklif-kumas">
         <h2 id="teklif-kumas" className="eyebrow mb-3">

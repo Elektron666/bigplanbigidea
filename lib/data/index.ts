@@ -1,3 +1,4 @@
+import { filterByBrands } from "@/lib/marka";
 import "server-only";
 import { realFirst } from "@/lib/fabric/allowed";
 import { supabaseEnabled } from "@/lib/supabase/config";
@@ -30,7 +31,9 @@ export async function loadCatalogue(firmSlug?: string | null): Promise<{ firm: F
   const firm = firmSlug ? await repo.getFirmBySlug(firmSlug) : null;
   if (firmSlug && !firm) return null;
   const [models, all] = await Promise.all([firm ? modelsForFirm(repo, firm.id) : repo.listShowcaseModels(), repo.listFabrics()]);
-  // a firm may limit its page to some series; a limit that matches nothing shows everything
-  const limited = filterBySeries(all, firm?.fabricSeries);
-  return { firm, models, fabrics: realFirst(limited.length ? limited : all) };
+  // brands switched off for the shop are never shown (job 16), whatever else is set
+  const branded = filterByBrands(all, firm?.brands);
+  // a firm may limit its page to some series; a limit that matches nothing shows everything (within its brands)
+  const limited = filterBySeries(branded, firm?.fabricSeries);
+  return { firm, models, fabrics: realFirst(limited.length ? limited : branded) };
 }

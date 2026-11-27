@@ -18,9 +18,11 @@ export interface ShopRecord {
   vitrinSn: number | null;
   /** Monthly photo try-ons; null = not set by ORMEN (then none are made). */
   aiQuota: number | null;
+  /** The room plan's clearance ("geçiş payı", job 9), cm; null = the default (60). */
+  gecisCm: number | null;
 }
 
-export const EMPTY_RECORD: ShopRecord = { city: null, region: null, package: null, tags: [], contact: null, installedOn: null, updateMode: "otomatik", vitrinSn: null, aiQuota: null };
+export const EMPTY_RECORD: ShopRecord = { city: null, region: null, package: null, tags: [], contact: null, installedOn: null, updateMode: "otomatik", vitrinSn: null, aiQuota: null, gecisCm: null };
 
 const text = (v: unknown, max: number): string | null => {
   if (typeof v !== "string") return null;
@@ -55,6 +57,8 @@ export function validateShopRecord(raw: unknown): { ok: true; value: ShopRecord 
   if (vitrinSn === "hata") return { ok: false, error: "Vitrin süresi 30–600 saniye arasında bir sayı olmalı." };
   const aiQuota = intOrNull(r.aiQuota, 0, 100_000);
   if (aiQuota === "hata") return { ok: false, error: "Kota 0 ya da daha büyük bir tam sayı olmalı." };
+  const gecisCm = intOrNull(r.gecisCm, 30, 200);
+  if (gecisCm === "hata") return { ok: false, error: "Geçiş payı 30–200 cm arasında bir tam sayı olmalı." };
   return {
     ok: true,
     value: {
@@ -67,6 +71,7 @@ export function validateShopRecord(raw: unknown): { ok: true; value: ShopRecord 
       updateMode: r.updateMode === "onayli" ? "onayli" : "otomatik",
       vitrinSn,
       aiQuota,
+      gecisCm,
     },
   };
 }

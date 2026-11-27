@@ -75,8 +75,9 @@ export class MemoryCentral implements CentralStore {
     const s = await this.getShop(firmId);
     if (!s) return null;
     const firm = await this.repo?.().getFirmById(firmId);
-    const vitrinSn = this.records.get(firmId)?.vitrinSn;
-    return { id: s.id, name: s.name, slug: s.slug, status: s.status, isActive: s.isActive, contentVersion: s.contentVersion, updateMode: s.updateMode, features: firm?.features ?? {}, settings: vitrinSn ? { vitrinSn } : {} };
+    const rec = this.records.get(firmId);
+    const settings = { ...(rec?.vitrinSn ? { vitrinSn: rec.vitrinSn } : {}), ...(rec?.gecisCm ? { gecisCm: rec.gecisCm } : {}) };
+    return { id: s.id, name: s.name, slug: s.slug, status: s.status, isActive: s.isActive, contentVersion: s.contentVersion, updateMode: s.updateMode, features: firm?.features ?? {}, settings };
   }
 
   async getShopRecord(firmId: string) {

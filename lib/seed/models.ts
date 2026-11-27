@@ -6,6 +6,7 @@ export const SEED_MODELS: FurnitureModel[] = [
   {
     id: "seed-model-kanepe",
     slug: "moduler-kanepe",
+    category: "kanepe",
     name: "Modüler Kanepe",
     firmId: null,
     source: { kind: "procedural", generator: "modular-sofa" },
@@ -18,6 +19,7 @@ export const SEED_MODELS: FurnitureModel[] = [
   {
     id: "seed-model-berjer",
     slug: "berjer",
+    category: "berjer",
     name: "Berjer",
     firmId: null,
     source: { kind: "procedural", generator: "armchair" },
@@ -31,6 +33,7 @@ export const SEED_MODELS: FurnitureModel[] = [
     // a parametric model, as a workshop would describe it in the panel
     id: "seed-model-kose",
     slug: "kose-takimi",
+    category: "kose",
     name: "Köşe Takımı",
     firmId: null,
     source: { kind: "parametric", params: DEFAULTS.kose },

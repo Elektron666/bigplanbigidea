@@ -5,7 +5,7 @@ describe("shop record", () => {
   it("tidies what the panel sends and keeps empty as empty", () => {
     expect(validateShopRecord({ city: "  Ankara ", tags: "Siteler, PİLOT , siteler", installedOn: "2026-11-02", updateMode: "onayli", vitrinSn: "90", aiQuota: "" })).toEqual({
       ok: true,
-      value: { city: "Ankara", region: null, package: null, tags: ["siteler", "pilot"], contact: null, installedOn: "2026-11-02", updateMode: "onayli", vitrinSn: 90, aiQuota: null },
+      value: { city: "Ankara", region: null, package: null, tags: ["siteler", "pilot"], contact: null, installedOn: "2026-11-02", updateMode: "onayli", vitrinSn: 90, aiQuota: null, gecisCm: null },
     });
   });
 

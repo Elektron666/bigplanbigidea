@@ -17,7 +17,13 @@ Görev tanımı: "ORMEN Atelier — Showroom Paketi, tam kapsam". Plan `PLAN-SHO
 | **Asistan ve koltuk danışmanı (İş 10 + soru/metraj)** | ✅ Ücretsiz, cihazda çalışan sürüm: serbest sorular, metraj, karşılaştırma, 5 soruluk danışman, sesle soru. Dil modeli ORMEN'in onayıyla sonra. |
 | **8. Kumaş özellikleri, stok ve filtreler** | ✅ Üç özellik işareti, müşteri filtreleri (yalnız girilmiş işaretle), elle ve CSV ile stok, termin etiketi, muadil ve "benzer" önerisi. Stok yalnızca "Stok ve termin" açık mağazanın showroom ekranına gider. |
 | **11. Aylık kullanım raporu** | ✅ Mağaza panelinde aylık rapor ve tek sayfa PDF, ayın başında "rapor hazır" bildirimi, ORMEN panelinde bütün mağazalar yan yana, 30 gündür kullanılmayan ekranlar, mağaza bazında en çok teklif edilen kumaşlar. Sayılar yalnızca olay kaydından. |
-| **Dalga 2'nin kalanı (6, 7, 9), Dalga 3 (12–16)** | ⏳ Başlanmadı. |
+| **7. Satıcı modu ve karşılaştırma** | ✅ PIN ile satıcı modu (fiyat, stok, termin, son 30 günün teklifleri; yeniden aç, kopyala), model ve kumaş fiyat grubuna göre mağaza fiyatı, teklif toplamı, üç kumaş karşılaştırma. |
+| **6. Takım sahnesi** | ✅ Panelde mağaza bazında takım (parçalar ve yerleri, yerleşim önerisi), ekranda tek dokunuşla kurulum, kombin (berjer ve puf, uyumlu kumaşlar önce), takım metrajı ve teklif. Kare hızı gerçek cihazda ölçülmedi. |
+| **9. Oda planı ve Salon Yerleşim Projesi** | ✅ Kapı, pencere, kolon, radyatör ve dekor dokunarak; geçiş payı ve kapı önü uyarısı (eşik mağaza kaydında, varsayılan 60 cm); plan ⇄ 3D; en çok iki sayfalık PDF. |
+| **14. Otomatik yerleşim önerisi** | ✅ Üç kural tabanlı yerleşim, kapı ve pencere önü açık, geçiş payı korunur; sığmayan ürün ve daha küçük öneri. |
+| **12. Kumaş duvarı** | ✅ 30 kumaşa kadar ızgara, kareler sahnenin 3D koduyla, ziyaret boyunca önbellekte; dokununca 3D, iki kare karşılaştırma. Gerçek cihazda süre ölçülmedi. |
+| **16. Marka alanı ve web gömme** | ✅ Kumaş markası (eskiler ORMEN), mağaza bazında marka seçimi, sipariş ve raporda marka kırılımı; yalnızca izinli sitelerde açılan gömme kodu. |
+| **Dalga 3'ün kalanı (13, 15)** | ⏳ Başlanmadı. |
 
 Kabul ölçütlerinin testleri: `TEST-SHOWROOM.md` (demo akışı notu sonunda).
 

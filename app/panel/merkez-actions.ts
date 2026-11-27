@@ -10,11 +10,15 @@ import { getRepository } from "@/lib/data";
 import { validateShopProduct } from "@/lib/catalogue/shop-products";
 import { DEVICE_QUALITIES, DEVICE_QUALITY_LABELS, validateDeviceName, type DeviceQuality } from "@/lib/devices/pairing";
 import { cleanPin, weakPin } from "@/lib/devices/pin";
-import { checkBulkAssign } from "@/lib/catalogue/products";
+import { checkBulkAssign, PRODUCT_CATEGORIES, PRODUCT_CATEGORY_LABELS, type ProductCategory } from "@/lib/catalogue/products";
 import { validateWaste } from "@/lib/teklif/metraj";
 import { cleanFeatures, FEATURE_LABELS, FEATURES, featureOn, type Feature } from "@/lib/central/features";
 import { undoPermission, undoStep } from "@/lib/central/undo";
 import { getFabricExtras } from "@/lib/kumas/store";
+import { getSets } from "@/lib/takim/store";
+import { brandsOf, cleanBrand, cleanDomains } from "@/lib/marka";
+import { validateSet } from "@/lib/takim/takim";
+import { modelsForFirm } from "@/lib/data/repository";
 import { getQuotes, ORDER_STATUSES, type OrderStatus } from "@/lib/teklif/store";
 import { SHOP_STATUSES, SHOP_STATUS_LABELS, type ShopStatus } from "@/lib/central/shops";
 import { validateShopRecord, validateSubscription, validateTemplate, type ShopRecord } from "@/lib/central/record";
@@ -308,7 +312,7 @@ export async function saveShopRecordAction(firmId: string, raw: unknown): Promis
   return { ok: true };
 }
 
-const RECORD_LABELS: Record<keyof ShopRecord, string> = { city: "şehir", region: "bölge", package: "paket", tags: "etiketler", contact: "yetkili", installedOn: "kurulum tarihi", updateMode: "güncelleme", vitrinSn: "vitrin süresi", aiQuota: "deneme kotası" };
+const RECORD_LABELS: Record<keyof ShopRecord, string> = { city: "şehir", region: "bölge", package: "paket", tags: "etiketler", contact: "yetkili", installedOn: "kurulum tarihi", updateMode: "güncelleme", vitrinSn: "vitrin süresi", aiQuota: "deneme kotası", gecisCm: "geçiş payı" };
 function changedFields(a: ShopRecord, b: ShopRecord): string[] {
   return (Object.keys(RECORD_LABELS) as (keyof ShopRecord)[]).filter((k) => JSON.stringify(a[k]) !== JSON.stringify(b[k])).map((k) => RECORD_LABELS[k]);
 }
@@ -673,5 +677,79 @@ export async function undoAuditAction(id: string): Promise<Result> {
   }
   await central.writeAudit({ actor: user.email, actorRole: user.role, firmId: entry.firmId, entity: entry.entity, entityId: entry.entityId, action: "geri-alindi", summary: `Geri alındı: ${entry.summary}`.slice(0, 300), before: entry.after, after: entry.before });
   revalidatePath("/panel/gunluk");
+  return { ok: true };
+}
+
+// ------------------------------------------------------------------ sofa sets (job 6)
+
+export async function setModelCategoryAction(modelId: string, raw: string): Promise<Result> {
+  const user = await getPanelUser();
+  if (!user) return { ok: false, error: "Oturum süresi doldu. Yeniden giriş yapın." };
+  if (!can(user.role, "icerik")) return { ok: false, error: DENIED };
+  const category = (PRODUCT_CATEGORIES as readonly string[]).includes(raw) ? (raw as ProductCategory) : null;
+  const repo = getRepository();
+  const model = (await repo.listAllModels()).find((m) => m.id === String(modelId).slice(0, 60));
+  if (!model || !(await repo.setModelCategory(model.id, category))) return { ok: false, error: "Model bulunamadı." };
+  await getCentral().writeAudit({ actor: user.email, actorRole: user.role, firmId: model.firmId, entity: "urun", entityId: model.id, action: "kategori-degisti", summary: `${model.name}: kategori ${category ? PRODUCT_CATEGORY_LABELS[category] : "kaldırıldı"}`.slice(0, 300) });
+  revalidatePath(`/panel/modeller/${model.id}`);
+  return { ok: true };
+}
+
+export async function saveSetAction(firmId: string, raw: unknown, id?: string): Promise<Result & { id?: string }> {
+  const user = await getPanelUser();
+  if (!user) return { ok: false, error: "Oturum süresi doldu. Yeniden giriş yapın." };
+  if (!can(user.role, "kurulum")) return { ok: false, error: DENIED };
+  const repo = getRepository();
+  const firm = await repo.getFirmById(String(firmId).slice(0, 60));
+  if (!firm) return { ok: false, error: "Mağaza bulunamadı." };
+  const models = await modelsForFirm(repo, firm.id);
+  const v = validateSet(raw, new Set(models.map((m) => m.id)));
+  if (!v.ok) return v;
+  const res = await getSets().save(firm.id, v.value, id ? String(id).slice(0, 60) : undefined);
+  if (!res.ok) return res;
+  await getCentral().writeAudit({ actor: user.email, actorRole: user.role, firmId: firm.id, entity: "magaza", entityId: res.id, action: "takim-kaydedildi", summary: `${firm.name}: "${v.value.name}" takımı kaydedildi (${v.value.pieces.length} parça)`.slice(0, 300) });
+  revalidatePath(`/panel/firmalar/${firm.id}`);
+  return { ok: true, id: res.id };
+}
+
+export async function deleteSetAction(firmId: string, id: string): Promise<Result> {
+  const user = await getPanelUser();
+  if (!user) return { ok: false, error: "Oturum süresi doldu. Yeniden giriş yapın." };
+  if (!can(user.role, "sil")) return { ok: false, error: DENIED };
+  const firm = await getRepository().getFirmById(String(firmId).slice(0, 60));
+  if (!firm) return { ok: false, error: "Mağaza bulunamadı." };
+  const gone = await getSets().remove(firm.id, String(id).slice(0, 60));
+  if (!gone) return { ok: false, error: "Takım bulunamadı." };
+  await getCentral().writeAudit({ actor: user.email, actorRole: user.role, firmId: firm.id, entity: "magaza", entityId: gone.id, action: "takim-silindi", summary: `${firm.name}: "${gone.name}" takımı silindi`.slice(0, 300) });
+  revalidatePath(`/panel/firmalar/${firm.id}`);
+  return { ok: true };
+}
+
+// ------------------------------------------------------------------ brands and the web embed (job 16)
+
+export async function saveFirmBrandsEmbedAction(firmId: string, brands: string[] | null, domainsText: string): Promise<Result> {
+  const user = await getPanelUser();
+  if (!user) return { ok: false, error: "Oturum süresi doldu. Yeniden giriş yapın." };
+  if (!can(user.role, "kurulum")) return { ok: false, error: DENIED };
+  const repo = getRepository();
+  const firm = await repo.getFirmById(String(firmId).slice(0, 60));
+  if (!firm) return { ok: false, error: "Mağaza bulunamadı." };
+  const known = brandsOf(await repo.listFabrics({ includeInactive: true }));
+  const chosen = brands === null ? null : [...new Set((Array.isArray(brands) ? brands : []).map(cleanBrand).filter((b): b is string => !!b && known.includes(b)))];
+  const domains = cleanDomains(String(domainsText ?? "").slice(0, 2000));
+  if (!domains.ok) return domains;
+  await repo.setFirmBrandsEmbed(firm.id, chosen, domains.value);
+  await getCentral().writeAudit({
+    actor: user.email,
+    actorRole: user.role,
+    firmId: firm.id,
+    entity: "magaza",
+    entityId: firm.id,
+    action: "marka-gomme-degisti",
+    summary: `${firm.name}: markalar ${chosen === null ? "hepsi" : chosen.join(", ") || "hiçbiri"}; gömme ${domains.value.join(", ") || "kapalı"}`.slice(0, 300),
+    before: { brands: firm.brands ?? null, embedDomains: firm.embedDomains ?? [] },
+    after: { brands: chosen, embedDomains: domains.value },
+  });
+  refreshShop(firm);
   return { ok: true };
 }

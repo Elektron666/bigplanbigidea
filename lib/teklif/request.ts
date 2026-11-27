@@ -8,6 +8,7 @@
 // The quote's number and its phone link are made on the screen, so a quote
 // made offline already has them, and the same quote sent twice is one quote.
 
+import { brandOf } from "@/lib/marka";
 import type { Fabric, FurnitureModel, SetDiagram } from "@/lib/types";
 import { cleanZones, zoneFabricsOf, type ZoneCodes } from "@/lib/three/zones";
 import { codeUpper } from "@/lib/i18n/tr";
@@ -123,7 +124,7 @@ export function buildQuote(
   pieces: QuotePieceInput[],
   catalogue: { models: FurnitureModel[]; fabrics: Fabric[] },
   waste: WasteSettings,
-): { ok: true; content: QuoteContent; totals: { code: string; metres: number }[]; wasteMissing: boolean; complete: boolean } | { ok: false; error: string } {
+): { ok: true; content: QuoteContent; totals: { code: string; metres: number; brand?: string }[]; wasteMissing: boolean; complete: boolean } | { ok: false; error: string } {
   const bySlug = new Map(catalogue.models.map((m) => [m.slug, m]));
   const byCode = new Map(catalogue.fabrics.map((f) => [f.code, f]));
   const inputs = [];
@@ -148,7 +149,8 @@ export function buildQuote(
   return {
     ok: true,
     content,
-    totals: m.totals.flatMap((t) => (t.total === null ? [] : [{ code: t.fabric.code, metres: t.total }])),
+    // the brand travels with the order request (job 16: "sipariş taleplerinde marka kırılımı")
+    totals: m.totals.flatMap((t) => (t.total === null ? [] : [{ code: t.fabric.code, metres: t.total, brand: brandOf(t.fabric) }])),
     wasteMissing: m.wasteMissing,
     complete: m.complete,
   };

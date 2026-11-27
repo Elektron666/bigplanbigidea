@@ -19,7 +19,7 @@ export interface QuoteInput {
   number: string;
   token: string;
   content: QuoteContent;
-  totals: { code: string; metres: number }[];
+  totals: { code: string; metres: number; brand?: string }[];
   wasteMissing: boolean;
   price: number | null;
   customerName: string | null;
@@ -37,7 +37,7 @@ export interface OrderRow {
   quoteNumber: string;
   firmId: string | null;
   firmName: string | null;
-  items: { code: string; metres: number }[];
+  items: { code: string; metres: number; brand?: string }[];
   status: OrderStatus;
   createdAt: string;
 }
@@ -57,6 +57,16 @@ export interface QuoteStore {
   countSince(from: Date): Promise<{ quotes: number; orders: number }>;
   /** Per shop and fabric: in how many quotes of the period the fabric was (job 11, ORMEN's panel). */
   quotedFabrics(from: Date, to: Date): Promise<{ firmId: string | null; code: string; quotes: number }[]>;
+  /** A shop's quotes since the moment given, newest first, for its screen's seller mode (job 7). No customer names. */
+  recentForFirm(firmId: string, since: Date): Promise<RecentQuote[]>;
+}
+
+export interface RecentQuote {
+  number: string;
+  createdAt: string;
+  pieces: QuoteContent["pieces"];
+  totals: { code: string; metres: number }[];
+  price: number | null;
 }
 
 // ------------------------------------------------------------------ memory
@@ -112,6 +122,14 @@ export class MemoryQuotes implements QuoteStore {
   async countSince(from: Date) {
     const t = from.toISOString();
     return { quotes: this.quotes.filter((q) => q.createdAt >= t).length, orders: this.orders.filter((o) => o.createdAt >= t).length };
+  }
+
+  async recentForFirm(firmId: string, since: Date) {
+    const t = since.toISOString();
+    return this.quotes
+      .filter((q) => q.firmId === firmId && q.createdAt >= t)
+      .slice(0, 200)
+      .map((q) => ({ number: q.number, createdAt: q.createdAt, pieces: q.content.pieces, totals: q.totals, price: q.price }));
   }
 
   async quotedFabrics(from: Date, to: Date) {
@@ -207,6 +225,14 @@ class SupabaseQuotes implements QuoteStore {
     if (q.error) throw new Error(q.error.message);
     if (o.error) throw new Error(o.error.message);
     return { quotes: q.count ?? 0, orders: o.count ?? 0 };
+  }
+
+  async recentForFirm(firmId: string, since: Date) {
+    const res = await this.db.from("quotes").select("number, created_at, pieces:content->pieces, totals, price").eq("firm_id", firmId).gte("created_at", since.toISOString()).order("created_at", { ascending: false }).limit(200);
+    if (res.error) throw new Error(res.error.message);
+    return (res.data as unknown as { number: string; created_at: string; pieces: QuoteContent["pieces"] | null; totals: { code: string; metres: number }[]; price: number | string | null }[]).map((r) => ({
+      number: r.number, createdAt: r.created_at, pieces: r.pieces ?? [], totals: r.totals, price: r.price === null ? null : Number(r.price),
+    }));
   }
 
   async quotedFabrics(from: Date, to: Date) {

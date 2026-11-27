@@ -18,6 +18,8 @@ import { furnitureBox, nearPlane } from "@/lib/three/depth";
 import { PlanView } from "./PlanView";
 import { PlacedFurniture, type PieceActions } from "./PlacedFurniture";
 import { enableAllLayers, renderSplit, showPrimary } from "@/lib/three/layers";
+import { PlanObjects } from "./PlanObjects";
+import type { Decor, Fixture } from "@/lib/oda/plan";
 import { zoneFabricsOf } from "@/lib/three/zones";
 import { reportClientError } from "@/components/ErrorReporter";
 
@@ -25,10 +27,30 @@ import { reportClientError } from "@/components/ErrorReporter";
 export interface StageApi {
   /** PNG data URL of the current view, without selection marks. */
   snapshot: () => string;
+  /** The same, seen from the side: the camera turned about the target by `degrees`, then put back (job 9's two 3D views). */
+  snapshotTurned: (degrees: number) => string;
+}
+
+function takeTurnedSnapshot(state: RootState, split: number | number[] | null, degrees: number): string {
+  const controls = state.controls as unknown as { target?: THREE.Vector3; update?: () => void } | null;
+  const target = controls?.target?.clone() ?? new THREE.Vector3();
+  const cam = state.camera;
+  const was = cam.position.clone();
+  const offset = was.clone().sub(target).applyAxisAngle(new THREE.Vector3(0, 1, 0), (degrees * Math.PI) / 180);
+  cam.position.copy(target).add(offset);
+  cam.lookAt(target);
+  cam.updateMatrixWorld();
+  const url = takeSnapshot(state, split);
+  cam.position.copy(was);
+  cam.lookAt(target);
+  cam.updateMatrixWorld();
+  controls?.update?.();
+  state.invalidate();
+  return url;
 }
 
 /** Hides selection outlines, renders one frame and reads the canvas in the same task. */
-function takeSnapshot(state: RootState, split: number | null): string {
+function takeSnapshot(state: RootState, split: number | number[] | null): string {
   const hidden: THREE.Object3D[] = [];
   state.scene.traverse((o) => {
     if (o.name === "secim" && o.visible) {
@@ -44,10 +66,10 @@ function takeSnapshot(state: RootState, split: number | null): string {
   return url;
 }
 
-function SnapshotBridge({ onApi, split }: { onApi: (api: StageApi) => void; split: number | null }) {
+function SnapshotBridge({ onApi, split }: { onApi: (api: StageApi) => void; split: number | number[] | null }) {
   const get = useThree((s) => s.get);
   useEffect(() => {
-    onApi({ snapshot: () => takeSnapshot(get(), split) });
+    onApi({ snapshot: () => takeSnapshot(get(), split), snapshotTurned: (d) => takeTurnedSnapshot(get(), split, d) });
   }, [get, onApi, split]);
   return null;
 }
@@ -63,6 +85,11 @@ export interface StageProps {
   ambient?: number;
   /** Second fabric for the selected piece in compare mode; null when not comparing. */
   compareFabric?: Fabric | null;
+  /** The room plan's fixtures and decor (job 9). */
+  fixtures?: Fixture[];
+  decor?: Decor[];
+  /** A third fabric for the selected piece (three-way compare, job 7): the screen is cut in thirds. */
+  compareFabric2?: Fabric | null;
   /** Split position 0..1 from the left in compare mode. */
   split?: number;
   closeUp?: boolean;
@@ -202,12 +229,15 @@ export function StudioLights({ ambient, shadowMap = 2048, shadows = true, envRes
   );
 }
 
+const THIRDS = [1 / 3, 2 / 3];
+
 /** Takes over rendering while comparing: two passes split by a vertical line. */
-function SplitRender({ split }: { split: number }) {
+function SplitRender({ split }: { split: number | number[] }) {
   const invalidate = useThree((s) => s.invalidate);
+  const key = String(split);
   useEffect(() => {
     invalidate();
-  }, [split, invalidate]);
+  }, [key, invalidate]);
   useFrame(({ gl, scene, camera, size }) => renderSplit(gl, scene, camera, size, split), 1);
   return null;
 }
@@ -239,6 +269,9 @@ export function Stage({
   room,
   ambient = 1,
   compareFabric = null,
+  compareFabric2 = null,
+  fixtures,
+  decor,
   split = 0.5,
   closeUp = false,
   showDimensions = false,
@@ -405,6 +438,7 @@ export function Stage({
               fabric={fabric}
               zoneFabrics={zoneFabricsOf(p, fabrics)}
               compareFabric={selected ? compareFabric : compareFabric ? fabric : null}
+              compareFabric2={selected ? compareFabric2 : null}
               textureSize={textureSize}
               selected={selected}
               overlapping={overlapIds.has(p.id)}
@@ -422,12 +456,13 @@ export function Stage({
             />
           );
         })}
-        {compareFabric && <SplitRender split={split} />}
-        {onApi && <SnapshotBridge onApi={onApi} split={compareFabric ? split : null} />}
+        {compareFabric && <SplitRender split={compareFabric2 ? THIRDS : split} />}
+        {onApi && <SnapshotBridge onApi={onApi} split={compareFabric ? (compareFabric2 ? THIRDS : split) : null} />}
         {visible && plan && (
           <PlanView room={room} pieces={footprints} selected={footprints[selectedIndex] ?? null} others={obstacles} tallest={tallest} controlsEnabled={!dragging} />
         )}
         {visible && inRoom && <Room spec={room} backZ={0} onBuilt={onRoomBuilt} />}
+        {visible && inRoom && (fixtures?.length || decor?.length) ? <PlanObjects room={room} fixtures={fixtures ?? []} decor={decor ?? []} plan={plan} /> : null}
         <ShadowMapRefresh version={`${encodeLayout(items)}:${fabricKey}:${compareFabric?.code}:${encodeRoom(room)}:${Object.keys(prepared).length}`} />
         <OrbitControls
           makeDefault

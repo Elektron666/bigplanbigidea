@@ -19,6 +19,10 @@ import { ShowroomLock } from "@/components/kiosk/ShowroomLock";
 import { SyncAgent } from "@/components/kiosk/SyncAgent";
 import { accentStyle } from "@/lib/firm";
 import { getFabricExtras, linksByCode, stockByCode } from "@/lib/kumas/store";
+import { priceTableFor } from "@/lib/satici/ekran";
+import { getSets } from "@/lib/takim/store";
+import { screenSet } from "@/lib/takim/takim";
+import { clearanceOf } from "@/lib/oda/plan";
 
 // The showroom screen (Showroom package, job 1): one address for every
 // shop's screen. Which shop it shows is decided by the screen's own secret,
@@ -73,12 +77,17 @@ export default async function ShowroomPage({ searchParams }: PageProps<"/showroo
   // stock goes to the screen only when the shop shows it (job 8); otherwise not at all
   const extras = on("stok") ? getFabricExtras() : null;
   const [stock, alternatives] = extras ? await Promise.all([extras.listStock().then((s) => stockByCode(s, cat.fabrics)), extras.listLinks("muadil").then((l) => linksByCode(l, cat.fabrics))]) : [undefined, undefined];
+  // prices are in the page only when the shop shows them to customers; otherwise only the PIN gets them (job 7)
+  // sofa sets and the "uyumlu" fabrics for Kombin (job 6)
+  const sofaSets = on("takim") ? (await getSets().forFirm(cat.firm.id)).flatMap((s) => screenSet(s, models) ?? []) : undefined;
+  const matches = on("takim") ? linksByCode(await getFabricExtras().listLinks("uyumlu"), cat.fabrics) : undefined;
+  const prices = on("musteri-fiyat") ? await priceTableFor(cat.firm.id, models) : undefined;
   const warm = { "1k": warmUrls({ ...cat, moduleSets }, "1k"), "2k": warmUrls({ ...cat, moduleSets }, "2k") };
   return (
     <main data-showroom>
       <h1 className="sr-only">{cat.firm.name}: kumaşınızı koltuğun üstünde görün</h1>
       <KioskShell idleSeconds={showroomIdleSeconds(shop.settings)} firm={cat.firm} showroom>
-        <Configurator models={models} fabrics={cat.fabrics} firm={cat.firm} {...initialStateFrom(sp, models, cat.fabrics)} kiosk profileChoice={who.device.quality} waste={waste} showroom={on("siparis")} moduleSets={moduleSets} kartela={on("kartela")} tryOn={tryOn} assistant={on("asistan")} filters={on("filtre")} stock={stock} alternatives={alternatives} />
+        <Configurator models={models} fabrics={cat.fabrics} firm={cat.firm} {...initialStateFrom(sp, models, cat.fabrics)} kiosk profileChoice={who.device.quality} waste={waste} showroom={on("siparis")} moduleSets={moduleSets} kartela={on("kartela")} tryOn={tryOn} assistant={on("asistan")} filters={on("filtre")} stock={stock} alternatives={alternatives} seller={on("satici")} prices={prices} sets={sofaSets} matches={matches} clearanceCm={clearanceOf(shop.settings)} />
         <SyncAgent contentVersion={shop.contentVersion} appVersion={version} />
       </KioskShell>
       <ShowroomLock contentVersion={shop.contentVersion} appVersion={version} />

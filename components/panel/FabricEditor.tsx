@@ -5,7 +5,7 @@ import { PROPERTY_KEYS, PROPERTY_LABELS } from "@/lib/kumas/ozellik";
 import { useRouter } from "next/navigation";
 import type { ColorFamily, Fabric, FabricType, FurnitureModel } from "@/lib/types";
 import { COLOR_FAMILIES, FABRIC_TYPES } from "@/lib/types";
-import { COLOR_FAMILY_LABELS, COLOR_FAMILY_SWATCH, FABRIC_TYPE_LABELS } from "@/lib/i18n/tr";
+import { COLOR_FAMILY_LABELS, COLOR_FAMILY_SWATCH, FABRIC_TYPE_LABELS, codeUpper } from "@/lib/i18n/tr";
 import { SEAM_LIMIT, suggestColorFamily } from "@/lib/fabric/process";
 import { processFabricPhoto, revoke, type ProcessedFabric } from "@/lib/fabric/process-browser";
 import { normaliseCode, parseNumber, validateFabricFields, type FabricFieldErrors, type FabricFields } from "@/lib/panel/fabric-form";
@@ -34,6 +34,8 @@ interface Draft {
   stainResistant: YesNo;
   petResistant: YesNo;
   easyClean: YesNo;
+  priceGroup: string;
+  brand: string;
   description: string;
   repeatW: string;
   repeatH: string;
@@ -64,6 +66,8 @@ function draftFrom(f?: Fabric | null): Draft {
     stainResistant: yesNoOf(f?.stainResistant),
     petResistant: yesNoOf(f?.petResistant),
     easyClean: yesNoOf(f?.easyClean),
+    priceGroup: f?.priceGroup ?? "",
+    brand: f?.brand ?? "ORMEN",
     description: f?.description ?? "",
     repeatW: f?.texture.repeatCm.w.toString() ?? "10",
     repeatH: f?.texture.repeatCm.h.toString() ?? "",
@@ -90,6 +94,8 @@ function fieldsFrom(d: Draft): FabricFields {
     stainResistant: boolOf(d.stainResistant),
     petResistant: boolOf(d.petResistant),
     easyClean: boolOf(d.easyClean),
+    priceGroup: codeUpper(d.priceGroup.trim()) || undefined,
+    brand: d.brand.trim() || undefined,
     description: d.description.trim() || undefined,
     repeatW: parseNumber(d.repeatW) ?? 0,
     repeatH: parseNumber(d.repeatH) ?? 0,
@@ -474,6 +480,12 @@ export function FabricEditor({ fabric, models }: { fabric?: Fabric | null; model
                 </Field>
               ))}
             </fieldset>
+            <Field label="Marka" hint="Mağaza bazında hangi markaların görüneceği mağaza sayfasından seçilir.">
+              <input value={draft.brand} onChange={(e) => set("brand", e.target.value)} maxLength={40} className={inputClass} />
+            </Field>
+            <Field label="Fiyat grubu" error={errors.priceGroup} hint="Mağazalar fiyatı model ve gruba göre girer (ör. A, B, C). Boşsa modelin tek fiyatı geçer.">
+              <input value={draft.priceGroup} onChange={(e) => set("priceGroup", e.target.value)} maxLength={3} className={inputClass} placeholder="ör. B" />
+            </Field>
             <Field label="Kısa açıklama" className="col-span-2">
               <textarea value={draft.description} onChange={(e) => set("description", e.target.value)} className={`${inputClass} h-20 py-2`} maxLength={300} />
             </Field>

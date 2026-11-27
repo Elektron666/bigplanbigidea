@@ -14,6 +14,74 @@ Bu dosyada projede verilen kararlar, yapılan varsayımlar ve bilinen sınırlar
 - **Numune taleplerindeki ad ve telefon** ORMEN panelinde görünmeye devam eder (6 Ekim kararı değişmedi). Yeni kural yalnızca yeni verilere uygulanır: teklifteki müşteri adı ve "ilgilenen müşteriler".
 - Görev tanımının eski kararlarla çeliştiği yerler ve seçilen yol: `PLAN-SHOWROOM.md`, 3. bölüm.
 
+## İş 16: marka alanı ve web gömme (27 Kasım 2026)
+
+- **Marka:** Kumaşa "Marka" alanı (kumaş sayfasında, CSV'de `marka`). Var olan bütün kumaşlar **ORMEN**. Mağaza sayfasında **Markalar ve web sitesine gömme**: "Bütün markalar (yeni eklenenler dahil)" ya da tek tek markalar. Kapatılan markanın kumaşı o mağazanın hiçbir ekranında yok (showroom, mağaza sayfası, gömme, asistan, kartela, QR ile açılan bağlantı); kuralı katı: seri sınırı gibi "hiçbiri kalmazsa hepsi" diye geri dönmez.
+- **Marka kırılımı:** Sipariş talebine giden her kumaşın markası teklifle birlikte kaydediliyor; Siparişler sayfasında birden fazla marka varsa metre marka marka yazıyor. "Mağazaların aylık kullanımı" sayfasında teklif edilen kumaşların marka kırılımı.
+- **Marka sahibine ayrı giriş ya da faturalama yok** (görev tanımı).
+- **Web gömme:** `/gomme/<mağaza>`; mağaza sayfasında kopyalanacak hazır kod (iframe). Yalnızca mağazanın yazdığı alan adlarında açılır: `proxy.ts` her istekte mağazanın listesini okuyup `Content-Security-Policy: frame-ancestors` başlığını koyuyor; liste boşsa yalnızca kendi sitemizde açılır. Alan adı yazılırken adres verilse de yalnızca alan adı alınıyor; yıldızlı (her alt alan) kabul edilmiyor.
+- **Gömülü sürümde** kilit, vitrin döngüsü, satıcı modu, fiyat, stok, kartela kamerası yok; numune talebi, teklif (mağazada açıksa), asistan, filtreler açık. Telefonda yatay taşma yok.
+- **Mağaza sayfası (`/f/…`)** eskisi gibi her yere gömülebilir (eski karar); gömme için önerilen yol artık `/gomme/…`.
+- **Şema:** `20261127000200_marka_gomme.sql` (`fabrics.brand` varsayılan ORMEN; `firms.brands`, `firms.embed_domains`; yalnızca ekler).
+- **Test:** Birim: markasız kumaş ORMEN, marka süzgeci katı, alan adı temizleme, frame-ancestors. Uçtan uca: Delta markalı kumaş, yalnız ORMEN'li mağazanın sayfasında kodla istense de yok; gömme izinli sitede açılır (numune var, satıcı yok, Delta kumaşı yok), başka sitede açılmaz; telefon genişliğinde taşma yok.
+
+## İş 12: kumaş duvarı (27 Kasım 2026)
+
+- **Kumaş sekmesinde "Kumaş duvarı":** açık modelle en çok 30 kumaş ızgarada. Kaynak: kumaş listesinde filtre varsa filtredeki kumaşlar, yoksa seçili kumaşın serisi önce, sonra diğerleri.
+- **Kareler 3D'den:** her kare, sahnenin kendi kodu (aynı model, aynı malzeme ve doku ölçeği, aynı ışık) ile ekranın dışında küçük bir 3D alanda tek tek çiziliyor; bu yüzden karedeki kumaş ve ölçek 3D'dekiyle aynı. Çizildikçe ızgaraya giriyor, beklerken kumaşın ortalama rengi görünüyor; ekran donmuyor (kare başına bir iki çerçeve, araya dokunuşlar giriyor).
+- **Önbellek:** yapılan kareler ziyaret boyunca saklanıyor (model + kumaş); duvar yeniden açılınca hemen dolu. Ziyaret bitince (sayfa sıfırlanınca) gider.
+- **Dokunma:** bir kare seçilir, "3D'de aç" ile koltuğa giyer; ikinci kare seçilince ikisi karşılaştırmada açılır. Aynı kareye tekrar dokunmak seçimi kaldırır.
+- **Test:** Uçtan uca: duvar dolar (süre testte yazılıyor), dolarken kare seçilebiliyor, kareden 3D'ye, ikinci açılışta önbellekten hemen, iki kareyle karşılaştırma.
+- **Denenmedi:** "30 kare hafif profilde 10 sn" gerçek showroom cihazında ölçülmeli 🟡 (test makinesi yazılımla çiziyor, gerçek ekrandan çok yavaş).
+
+## İş 14: otomatik yerleşim önerisi (27 Kasım 2026)
+
+- **Oda sekmesinde "Yerleşim öner":** odadaki ürünlerle en çok üç yerleşim, küçük üstten çizimleriyle; birine dokununca oda o yerleşimi alır, sonra elle düzenlenir.
+- **Kurallar** (`lib/oda/oneri.ts`, ücretsiz, cihazda): en geniş parça her öneride **başka bir duvara** yaslanır (önerileri gözle ayıran bu). Duvar sırası: TV ünitesi varsa ona dönük, pencere varsa ona dönük, sonra kalan duvarlar. Diğer parçalar ana parçanın 1,6 m önündeki noktaya en yakın, ona dönük yere konur (10 cm ızgara, dört yön).
+- **Her öneride:** hiçbir şey üst üste değil; kapı önü (açılma payı) ve pencere önü (geçiş payı derinliğinde) boş; mobilyalar arası, mobilya ile kolon, radyatör, sehpa ve TV ünitesi arası en az geçiş payı (mağaza kaydındaki, yoksa 60 cm). Halı ve perde engel sayılmaz.
+- **Sığmayan ürün:** "Köşe Takımı bu odada kapıları ve geçişi kapatmadan hiçbir duvara sığmıyor. Daha küçük: Lara Üçlü (220 cm)." Daha küçük öneri yalnızca mağazanın kendi, aynı kategorideki daha dar modeli; kategorisi girilmemişse yalnızca sığmadığı söylenir. Sığmayan parça önerinin dışında kalır ve odada olduğu yerde durur.
+- **Test:** Birim: 4 × 5 m odada kapı ve pencereyle üç öneri, ana parça üç ayrı duvarda, 3 sn içinde; hiçbirinde çakışma, kapı ya da pencere önü kapanması, geçiş payı altı boşluk yok; sığmayanın düz dille söylenmesi. Uçtan uca: oda testinde üç öneri çıkar, birine dokununca uygulanır, kapı önü uyarısı çıkmaz.
+
+## İş 9: oda planı ve Salon Yerleşim Projesi (27 Kasım 2026)
+
+- **Oda:** Dikdörtgen ya da L (eskiden vardı). Ölçüler dokunarak; **Oda** sekmesinde yeni bölümler:
+  - **Kapı, pencere, kolon, radyatör:** "+ Kapı" vb. ile eklenir; duvar dört düğmeden seçilir, "Duvar başından" konum, genişlik ve (kolon, radyatörde) derinlik **− / +** ile 10 cm adımla ayarlanır; klavye gerekmez. Sabit duvarın dışına taşamaz. Başlangıç ölçüleri (kapı 90, pencere 150 cm…) yalnızca ayarın başladığı yer; ürün bilgisi değil.
+  - **Dekor:** halı, sehpa, TV ünitesi, perde. Genel şekiller, sade renklerde; ekranda "Genel şekillerdir; satılan ürün değildir", PDF'te "(şekil)" yazar.
+- **Ürünler** eskisi gibi gerçek ölçüleriyle; köşe kurucuda kurulan dizilim ve takım sahnesi dahil odaya girer, sürüklenir, döner, duvara yaslanır.
+- **Plan ⇄ 3D tek tuşla:** "Görünüm: 3B / Plan" düğmeleri artık showroom ekranında da var (eskiden kiosk'ta gizliydi). Planda sabitler ve dekor adı ve ölçüsüyle yazılı.
+- **Geçiş payı uyarısı** (`lib/oda/plan.ts`): en az biri mobilya olan iki şey (mobilya, sehpa, TV ünitesi, kolon, radyatör) arasındaki boşluk 0'dan büyük ve eşikten küçükse "X ile Y arası 45 cm; geçiş için en az 60 cm önerilir." Halı ve perde engel sayılmaz. Kapının önü: kapı genişliğinde ve kapının açılma payı kadar (kapı genişliği, en az eşik) derin alan; içine giren her şey için "Kapının önü kapalı: …". Eşik **mağaza kaydında "Geçiş payı (cm)"**, boşsa görev tanımındaki 60 cm. Üst üste binme eski uyarısıyla kalıyor, burada tekrar edilmiyor.
+- **Salon Yerleşim Projesi (PDF):** Oda sekmesinin altında. En çok iki sayfa, ekranda üretilir (internetsiz de). 1. sayfa: mağazanın logosu (yoksa adı), ölçülü üstten plan (oda ölçüleri, sabitler, dekor kesik çizgiyle, her ürün adı ve ölçüsüyle, 1 m ölçek çubuğu), iki 3D görüntü (ekrandaki açı ve 40° yandan). 2. sayfa: ürün ve kumaş listesi, kumaş bazında metraj (fire girilmemişse yazar), ekran mağazanın fiyatlarını biliyorsa (satıcı modu ya da müşteriye açık fiyat) parça parça fiyat ve toplam, geçiş uyarıları, renk notu. Bu iş için yazılan hiçbir metinde görev tanımının yasakladığı kelime yok.
+- **Bağlantı:** Sabitler ve dekor adreste (`sb=`); paylaşılan ya da QR'la alınan bağlantı odayı aynen açar. Odaya sığmayan sabit açılışta düşer.
+- **Tam çizim programı değil:** serbest duvar, kat planı, çok oda yok (görev tanımı).
+- **Test:** Birim: sabitin duvardaki yeri, kapı önü alanı, boşluk ölçümü, geçiş ve kapı uyarıları, eşik, bağlantıya yazıp okuma. Uçtan uca: 4 × 5 m oda, pencere, kapı ve köşe takımı yalnızca dokunarak (süre testte yazılıyor, 5 dk sınırı), kapı koltuğun arkasındayken uyarı, kapı yana alınınca uyarı kalkar, sehpa yakınken geçiş uyarısı, plan ⇄ 3D, PDF en çok iki sayfa ve başlığı doğru.
+- **Denenmedi:** Gerçek showroom ekranında parmakla 5 dakika ölçümü; PDF'in yazıcıdan çıktısı.
+
+## İş 6: takım sahnesi ve kombin (27 Kasım 2026)
+
+- **Takım tanımı panelde, mağaza bazında** (Mağazalar → mağaza → **Takımlar**): takımın adı, parçaları (2–6 model; ilk seçilen ana parça) ve her parçanın ana parçaya göre yeri (cm) ve yönü (0/90/180/270°). **Yerleşimi öner** bir başlangıç verir: en geniş parça arkada, diğer kanepeler uçlarında ona dönük, berjer ve puflar önde ona dönük; aralar 20 cm. Her yer elle değiştirilebilir.
+- **Ekranda:** Kumaş sekmesinde "Takımı kur: …" düğmesi. Takım odaya bir seferde girer: ana parça tek parçanın gideceği yere, diğerleri ona göre; duvar dışına taşan duvara çekilir, başka parçanın üstüne düşen en yakın boş yere gider. Her parça ayrı bir parçadır: ayrı kumaş, ayrı bölge kumaşı, ayrı taşıma.
+- **Kombin:** Tek düğme, "Kombin: berjer ve puf farklı kumaş". Açıkken seçilen kumaş yalnızca **berjer ve puf** kategorisindeki parçalara gider. Önce ana parçanın kumaşına ORMEN'in girdiği **uyumlu kumaşlar** önerilir; liste boşsa öneri yapılmaz, "uyumlu kumaş girilmemiş" yazar ve kumaş listeden seçilir.
+- **Kırlent:** Modellerde kırlent ayrı bir bölge değil (bölgeler: gövde, kol, oturak, sırt, biye). Kırlent, model metrajında "ek parça" olarak duruyor ve parçanın ana kumaşıyla hesaplanıyor. Kırlente ayrı kumaş için modellerin kırlenti ayrı parça olarak çizilmesi gerekir; bu yapılmadı.
+- **Kategori:** Kombin, modelin kategorisine bakıyor. Model sayfasına "Kategori" seçimi eklendi (Danışman etiketlerinin üstünde). Örnek veride "Berjer" modeli berjer, "Modüler Kanepe" kanepe, "Köşe Takımı" köşe olarak işaretlendi. Kategorisi girilmemiş model kombine girmez.
+- **Metraj:** Takımın metrajı, teklifteki gibi bütün parçaların toplamı ve kumaş bazında ayrı. Fire ve yukarı yuvarlama kumaşın toplamına **bir kez** uygulanıyor (her parçaya ayrı yuvarlama metrajı şişirirdi). Teklif ve PDF'te satırlar parça parça, her satırda o parçanın kumaşı.
+- **Mağaza bazında:** "Takım sahnesi" (varsayılan açık).
+- **Şema:** `20261127000100_takim.sql` (`firm_sets`; yalnızca ekler, geri alma `supabase/geri-al/` altında). Takım değişince mağazanın ekranları güncelleme alır.
+- **Test:** Birim: takım doğrulama, yerleşim önerisi, dört parçalı takımın odada çakışmasız ve duvar içinde kurulması, ekranda olmayan parçanın düşmesi, takım metrajının parça metrajlarının toplamı olması (21 m ve 6 m; fireyle 23,5 m ve 7 m, elle hesabı testte). Uçtan uca: panelde takım ve uyumlu kumaş, ekranda tek dokunuşla kurulum, kombinde uyumlu kumaş yalnız berjere, teklifte parça parça doğru kumaş.
+- **Denenmedi:** "Dört parçalı takım hafif profilde akıcı döner" gerçek cihazda ölçülmeli 🟡.
+
+## İş 7: satıcı modu, fiyat grupları, teklif geçmişi, üç kumaş karşılaştırma (27 Kasım 2026)
+
+- **Fiyat grubu:** ORMEN her kumaşa bir fiyat grubu verir (A, B, C…; kumaş sayfasında ve CSV'de `fiyat_grubu`). Mağaza, panelindeki **Ürünler** sayfasında her model için bir satış fiyatı (bütün gruplar için) ve farklıysa grup grup fiyat girer. Girilmeyen grupta modelin tek fiyatı geçer; o da yoksa fiyat yoktur.
+- **Hesap kuralı** (`lib/satici/fiyat.ts`): parça fiyatı, kumaşının grubundaki fiyattır. Kolu ya da minderi başka kumaştan olan parça, kumaşlarından **en pahalı grubun** fiyatını alır. Kumaşlarından birinin fiyatı yoksa parçanın fiyatı yok sayılır (ucuz olanın fiyatı yazılmaz). Teklif toplamı yalnızca her parçanın fiyatı varsa çıkar; yoksa hangi parçanın fiyatı girilmemiş, o yazar. Satıcı toplamı teklifte yine elle değiştirebilir.
+- **Satıcı modu:** Showroom ekranında "Satıcı" düğmesi, mağaza PIN'i (ekran kilidindeki PIN'in aynısı; mağaza başına tek PIN). PIN doğruysa ekran sunucudan fiyatları, stok ve termini, son 30 günün tekliflerini alır. 1 dakika dokunulmazsa kendiliğinden kapanır; ziyaret bitince de kapanır. Hatalı PIN denemeleri ekran kilidiyle ortak sayılır.
+- **PIN'siz fiyat yok:** Fiyatlar sayfanın içinde hiç yok; yalnızca PIN'den sonra sunucudan gelir. Mağaza "Fiyat müşteriye de görünsün" özelliğini açarsa (varsayılan kapalı) fiyatlar showroom ekranında PIN'siz görünür. Mağazanın web sayfasında fiyat hiç gösterilmez. Grup fiyatları veritabanında yalnızca mağaza sahibine ve ORMEN yöneticisine açık; ORMEN elemanı göremez. Günlüğe yalnızca "fiyat değişti" yazar, fiyat yazmaz.
+- **Teklif geçmişi** (satıcı modunda): bugün ve son 30 gün. **Yeniden aç**: teklifin parçaları kumaşlarıyla ekrana gelir. **Kopyala**: aynısı ekrana gelir ve yeni teklif penceresi açılır. Müşteri adı geçmişte gösterilmez.
+- **Karşılaştırma üç kumaşa çıktı:** "Üçüncü kumaş ekle" ile ekran üçe bölünür. Tek kamera ile üç geçişte çizildiği için döndürme ve yakınlaştırma üç bölümde de aynı anda olur; ayrı kamera yok, senkron hatası olamaz. İki kumaşta eski sürüklenebilir çizgi duruyor. Müşteri modunda da çalışır.
+- **Mağaza bazında:** "Satıcı modu" (varsayılan açık), "Fiyat müşteriye de görünsün" (varsayılan kapalı).
+- **Şema:** `20261127000000_satici_modu.sql` (yalnızca ekler: `fabrics.price_group`, `firm_group_prices`, `shop_set_group_price()`); geri alma `supabase/geri-al/` altında.
+- **Test:** Birim: fiyat okuma, grup/model fiyatı, iki kumaşlı parça, elle toplam, fiyatı eksik parça. Veritabanı: sahip yalnız kendi mağazasına, fonksiyon üzerinden; başka mağazaya yazamaz; herkese açık anahtar ve ORMEN elemanı göremez; günlükte fiyat yok. Uçtan uca: sayfa HTML'inde fiyat yok, yanlış PIN boş döner, PIN ile B grubu fiyatı ve grupsuz kumaşta model fiyatı, teklif toplamı 52.000 TL (elle: 1 köşe takımı × B grubu), geçmişten teklif ekrana açılır, satıcı modu kapanınca fiyat gider, üç kumaş karşılaştırmada sahnede üç kumaş.
+- **Denenmedi:** 1 dakikalık kendiliğinden kapanma uçtan uca testte beklenmedi (test bir dakika boşta bekletilmedi); mantık basit bir sayaç.
+
 ## İş 11: aylık kullanım raporu (24 Kasım 2026)
 
 - **Mağaza panelinde "Rapor":** ay ay (son 12 ay, 2026'dan önce değil). Showroom oturumu sayısı, ortalama ve toplam süre, web sayfası ziyareti, kumaş denemesi, teklif, sipariş talebi, kartela okutma, fotoğraftan dene (istek, görsel, başarısız; içinde bulunulan ayda kalan kota), asistan sorusu; en çok denenen 5 kumaş ve en çok bakılan 5 model. **PDF indir:** aynı sayılar tek A4 sayfa.

@@ -1,13 +1,15 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { setModelTagsAction } from "@/app/panel/merkez-actions";
+import { setModelCategoryAction, setModelTagsAction } from "@/app/panel/merkez-actions";
+import { PRODUCT_CATEGORIES, PRODUCT_CATEGORY_LABELS } from "@/lib/catalogue/products";
 import { STYLE_LABELS, STYLE_TAGS, USE_LABELS, USE_TAGS } from "@/lib/asistan/etiketler";
 
 // The advisor's tags of a model (job 10): its style and what it suits. The
 // advisor only says what is ticked here; a model without tags is still
 // offered, without tag points.
-export function ModelTags({ modelId, styleTags, useTags }: { modelId: string; styleTags: string[]; useTags: string[] }) {
+export function ModelTags({ modelId, styleTags, useTags, category = "" }: { modelId: string; styleTags: string[]; useTags: string[]; category?: string }) {
+  const [cat, setCat] = useState(category);
   const [style, setStyle] = useState(styleTags);
   const [use, setUse] = useState(useTags);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
@@ -25,6 +27,29 @@ export function ModelTags({ modelId, styleTags, useTags }: { modelId: string; st
         Danışman etiketleri
       </h2>
       <p className="mt-1 text-[14px] text-antrasit-70">Koltuk danışmanı öneri yaparken bunlara bakar ve gerekçede yalnızca işaretli olanları söyler.</p>
+      <label className="mt-3 flex max-w-xs flex-col gap-1.5 text-[13px] text-antrasit-70">
+        Kategori (takım sahnesinde kombin berjer ve pufa gider)
+        <select
+          value={cat}
+          disabled={pending}
+          className="h-11 rounded-lg border border-cizgi bg-white px-3 text-[15px] text-antrasit"
+          onChange={(e) => {
+            const v = e.target.value;
+            setCat(v);
+            start(async () => {
+              const r = await setModelCategoryAction(modelId, v);
+              setMessage(r.ok ? { ok: true, text: "Kategori kaydedildi." } : { ok: false, text: r.error });
+            });
+          }}
+        >
+          <option value="">Girilmedi</option>
+          {PRODUCT_CATEGORIES.map((c) => (
+            <option key={c} value={c}>
+              {PRODUCT_CATEGORY_LABELS[c]}
+            </option>
+          ))}
+        </select>
+      </label>
       <div role="group" aria-label="Tarz" className="mt-3 flex flex-wrap gap-2">
         <span className="w-full text-[13px] text-antrasit-70">Tarz</span>
         {STYLE_TAGS.map((t) => (

@@ -8,7 +8,7 @@ import type { Fabric, FurnitureModel, TextureSize } from "@/lib/types";
 import type { Zone } from "@/lib/three/zones";
 import type { Placement } from "@/lib/room/layout";
 import type { PreparedModel } from "@/lib/three/prepare-model";
-import { LAYER_COMPARE, LAYER_PRIMARY } from "@/lib/three/constants";
+import { LAYER_COMPARE, LAYER_COMPARE2, LAYER_PRIMARY } from "@/lib/three/constants";
 import { FurnitureObject } from "./FurnitureObject";
 import { GroundShadow } from "./GroundShadow";
 import { Dimensions } from "./Dimensions";
@@ -115,6 +115,7 @@ export interface PlacedFurnitureProps {
   fabric: Fabric;
   zoneFabrics?: Partial<Record<Zone, Fabric>>;
   compareFabric: Fabric | null;
+  compareFabric2?: Fabric | null;
   textureSize: TextureSize;
   selected: boolean;
   overlapping: boolean;
@@ -214,6 +215,11 @@ export function PlacedFurniture(props: PlacedFurnitureProps) {
       {selected && compareFabric && (
         <Suspense fallback={null}>
           <FurnitureObject model={model} fabric={compareFabric} legFinish={p.ayak} turned={p.yon === "donuk"} textureSize={textureSize} layer={LAYER_COMPARE} onError={props.onError} />
+        </Suspense>
+      )}
+      {selected && props.compareFabric2 && (
+        <Suspense fallback={null}>
+          <FurnitureObject model={model} fabric={props.compareFabric2} legFinish={p.ayak} turned={p.yon === "donuk"} textureSize={textureSize} layer={LAYER_COMPARE2} onError={props.onError} />
         </Suspense>
       )}
       {prepared && shown && (

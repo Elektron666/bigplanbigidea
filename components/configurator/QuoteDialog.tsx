@@ -1,5 +1,6 @@
 "use client";
 
+import { formatTl, priceQuote, tl, type PriceTable } from "@/lib/satici/fiyat";
 import { useEffect, useMemo, useState } from "react";
 import QRCode from "qrcode";
 import type { Fabric, Firm, FurnitureModel } from "@/lib/types";
@@ -22,7 +23,7 @@ import { Dialog } from "@/components/ui/Dialog";
 type Created = { number: string; token: string; clientId: string; body: Record<string, unknown>; queued: boolean };
 
 /** The scene's PNG on white, as a JPEG small enough for a PDF. */
-async function snapshotJpeg(dataUrl: string | null): Promise<{ bytes: Uint8Array; type: "jpg" } | null> {
+export async function snapshotJpeg(dataUrl: string | null): Promise<{ bytes: Uint8Array; type: "jpg" } | null> {
   if (!dataUrl) return null;
   try {
     const img = new Image();
@@ -67,6 +68,7 @@ export function QuoteDialog({
   kiosk,
   showroom,
   snapshot,
+  prices,
 }: {
   open: boolean;
   onClose: () => void;
@@ -79,6 +81,8 @@ export function QuoteDialog({
   /** A paired shop screen: the order request to ORMEN is offered. */
   showroom: boolean;
   snapshot: () => string | null;
+  /** The shop's prices (seller mode, or the shop shows them to customers): the price is worked out per piece. */
+  prices?: PriceTable;
 }) {
   const online = useOnline();
   const pieces = useMemo(
@@ -93,7 +97,12 @@ export function QuoteDialog({
   const result = useMemo(() => quoteMetres(pieces.map((x) => x.input), waste), [pieces, waste]);
   const [customer, setCustomer] = useState("");
   const [note, setNote] = useState("");
-  const [price, setPrice] = useState("");
+  // the price from the shop's own figures; the seller may still change it
+  const priced = useMemo(
+    () => (prices ? priceQuote(pieces.map(({ p, input }) => ({ modelSlug: p.modelSlug, modelName: input.model.name, fabricCode: p.fabricCode, zones: p.zones })), prices, (c) => fabrics.get(c)?.priceGroup) : null),
+    [prices, pieces, fabrics],
+  );
+  const [price, setPrice] = useState(() => (priced?.total != null ? tl.format(priced.total) : ""));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [created, setCreated] = useState<Created | null>(null);
@@ -258,6 +267,24 @@ export function QuoteDialog({
                 <input value={price} onChange={(e) => setPrice(e.target.value.replace(/[^\d.,]/g, ""))} inputMode="decimal" autoComplete="off" className={field} />
               </label>
             </div>
+            {priced && (
+              <div className="rounded-2xl border border-cizgi bg-white px-4 py-3 text-[15px]" data-testid="teklif-fiyat">
+                <ul>
+                  {priced.lines.map((l, i) => (
+                    <li key={i} className="flex justify-between gap-4">
+                      <span>
+                        {l.modelName}
+                        {l.group ? ` · ${l.group} grubu` : ""}
+                      </span>
+                      <span className="tabular-nums">{l.price === null ? "fiyat girilmemiş" : formatTl(l.price)}</span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-1 border-t border-cizgi pt-1 font-medium">
+                  {priced.total === null ? `Toplam yok: ${priced.missing.join(", ")} için mağaza fiyatı girilmemiş.` : `Toplam: ${formatTl(priced.total)}`}
+                </p>
+              </div>
+            )}
             {error && (
               <p role="alert" className="text-[15px] text-[#9a3b31]">
                 {error}

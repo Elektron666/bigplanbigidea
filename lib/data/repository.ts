@@ -4,7 +4,7 @@ import type { Report, StoredEvent, UsageEvent } from "@/lib/events";
 import type { CutReport } from "@/lib/cut-report";
 import type { Feedback, FeedbackInput } from "@/lib/feedback";
 import { applyShopProducts, type ShopProduct } from "@/lib/catalogue/shop-products";
-import type { ProductQuery, ProductRow } from "@/lib/catalogue/products";
+import type { ProductCategory, ProductQuery, ProductRow } from "@/lib/catalogue/products";
 import type { Usage } from "@/lib/rapor/kullanim";
 
 export type FabricInput = Omit<Fabric, "id"> & { id?: string; derivedMaps?: boolean };
@@ -45,6 +45,10 @@ export interface Repository {
   setFirmFeatures(firmId: string, features: Record<string, boolean>): Promise<void>;
   /** The advisor's tags of a model (lib/asistan/etiketler.ts); false for an unknown model. */
   setModelTags(modelId: string, styleTags: string[], useTags: string[]): Promise<boolean>;
+  /** A shop's brands (null = all) and the sites its web embed may open on (job 16). */
+  setFirmBrandsEmbed(firmId: string, brands: string[] | null, embedDomains: string[]): Promise<void>;
+  /** A model's category (berjer, puf… — the set scene's Kombin reads it, job 6); false for an unknown model. */
+  setModelCategory(modelId: string, category: ProductCategory | null): Promise<boolean>;
   /** ORMEN showcase models the firm chose to show (ids, in order). */
   getFirmShowcaseIds(firmId: string): Promise<string[]>;
   /**

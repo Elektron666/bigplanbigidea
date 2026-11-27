@@ -17,7 +17,7 @@ export default async function EditModelPage({ params }: PageProps<"/panel/modell
   return (
     <>
       <PageHeader title={model.name} eyebrow="Modeli düzenle" />
-      <ModelTags key={`etiket-${model.id}`} modelId={model.id} styleTags={model.styleTags ?? []} useTags={model.useTags ?? []} />
+      <ModelTags key={`etiket-${model.id}`} modelId={model.id} styleTags={model.styleTags ?? []} useTags={model.useTags ?? []} category={model.category ?? ""} />
       {/* the two built-in samples are code: only their advisor tags can be set */}
       {model.source.kind === "procedural" ? null : model.source.kind === "parametric" ? (
         <ParametricEditor key={model.id} model={model} fabrics={fabrics} />

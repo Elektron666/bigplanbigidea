@@ -76,6 +76,10 @@ export interface Fabric {
   stainResistant?: boolean;
   petResistant?: boolean;
   easyClean?: boolean;
+  /** The fabric's brand (job 16); missing = ORMEN. */
+  brand?: string;
+  /** ORMEN's price group (A, B, C…): a shop prices each model per group (job 7). */
+  priceGroup?: string;
   description?: string;
   isActive: boolean;
   isPlaceholder: boolean;
@@ -94,6 +98,10 @@ export interface Firm {
   fabricSeries?: string[];
   /** Ready-made scenes shown when the page opens (lib/firm-presets.ts). */
   presets?: { name: string; id: string }[];
+  /** The brands the shop shows (job 16); null or missing = every brand. */
+  brands?: string[] | null;
+  /** Sites where the shop's web embed may open (host names, job 16). */
+  embedDomains?: string[];
   /** Per-shop features (lib/central/features.ts); missing keys take their defaults. */
   features?: Record<string, boolean>;
   isActive: boolean;

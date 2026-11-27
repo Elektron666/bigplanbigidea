@@ -19,7 +19,7 @@ describe("undo from the change log", () => {
     expect(undoStep(entry({ action: "ozellik-kapandi", before: { teklif: true, uydurma: 1 } }))).toEqual({ kind: "ozellik", firmId: "firm-a", features: { teklif: true } });
     expect(undoStep(entry({ action: "fire-degisti", before: { duz: null, donuk: null, raporlu: 25, roundStep: 0.5 } }))).toEqual({ kind: "fire", waste: { duz: null, donuk: null, raporlu: 25, roundStep: 0.5 } });
     expect(undoStep(entry({ action: "kalite-degisti", entityId: "d1", before: { quality: "oto" } }))).toEqual({ kind: "kalite", deviceId: "d1", quality: "oto" });
-    const record = { city: "Ankara", region: null, package: null, tags: [], contact: null, installedOn: null, updateMode: "otomatik", vitrinSn: null, aiQuota: null };
+    const record = { city: "Ankara", region: null, package: null, tags: [], contact: null, installedOn: null, updateMode: "otomatik", vitrinSn: null, aiQuota: null, gecisCm: null };
     expect(undoStep(entry({ action: "kayit-degisti", before: record }))).toEqual({ kind: "kayit", firmId: "firm-a", record });
     expect(undoStep(entry({ action: "sablon-uygulandi", before: { record, features: { kose: false }, fabricSeries: ["MISSO"] } }))).toEqual({ kind: "sablon", firmId: "firm-a", record, features: { kose: false }, fabricSeries: ["MISSO"] });
     expect(undoStep(entry({ action: "odendi", entityId: "s1", before: { paidOn: null } }))).toEqual({ kind: "odeme", subscriptionId: "s1", paidOn: null });

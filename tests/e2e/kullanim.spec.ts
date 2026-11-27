@@ -33,7 +33,8 @@ test.describe("aylık kullanım raporu", () => {
   test("rapor olay kaydıyla birebir; başka mağaza sayılmaz; boş ay; PDF; özet bildirimi; ORMEN yan yana", async ({ page, playwright, baseURL }) => {
     test.setTimeout(180_000);
     await shopLogin(page);
-    await page.goto("/magaza/rapor");
+    // the running month (opening last month's report would mark its summary as seen before the test looks)
+    await page.goto(`/magaza/rapor?ay=${new Date().toLocaleDateString("en-CA", { timeZone: "Europe/Istanbul" }).slice(0, 7)}`);
     const months = page.getByRole("navigation", { name: "Ay" }).getByRole("link");
     await months.first().click();
     await expect(months.first()).toHaveAttribute("aria-current", "page");
