@@ -719,12 +719,14 @@ export function Configurator({
 
         <header className="kiosk-zoom pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-4 p-4 pt-[max(1rem,env(safe-area-inset-top))] md:p-7">
           <div
-            className={`pointer-events-auto rounded-xl transition-colors duration-300 ${room.shape !== "yok" ? "-m-2.5 bg-kagit/85 p-2.5 backdrop-blur-[2px]" : ""}`}
+            className={`pointer-events-auto shrink-0 rounded-xl transition-colors duration-300 ${room.shape !== "yok" ? "-m-2.5 bg-kagit/85 p-2.5 backdrop-blur-[2px]" : ""}`}
           >
             <BrandMark firm={firm} />
           </div>
           {ready && (
-            <div className="pointer-events-auto flex items-center gap-2">
+            <div className="pointer-events-auto flex min-w-0 items-center gap-2">
+              {/* on a narrow screen the tools slide sideways; "Numune iste" always stays in view */}
+              <div className="-my-1 flex min-w-0 items-center gap-2 overflow-x-auto py-1 [scrollbar-width:none]" data-testid="ust-araclar">
               <button
                 type="button"
                 onClick={() => setArOpen(true)}
@@ -814,13 +816,14 @@ export function Configurator({
                   Metraj ve teklif
                 </button>
               )}
+              </div>
               <button
                 type="button"
                 onClick={() => setSampleOpen(true)}
                 // a showroom screen without internet cannot send a request; it says why instead of failing
                 disabled={kiosk && !online}
                 title={kiosk && !online ? "İnternet bağlantısı gelince açılır" : undefined}
-                className={`h-10 whitespace-nowrap rounded-full px-4 text-[13px] transition-[color,background-color,filter] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-antrasit disabled:opacity-50 ${
+                className={`h-10 shrink-0 whitespace-nowrap rounded-full px-4 text-[13px] transition-[color,background-color,filter] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-antrasit disabled:opacity-50 ${
                   firm ? "bg-accent text-accent-ink hover:brightness-110" : "bg-antrasit text-kagit hover:bg-ceviz"
                 }`}
               >

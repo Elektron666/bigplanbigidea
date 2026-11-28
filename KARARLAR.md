@@ -14,6 +14,12 @@ Bu dosyada projede verilen kararlar, yapılan varsayımlar ve bilinen sınırlar
 - **Numune taleplerindeki ad ve telefon** ORMEN panelinde görünmeye devam eder (6 Ekim kararı değişmedi). Yeni kural yalnızca yeni verilere uygulanır: teklifteki müşteri adı ve "ilgilenen müşteriler".
 - Görev tanımının eski kararlarla çeliştiği yerler ve seçilen yol: `PLAN-SHOWROOM.md`, 3. bölüm.
 
+## Telefonda üst araç çubuğu taştı; düzeltildi (28 Kasım 2026)
+
+- Telefon testleri (Pixel 7, 412 px) bütün işlerden sonra koşuldu: 17 test, 1'i kaldı. Asistan ve "Metraj ve teklif" düğmeleri eklenince üst sıra telefona sığmıyor, **"Numune iste" ekranın dışına itiliyordu** (İş 3 ve İş 10'dan beri; o zamandan beri telefon testleri koşulmamıştı).
+- Düzeltme: üst sıradaki araçlar dar ekranda yana kayıyor; "Numune iste" her zaman görünür, logo hiç daralmıyor. Masaüstünde değişen bir şey yok.
+- Telefon testleri ve masaüstünde üst sırayı kullanan testler (yapılandırıcı, erişilebilirlik, kiosk, satıcı) yeniden geçti. Kiosk sıfırlanma testi bir kez, makine çok yüklüyken 30 saniyelik vitrin süresi dolduğu için kaldı; tek başına koşulunca geçti.
+
 ## İş 13: telefona video ve müşteri kaydı; İş 15: müşterinin salonu (27 Kasım 2026)
 
 - **Telefona video:** Showroom ekranında "Telefona video". Ekran koltuğu 9 saniyede bir tur döndürüp kaydediyor (tarayıcının kendi kaydedicisi; hiçbir servis çağrılmıyor, ücretsiz); sol üstte mağazanın logosu (yoksa adı), altta ürün ve kumaş. Önce MP4 (her telefonda açılır), ekran yapamıyorsa WebM. 1280 × 720, 2,5 Mbit/sn: 9 sn ≈ 3 MB; sunucu 10 MB'ı aşanı almıyor. Video uzun, rastgele bir bağlantıyla (`/v/…`) saklanıyor; QR ve WhatsApp QR'ı ekranda. Aynı ziyarette teklif verildiyse bağlantıda "Teklifinizi açın" var. Mağaza bazında "Telefona video" (varsayılan açık).
