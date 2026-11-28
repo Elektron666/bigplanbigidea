@@ -2,7 +2,7 @@
 
 Yeni bir mağazaya ORMEN Atelier ekranını kurma adımları. Her adımın yanında yaklaşık süresi var. Hepsi tarayıcıdan ve ekranın kendisinden yapılır; kod bilgisi gerekmez.
 
-> **Durum (19 Kasım 2026):** Bu belge Showroom Paketi yazıldıkça büyüyor. Bugün çalışan adımlar aşağıda. Henüz yazılmamış olanlar en altta, "Sonra gelecek" başlığında listeli. Bir adımın ayrıntısı ve gerekçesi `KARARLAR.md`'de.
+> **Durum (28 Kasım 2026):** Showroom Paketi'nin 16 işi de yazıldı. Bir adımın ayrıntısı ve gerekçesi `KARARLAR.md`'de; her kabul ölçütünün testi `TEST-SHOWROOM.md`'de. ORMEN'in onayını ya da metnini bekleyenler en altta, "Bekleyenler" başlığında.
 
 ## Gerekenler
 
@@ -123,9 +123,39 @@ Kamera izni verilmezse ya da ekranın kamerası yoksa **Kartela okut** düğmesi
 
 **Mağazanın gördüğünü görmek (destek):** Mağazanın sayfası → **Mağaza gibi görüntüle**. Mağazanın paneli salt okunur açılır, müşteri adları gizlidir; 30 dakikada kapanır, açılış günlüğe yazılır. Bitince **Destek görünümünden çık**.
 
-## Sonra gelecek
+## Mağaza açılırken ayarlananlar (Dalga 2 ve 3)
 
-Bu adımlar ilgili iş yazıldığında buraya eklenecek:
+Hepsi mağazanın sayfasında, **Özellikler** bölümünde açılıp kapanır. Ücretsiz olanlar varsayılan açık; ücretli olacaklar ve satıcıya özel bilgiler varsayılan kapalı.
 
-- Fotoğraftan dene (İş 5) için gerçek sağlayıcının bağlanması (ORMEN'in seçimi ve onayı; PLAN-SHOWROOM.md'de karşılaştırma).
-- Dalga 2 ve 3'ün işleri (İş 6–16).
+**Kumaş bilgileri (ORMEN, bir kez; kumaş başına 2 dakika):** Panel → Kumaşlar → kumaş:
+- **Leke tutmaz / Evcil hayvana dayanıklı / Kolay temizlenir**: yalnızca teknik föyde ya da testte doğrulananı "Evet" yapın. "Girilmedi" bırakılan hiçbir yerde görünmez, müşteri filtrelerinde çıkmaz.
+- **Marka** (eskiler ORMEN) ve **Fiyat grubu** (A, B, C…). Mağazalar fiyatı model ve gruba göre girer.
+- Sayfanın altında **Muadil kumaşlar** (stokta yokken önerilir) ve **Uyumlu kumaşlar** (takımda kombin için önerilir): kodları sırayla yazın.
+- Hepsi toplu CSV'de de var: `leke_tutmaz`, `evcil_hayvan`, `kolay_temizlik` (evet / hayır / boş), `fiyat_grubu`, `marka`.
+
+**Stok (ORMEN, gerektikçe):** Panel → Kumaşlar → **Stok**: tablodan elle ya da **Dosya seç** ile CSV (`kod;stok;termin_gun`; stok = var, az, yok). Hatalı satırlar satır numarasıyla listelenir, doğrular tek seferde uygulanır. Stok müşteriye yalnızca mağazada **Stok ve termin** açıksa görünür; satıcı modunda her zaman görünür.
+
+**Satıcı modu ve fiyatlar:**
+- Satıcı modunu mağaza PIN'i açar (2. adımdaki PIN). Ekranda **Satıcı** → PIN → fiyat, stok, termin ve son 30 günün teklifleri. 1 dakika dokunulmazsa kapanır.
+- Fiyatları mağaza sahibi kendi panelinde girer: `…/magaza` → **Ürünler** → **Satış fiyatı** (bütün gruplar için) ve gerekiyorsa **B grubu** vb.
+- Fiyat müşteriye PIN'siz de görünsün isteniyorsa: **Fiyat müşteriye de görünsün** (yalnızca showroom ekranında; mağazanın web sayfasında hiçbir zaman).
+
+**Takımlar (İş 6):** Mağazanın sayfası → **Takımlar** → **Yeni takım**: ad, parçalar (ilk işaretlenen ana parça) → **Yerleşimi öner** → gerekirse yerleri düzeltin → **Takımı kaydet**. Kombinin berjer ve pufa gitmesi için modellerin **Kategori**'si girili olmalı (Modeller → model → Kategori).
+
+**Oda planı (İş 9) ve geçiş payı:** Mağaza kaydında **Geçiş payı (cm)**; boşsa 60 cm. Ekranda **Oda** sekmesi → oda şekli ve ölçüleri → **+ Kapı**, **+ Pencere**… → **Yerleşim öner** → **Salon Yerleşim Projesi (PDF)**.
+
+**Aylık kullanım raporu (İş 11):** Kurulacak bir şey yok. Her ayın başında mağaza panelinde "raporunuz hazır" çıkar. ORMEN: Panel → **Rapor** → **Mağazaların aylık kullanımı** (açmayan mağazaya WhatsApp hatırlatması; mağazanın WhatsApp numarası girili olmalı).
+
+**Telefona video ve ilgilenen müşteriler (İş 13):**
+- Video ücretsizdir, varsayılan açık (**Telefona video**).
+- Müşterinin adını ve telefonunu bırakabilmesi için mağaza sahibi kendi panelinde **Müşteriler** → **Saklama süresi** (7–730 gün) girer. Süre girilmeden form çıkmaz, bilgi toplanmaz.
+- **Önce aydınlatma metni gelmeli** (aşağıda "Bekleyenler").
+
+**Markalar ve web sitesine gömme (İş 16):** Mağazanın sayfası → **Markalar ve web sitesine gömme**: görünecek markalar; gömmenin açılacağı alan adları (ör. `www.magazaniz.com`) → **Kaydet**. Altta çıkan **Gömme kodu**nu mağazanın web sitesini yapana iletin. Liste boşsa gömme başka sitede açılmaz.
+
+## Bekleyenler
+
+- **Aydınlatma metni** (İş 13): `/aydinlatma/musteri` sayfası şimdi yer tutucu. Metin gelince sayfaya konacak; o güne kadar mağazalara **Saklama süresi** girdirmeyin.
+- **Yapay zekâ sağlayıcısı** (İş 5 Fotoğraftan dene, İş 15 Müşterinin salonunda): ücretli; ORMEN'in seçimi ve onayı gerekiyor (karşılaştırma PLAN-SHOWROOM.md'de). O güne kadar ikisi de hiçbir mağazada çıkmaz.
+- **Asistan için dil modeli**: ücretli; onay gerekiyor. Bugünkü asistan ücretsiz, cihazda çalışır.
+- **Veritabanı güncellemeleri**: `supabase/migrations/` içindeki 2026-11-24 ve 2026-11-27 tarihli dosyalar canlı Supabase'e henüz uygulanmadı. Hepsi yalnızca ekler; geri alma dosyaları `supabase/geri-al/` altında. Sıra dosya adlarının sırasıdır.
